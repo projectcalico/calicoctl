@@ -19,7 +19,6 @@ RUN apt-get update && \
     apt-get install -qy \
         calico-felix \
         calico-acl-manager \
-        curl \
         ipset \
         iptables \
         libffi-dev \
@@ -40,7 +39,5 @@ RUN curl -L https://github.com/kelseyhightower/confd/releases/download/v0.7.1/co
 # Plugin
 RUN pip install python-etcd
 
-# Copy in files that belong in the home directory.
-COPY home_overlay ./
-# And those that belong relative to root.  E.g. /etc/service/...
+# Overlay our custom configuration files etc.
 COPY root_overlay /

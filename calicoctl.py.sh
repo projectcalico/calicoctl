@@ -145,3 +145,5 @@ _calicoctlpy_addgroup()
 
 complete -F _calicoctlpy calicoctl.py
 complete -F _calicoctlpy calicoctl
+
+complete -F _calicoctlpy calicoctl

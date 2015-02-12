@@ -19,7 +19,6 @@ RUN apt-get update && \
     apt-get install -qy \
         calico-felix \
         calico-acl-manager \
-        curl \
         ipset \
         iptables \
         libffi-dev \
@@ -55,9 +54,7 @@ RUN curl -L https://github.com/ClusterHQ/powerstrip/archive/v0.0.1.tar.gz \
     sed -i s/2375/2377/ powerstrip.tac && \
     python setup.py install
 
-# Copy in files that belong in the home directory.
-COPY home_overlay ./
-# And those that belong relative to root.  E.g. /etc/service/...
+# Copy in our custom configuration files etc.
 COPY root_overlay /
 
 # Install Powerstrip Calico Adapter dependencies.

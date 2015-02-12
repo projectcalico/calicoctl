@@ -1,22 +1,34 @@
 #!venv/bin/python
-"""Calico..
+"""calicoctl
 
 Usage:
-  calicoctl master --ip=<IP> [--etcd=<ETCD_AUTHORITY>] [--master-image=<DOCKER_IMAGE_NAME>]
-  calicoctl node --ip=<IP> [--etcd=<ETCD_AUTHORITY>] [--node-image=<DOCKER_IMAGE_NAME>]
+  calicoctl master --ip=<IP>
+                   [--etcd=<ETCD_AUTHORITY>]
+                   [--master-image=<DOCKER_IMAGE_NAME>]
+  calicoctl node --ip=<IP>
+                 [--etcd=<ETCD_AUTHORITY>]
+                 [--node-image=<DOCKER_IMAGE_NAME>]
   calicoctl status
   calicoctl reset
   calicoctl version
   calicoctl addgroup <GROUP>  [--etcd=<ETCD_AUTHORITY>]
-  calicoctl addtogroup <CONTAINER_ID> <GROUP>  [--etcd=<ETCD_AUTHORITY>]
+  calicoctl addtogroup <CONTAINER_ID> <GROUP>
+                       [--etcd=<ETCD_AUTHORITY>]
   calicoctl diags
   calicoctl showgroups [--etcd=<ETCD_AUTHORITY>]
   calicoctl removegroup <GROUP> [--etcd=<ETCD_AUTHORITY>]
 
 
 Options:
- --ip=<IP>                  The local management address to use.
- --etcd=<ETCD_AUTHORITY>    The location of the etcd service as host:port [default: 127.0.0.1:4001]
+ --ip=<IP>                The local management address to use.
+ --etcd=<ETCD_AUTHORITY>  The location of the etcd service as
+                          host:port [default: 127.0.0.1:4001]
+ --master-image=<DOCKER_IMAGE_NAME>  Docker image to use for
+                          Calico's master container
+                          [default: calico/master:v0.0.6]
+ --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for
+                          Calico's per-node container
+                          [default: calico/node:v0.0.6]
 
 """
 #Useful docker aliases
@@ -55,10 +67,6 @@ CONTAINER_PATH = "/calico/host/%(hostname)s/workload/docker/%(container_id)s/"
 ENDPOINTS_PATH = "/calico/host/%(hostname)s/workload/docker/%(container_id)s/endpoint/"
 
 POWERSTRIP_PORT = 2377
-
-DEFAULT_CALICO_NODE_IMAGE = "calico/node:v0.0.6"
-DEFAULT_CALICO_MASTER_IMAGE = "calico/master:v0.0.6"
-
 
 class Rule(namedtuple("Rule", ["group", "cidr", "protocol", "port"])):
     """
@@ -287,8 +295,7 @@ def process_output(line):
     sys.stdout.write(line)
 
 
-def node(ip, etcd_authority, node_image=None):
-    node_image = node_image or DEFAULT_CALICO_NODE_IMAGE
+def node(ip, etcd_authority, node_image):
     create_dirs()
     modprobe("ip6_tables")
     modprobe("xt_set")
@@ -330,8 +337,7 @@ def node(ip, etcd_authority, node_image=None):
         print "before using `docker run` for Calico networking.\n"
 
 
-def master(ip, etcd_authority, master_image=None):
-    master_image = master_image or DEFAULT_CALICO_MASTER_IMAGE
+def master(ip, etcd_authority, master_image):
     create_dirs()
 
     # Add IP to etcd
@@ -515,10 +521,10 @@ if __name__ == '__main__':
         print "calicoctl must be run as root"
     elif validate_arguments(arguments):
         if arguments["master"]:
-            master_image = arguments.get('--master-image')
+            master_image = arguments['--master-image']
             master(arguments["--ip"], arguments["--etcd"], master_image=master_image)
         if arguments["node"]:
-            node_image = arguments.get('--node-image')
+            node_image = arguments['--node-image']
             node(arguments["--ip"], arguments["--etcd"], node_image=node_image)
         if arguments["status"]:
             status(arguments["--etcd"])
