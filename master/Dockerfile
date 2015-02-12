@@ -13,8 +13,8 @@ RUN curl -L http://binaries.projectcalico.org/repo/key | apt-key add - && \
     echo "Pin: origin binaries.projectcalico.org" >> /etc/apt/preferences && \
     echo "Pin-Priority: 1001" >> /etc/apt/preferences
 
-# Do all the APT operations in one RUN call to ensure they're 
-# consistent and minimize cruft build up in our layers.
+# Install dependencies shared with the normal node.  If we can keep this
+# in sync then we'll share an FS layer with the master to speed downloads.
 RUN apt-get update && \
     apt-get install -qy \
         calico-felix \
@@ -24,6 +24,7 @@ RUN apt-get update && \
         iptables \
         libffi-dev \
         libssl-dev \
+        libyaml-dev \
         python-dev \
         python-docopt \
         python-pip \
@@ -40,8 +41,6 @@ RUN curl -L https://github.com/kelseyhightower/confd/releases/download/v0.7.1/co
 RUN pip install python-etcd
 
 # Copy in files that belong in the home directory.
-COPY home_overlay/* ./
+COPY home_overlay ./
 # And those that belong relative to root.  E.g. /etc/service/...
-COPY root_overlay/* /
-
-
+COPY root_overlay /
