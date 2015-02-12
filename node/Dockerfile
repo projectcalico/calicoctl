@@ -53,9 +53,7 @@ RUN curl -L https://github.com/ClusterHQ/powerstrip/archive/v0.0.1.tar.gz \
     mv powerstrip-0.0.1 powerstrip && \
     cd powerstrip && \
     sed -i s/2375/2377/ powerstrip.tac && \
-    python setup.py install && \
-    cd .. && \
-    rm -rf powerstrip
+    python setup.py install
 
 # Copy in files that belong in the home directory.
 COPY home_overlay ./
