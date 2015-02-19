@@ -4,6 +4,9 @@ FROM phusion/baseimage:0.9.16
 # Use baseimage-docker's init system.
 CMD ["/sbin/my_init"]
 
+# We need this directory for confd's output.
+RUN mkdir -p /config
+
 # Install Calico APT repo.  Note, we delay the apt-get update until 
 # below so that the update is done in the same FS layer as the 
 # install, making it unlikely to be out of sync.
