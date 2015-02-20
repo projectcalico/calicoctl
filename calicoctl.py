@@ -39,6 +39,7 @@ from subprocess import call, check_output, CalledProcessError
 import sys
 import uuid
 import StringIO
+from sh import ErrorReturnCode
 
 from datastore import DatastoreClient, ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT
 import netaddr
@@ -50,7 +51,7 @@ import docker as pydocker
 from netaddr import IPNetwork, IPAddress
 from netaddr.core import AddrFormatError
 from prettytable import PrettyTable
-from node.root_overlay.adapter import netns
+from node.powerstrip_adapter.root_overlay.adapter import netns
 
 
 hostname = socket.gethostname()
@@ -80,6 +81,7 @@ def get_container_info(container_name):
         else:
             raise
     return info
+
 
 def get_container_id(container_name):
     """
@@ -175,6 +177,7 @@ def container_remove(container_name):
 
     print "Removed Calico interface from %s" % container_name
 
+
 def group_remove_container(container_name, group_name):
     """
     Add a container (on this host) to the group with the given name.  This adds the first
@@ -203,6 +206,7 @@ def group_remove_container(container_name, group_name):
         except KeyError:
             print "%s is not a member of %s" % (container_name, group_name)
             sys.exit(1)
+
 
 def node_stop(force):
     client = DatastoreClient()
@@ -246,8 +250,23 @@ def node(ip, node_image):
         pass
 
     etcd_authority = os.getenv(ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT)
-    output = StringIO.StringIO()
 
+    node_id = _docker_run_node(ip, etcd_authority, node_image)
+    print "Calico node is running with id: %s" % node_id
+    adapter_id = _docker_run_powerstrip_adapter(etcd_authority, 'calico-node-adapter')
+    print "Calico node powerstrip adapter is running with id: %s" % adapter_id
+    powerstrip_id = _docker_run_powerstrip()
+    print "Calico node powerstrip is running with id: %s" % powerstrip_id
+
+    powerstrip_port = "2377"
+
+    print "Docker Remote API is on port %s.  Run \n" % powerstrip_port
+    print "export DOCKER_HOST=localhost:%s\n" % powerstrip_port
+    print "before using `docker run` for Calico networking.\n"
+
+
+def _docker_run_node(ip, etcd_authority, node_image):
+    output = StringIO.StringIO()
     docker("run", "-e",  "IP=%s" % ip,
                   "--name=calico-node",
                   "--restart=always",
@@ -260,14 +279,39 @@ def node(ip, node_image):
                   "-e", "ETCD_AUTHORITY=%s" % etcd_authority,  # etcd host:port
                   "-d",
                   node_image, _err=process_output, _out=output).wait()
-
-    cid = output.getvalue().strip()
+    id_ = output.getvalue().strip()
     output.close()
-    powerstrip_port = "2377"
-    print "Calico node is running with id: %s" % cid
-    print "Docker Remote API is on port %s.  Run \n" % powerstrip_port
-    print "export DOCKER_HOST=localhost:%s\n" % powerstrip_port
-    print "before using `docker run` for Calico networking.\n"
+    return id_
+
+
+def _docker_run_powerstrip_adapter(etcd_authority, adapter_image):
+    output = StringIO.StringIO()
+    docker("run", "--name=calico-node-adapter",
+                  "--restart=always",
+                  "--net=host",  # BIRD/Felix can manipulate the base networking stack
+                  "-v", "/var/run/docker.sock:/var/run/docker.sock",  # Powerstrip access Docker
+                  "-v", "/proc:/proc_host",  # Powerstrip Calico needs access to proc to set up
+                                             # networking
+                  "-v", "/var/log/calico:/var/log/calico",  # Logging volume
+                  "-e", "ETCD_AUTHORITY=%s" % etcd_authority,  # etcd host:port
+                  "-d",
+                  adapter_image, _err=process_output, _out=output).wait()
+    id_ = output.getvalue().strip()
+    output.close()
+    return id_
+
+
+def _docker_run_powerstrip():
+    output = StringIO.StringIO()
+    docker("run", "--name=calico-node-powerstrip",
+                  "--restart=always",
+                  "--net=host",  # BIRD/Felix can manipulate the base networking stack
+                  "-v", "/var/run/docker.sock:/var/run/docker.sock",  # Powerstrip access Docker
+                  "-d",
+                  'calico-node-powerstrip', _err=process_output, _out=output).wait()
+    id_ = output.getvalue().strip()
+    output.close()
+    return id_
 
 
 def master_stop(force):
@@ -337,16 +381,28 @@ def status():
         print "Couldn't collect BGP Peer information"
 
 
-
-
 def reset():
     client = DatastoreClient()
 
     print "Removing all data from datastore"
     client.remove_all_data()
 
-    docker("kill", "calico-node")
-    docker("kill", "calico-master")
+    try:
+        docker("kill", "calico-node")
+    except ErrorReturnCode:
+        pass
+    try:
+        docker("kill", "calico-node-adapter")
+    except ErrorReturnCode:
+        pass
+    try:
+        docker("kill", "calico-node-powerstrip")
+    except ErrorReturnCode:
+        pass
+    try:
+        docker("kill", "calico-master")
+    except ErrorReturnCode:
+        pass
 
     try:
         interfaces_raw = check_output("ip link show | grep -Eo ' (tap(.*?)):' |grep -Eo '[^ :]+'",
@@ -398,6 +454,7 @@ def group_add_container(container_name, group_name):
     endpoint_id = client.get_ep_id_from_cont(container_id)
     client.add_endpoint_to_group(group_id, endpoint_id)
     print "Added %s to %s" % (container_name, group_name)
+
 
 def group_remove(group_name):
     #TODO - Don't allow removing a group that has enpoints in it.
@@ -575,6 +632,7 @@ def ipv4_pool_show(version):
     for pool in pools:
         x.add_row([pool])
     print x
+
 
 def validate_arguments():
     group_ok = arguments["<GROUP>"] is None or re.match("^\w{1,30}$", arguments["<GROUP>"])

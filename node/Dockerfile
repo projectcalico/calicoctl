@@ -44,18 +44,6 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Powerstrip
-RUN curl -L https://github.com/ClusterHQ/powerstrip/archive/v0.0.1.tar.gz \
-            -o powerstrip.tar.gz && \
-    tar -xzf powerstrip.tar.gz && \
-    rm powerstrip.tar.gz && \
-    mv powerstrip-0.0.1 powerstrip && \
-    cd powerstrip && \
-    sed -i s/2375/2377/ powerstrip.tac && \
-    python setup.py install
 
 # Copy in our custom configuration files etc.
 COPY root_overlay /
-
-# Install Powerstrip Calico Adapter dependencies.
-RUN pip install -r /adapter/requirements.txt
