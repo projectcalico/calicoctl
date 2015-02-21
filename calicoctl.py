@@ -51,7 +51,7 @@ import docker as pydocker
 from netaddr import IPNetwork, IPAddress
 from netaddr.core import AddrFormatError
 from prettytable import PrettyTable
-from node.powerstrip_adapter.root_overlay.adapter import netns
+from powerstrip_adapter.root_overlay.adapter import netns
 
 
 hostname = socket.gethostname()
