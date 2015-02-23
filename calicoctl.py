@@ -219,6 +219,15 @@ def node_stop(force):
             docker("stop", "calico-node")
         except Exception:
             pass
+        try:
+            docker("stop", "calico-node-adapter")
+        except Exception:
+            pass
+        try:
+            docker("stop", "calico-node-powerstrip")
+        except Exception:
+            pass
+
         print "Node stopped and all configuration removed"
     else:
         print "Current host has active endpoints so can't be stopped. Force with --force"
@@ -288,6 +297,7 @@ def _docker_run_powerstrip_adapter(etcd_authority, adapter_image):
     output = StringIO.StringIO()
     docker("run", "--name=calico-node-adapter",
                   "--restart=always",
+                  "--privileged",
                   "--net=host",  # BIRD/Felix can manipulate the base networking stack
                   "-v", "/var/run/docker.sock:/var/run/docker.sock",  # Powerstrip access Docker
                   "-v", "/proc:/proc_host",  # Powerstrip Calico needs access to proc to set up
