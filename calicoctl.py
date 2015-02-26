@@ -28,10 +28,10 @@ Options:
  --ip=<IP>                The local management address to use.
  --master-image=<DOCKER_IMAGE_NAME>  Docker image to use for
                           Calico's master container
-                          [default: calico/master:latest]
+                          [default: calico/master:v0.0.7]
  --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for
                           Calico's per-node container
-                          [default: calico/node:latest]
+                          [default: calico/node:v0.0.7]
 
 """
 import socket
