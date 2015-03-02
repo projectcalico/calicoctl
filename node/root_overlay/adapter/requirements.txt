@@ -5,5 +5,7 @@ pycrypto
 netaddr
 sh
 requests
-docker-py
+# docker in apt repo uses API v1.16, docker-py v1.0.0 uses v1.17.
+# Pin this version until docker repo is updated.
+docker-py==0.7.2
 python-etcd
