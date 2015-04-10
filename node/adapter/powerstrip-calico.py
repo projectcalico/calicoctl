@@ -186,7 +186,6 @@ class AdapterResource(resource.Resource):
 
         return
 
-
     def assign_ipv4(self):
         """
         Assign a IPv4 address from the configured pools.
