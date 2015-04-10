@@ -35,7 +35,7 @@ Options:
  --ip6=<IP6>              The local IPv6 management address to use.
  --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for
                           Calico's per-node container
-                          [default: calico/node:v0.3.0]
+                          [default: calico/node:v0.3.1]
 
 """
 import socket
