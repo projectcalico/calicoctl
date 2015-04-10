@@ -302,8 +302,10 @@ def node(ip, force_unix_socket, node_image, ip6=""):
 
         # Set the docker daemon to listen on the docker.real.sock by updating
         # the config, clearing old sockets and restarting.
-        socket_config_exists = \
+        socket_config_exists = (
+            os.path.isfile(DOCKER_DEFAULT_FILENAME) and
             DOCKER_OPTIONS in open(DOCKER_DEFAULT_FILENAME).read()
+        )
         if not socket_config_exists:
             with open(DOCKER_DEFAULT_FILENAME, "a") as docker_config:
                 docker_config.write(DOCKER_OPTIONS)
@@ -321,14 +323,16 @@ def node(ip, force_unix_socket, node_image, ip6=""):
         enable_socket = "YES"
     else:
         # Not using the unix socket.  If there is --force-unix-socket config in
-        # place, do some cleanup
-        socket_config_exists = \
-            DOCKER_OPTIONS in open(DOCKER_DEFAULT_FILENAME).read()
-        if socket_config_exists:
-            good_lines = [line for line in open(DOCKER_DEFAULT_FILENAME)
-                          if DOCKER_OPTIONS not in line]
-            open(DOCKER_DEFAULT_FILENAME, 'w').writelines(good_lines)
-            clean_restart_docker(POWERSTRIP_SOCK)
+        # place, do some cleanup.
+        # Only need to check line-by-line if the defaults file exists.
+        if os.path.isfile(DOCKER_DEFAULT_FILENAME):
+            socket_config_exists = \
+                DOCKER_OPTIONS in open(DOCKER_DEFAULT_FILENAME).read()
+            if socket_config_exists:
+                good_lines = [line for line in open(DOCKER_DEFAULT_FILENAME)
+                              if DOCKER_OPTIONS not in line]
+                open(DOCKER_DEFAULT_FILENAME, 'w').writelines(good_lines)
+                clean_restart_docker(POWERSTRIP_SOCK)
 
     try:
         node_docker_client.remove_container("calico-node", force=True)
