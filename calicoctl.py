@@ -71,10 +71,21 @@ docker_client = docker.Client(version=DOCKER_VERSION,
 try:
     modprobe = sh.Command._create('modprobe')
     sysctl = sh.Command._create("sysctl")
-    restart = sh.Command._create("restart")
 except sh.CommandNotFound as e:
     print "Missing command: %s" % e.message
-    
+
+# Handle restart specially; in upstart-based systems we expect to have
+# a command called "restart".
+# In systemd systems we'll not have that command, so map to systemctl directly.
+try:
+    restart = sh.Command._create("restart")
+except sh.CommandNotFound as e:
+    try:
+        restart = sh.Command._create("systemctl")
+        restart.bake('restart')
+    except sh.CommandNotFound as e:
+        print "Missing command: %s" % e.message
+
 DEFAULT_IPV4_POOL = IPNetwork("192.168.0.0/16")
 DEFAULT_IPV6_POOL = IPNetwork("fd80:24e2:f998:72d6::/64")
 
