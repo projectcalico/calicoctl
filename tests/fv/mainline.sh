@@ -31,7 +31,7 @@ dist/calicoctl profile TEST_GROUP member add node1
 dist/calicoctl profile TEST_GROUP member add node2
 
 # Check the config looks good - standard set of show commands plus the non-detailed ones for
-# completeness.
+# completeness. asdf
 show_commands
 dist/calicoctl shownodes
 dist/calicoctl profile show
