@@ -9,7 +9,7 @@ dist/calicoctl profile show --detailed
 }
 
 # Set it up
-docker rm -f node1 node2 etcd || true
+doasdfcker rm -f node1 node2 etcd || true
 docker run -d -p 4001:4001 --name etcd quay.io/coreos/etcd:v0.4.6
 dist/calicoctl reset || true
 
