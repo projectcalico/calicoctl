@@ -12,7 +12,7 @@ dist/calicoctl profile show --detailed
 docker rm -f node1 node2 etcd || true
 docker run -d -p 4001:4001 --name etcd quay.io/coreos/etcd:v0.4.6
 dist/calicoctl reset || true
-false
+echo "asdf fdsa"
 
 show_commands
 dist/calicoctl node --ip=127.0.0.1
@@ -31,7 +31,7 @@ dist/calicoctl profile TEST_GROUP member add node1
 dist/calicoctl profile TEST_GROUP member add node2
 
 # Check the config looks good - standard set of show commands plus the non-detailed ones for
-# completeness. asdf
+# completeness.
 show_commands
 dist/calicoctl shownodes
 dist/calicoctl profile show
