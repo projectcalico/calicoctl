@@ -6,7 +6,7 @@ date
 pwd
 git status
 
-if $HOST; then
+if [[ $HOST ]]; then
     docker build -t host .
 
     # Run the FVs
