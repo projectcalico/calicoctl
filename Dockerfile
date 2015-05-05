@@ -1,3 +1,5 @@
+# This Dockerfile builds the container in which to run calico.
+
 # For details and docs - see https://github.com/phusion/baseimage-docker#getting_started
 FROM phusion/baseimage:0.9.16
 

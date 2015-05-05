@@ -1,3 +1,5 @@
+# This Dockerfile builds the image for the workloads under testing.
+
 FROM ubuntu:14.04
 RUN apt-get update -qq && \
     apt-get install -qy software-properties-common && \
