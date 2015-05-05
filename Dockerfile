@@ -4,4 +4,4 @@
 FROM jpetazzo/dind
 
 RUN ./calico_node/build_node.sh && \
-    ./build_calicoctl/create_binary.sh && \
+    ./build_calicoctl/create_binary.sh
