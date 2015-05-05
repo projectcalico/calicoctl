@@ -3,7 +3,9 @@
 # Made for running docker in docker. For details and docs - see https://github.com/jpetazzo/dind
 FROM jpetazzo/dind
 
-RUN ./build_node.sh && \
+RUN pushd ./calico_node && \
+    ./build_node.sh && \
+    popd && \
     pushd ./build_calicoctl && \
     ./create_binary.sh && \
     popd

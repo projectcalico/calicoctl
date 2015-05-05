@@ -16,7 +16,9 @@ if $HOST; then
     docker exec host1 sudo ./tests/fv/unix_socket.sh
     docker exec host1 sudo ./tests/fv/add_ip.sh
 else
-    ./build_node.sh
+    pushd ./calico_node && \
+    ./build_node.sh && \
+    popd && \
     pushd ./build_calicoctl
     ./create_binary.sh
     popd
