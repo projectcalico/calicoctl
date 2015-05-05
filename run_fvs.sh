@@ -6,16 +6,7 @@ date
 pwd
 git status
 
-if [[ $HOST ]]; then
-    docker build -t host .
-
-    # Run the FVs
-    docker exec host1 sudo ./tests/fv/arg_parsing.sh
-    docker exec host1 sudo ./tests/fv/mainline.sh
-    docker exec host1 sudo ./tests/fv/add_container.sh
-    docker exec host1 sudo ./tests/fv/unix_socket.sh
-    docker exec host1 sudo ./tests/fv/add_ip.sh
-else
+if [[ $SINGLE_HOST ]]; then
     pushd ./calico_node && \
     ./build_node.sh && \
     popd && \
@@ -29,6 +20,15 @@ else
     sudo ./tests/fv/add_container.sh
     sudo ./tests/fv/unix_socket.sh
     sudo ./tests/fv/add_ip.sh
+else
+    docker build -t host .
+
+    # Run the FVs
+    docker exec host1 sudo ./tests/fv/arg_parsing.sh
+    docker exec host1 sudo ./tests/fv/mainline.sh
+    docker exec host1 sudo ./tests/fv/add_container.sh
+    docker exec host1 sudo ./tests/fv/unix_socket.sh
+    docker exec host1 sudo ./tests/fv/add_ip.sh
 fi
 
 echo "All tests have passed."
