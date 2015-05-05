@@ -2,13 +2,13 @@ __author__ = 'spike@projectcalico.org'
 
 
 from mock import patch, Mock, call
-from node.adapter.datastore import (DatastoreClient,
-                                    Rule,
-                                    Profile,
-                                    Rules,
-                                    Endpoint,
-                                    NoEndpointForContainer,
-                                    CALICO_V_PATH)
+from calico_node.node.adapter.datastore import (DatastoreClient,
+                                                Rule,
+                                                Profile,
+                                                Rules,
+                                                Endpoint,
+                                                NoEndpointForContainer,
+                                                CALICO_V_PATH)
 from etcd import Client as EtcdClient
 from etcd import EtcdKeyNotFound, EtcdResult
 from netaddr import IPNetwork, IPAddress

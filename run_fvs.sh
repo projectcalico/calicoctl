@@ -7,7 +7,7 @@ pwd
 git status
 
 if $HOST; then
-    docker build -t host ./host
+    docker build -t host .
 
     # Run the FVs
     docker exec host1 sudo ./tests/fv/arg_parsing.sh
