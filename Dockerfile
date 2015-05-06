@@ -6,6 +6,8 @@ FROM jpetazzo/dind
 ADD ./calico_node /calico_node
 ADD ./build_calicoctl /build_calicoctl
 
+RUN docker -d -D
+
 WORKDIR /calico_node
 RUN ./build_node.sh
 WORKDIR /build_calicoctl
