@@ -7,9 +7,9 @@ pwd
 git status
 
 if [[ $SINGLE_HOST ]]; then
-    pushd ./calico_node && \
-    ./build_node.sh && \
-    popd && \
+    pushd ./calico_node
+    ./build_node.sh
+    popd
     pushd ./build_calicoctl
     ./create_binary.sh
     popd
