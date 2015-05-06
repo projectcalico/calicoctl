@@ -57,12 +57,12 @@ from netaddr import IPNetwork, IPAddress
 from netaddr.core import AddrFormatError
 from prettytable import PrettyTable
 
-from node.adapter.datastore import (ETCD_AUTHORITY_ENV,
-                                    ETCD_AUTHORITY_DEFAULT,
-                                    Rules)
-from node.adapter.docker_restart import REAL_SOCK, POWERSTRIP_SOCK
-from node.adapter.ipam import IPAMClient
-from node.adapter import netns, docker_restart
+from calico_node.node.adapter.datastore import (ETCD_AUTHORITY_ENV,
+                                                ETCD_AUTHORITY_DEFAULT,
+                                                Rules)
+from calico_node.node.adapter.docker_restart import REAL_SOCK, POWERSTRIP_SOCK
+from calico_node.node.adapter.ipam import IPAMClient
+from calico_node.node.adapter import netns, docker_restart
 
 
 hostname = socket.gethostname()
