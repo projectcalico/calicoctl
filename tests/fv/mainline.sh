@@ -20,6 +20,7 @@ cfg_ip2=$2
 docker rm -f node1 node2 etcd || true
 docker run -d --net=host --name etcd quay.io/coreos/etcd:v2.0.10
 dist/calicoctl reset || true
+echo "asdf fdsa"
 
 show_commands
 dist/calicoctl node --ip=127.0.0.1
