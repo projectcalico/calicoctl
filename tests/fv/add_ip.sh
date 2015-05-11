@@ -10,7 +10,6 @@ docker rm -f node1 node2 etcd || true
 docker run -d --net=host --name etcd quay.io/coreos/etcd:v2.0.10
 $CALICO reset || true
 rm -rf /var/run/netns
-sudo mkdir /var/run/netns
 
 # Setup the nodes.
 $CALICO node --ip=172.17.8.10
