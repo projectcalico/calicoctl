@@ -52,7 +52,7 @@ def setup_logging(logfile):
     formatter = logging.Formatter(
         '%(asctime)s [%(levelname)s] %(name)s %(lineno)d: %(message)s')
     handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.INFO)
+    handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
     _log.addHandler(handler)
     handler = logging.handlers.TimedRotatingFileHandler(logfile,
@@ -149,6 +149,7 @@ def set_up_endpoint(ip, cpid, next_hop_ips,
 
     # If running in a container, set up a link to the root netns.
     if in_container:
+        _log.debug("Running in container: set up link to root netns")
         try:
             check_call("ln -s /%s/%s/ns/net /var/run/netns/%s" % (proc_alias,
                                                                   ROOT_NETNS,
@@ -226,6 +227,7 @@ def ensure_namespace_named(container_pid):
     :param container_pid: The container_pid to name.
     :return: raises CalledProcessError if naming the ns fails.
     """
+    check_call("mkdir -p /var/run/netns", shell=True)
     if not os.path.islink("/var/run/netns/%s" % container_pid):
         check_call("ln -s /proc/%s/ns/net /var/run/netns/%s" % (container_pid,
                                                                 container_pid),
