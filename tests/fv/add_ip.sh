@@ -5,11 +5,13 @@ set -x
 CALICO="dist/calicoctl"
 #CALICO="python calicoctl.py"
 
-# Set it up
+# Reset the system, and delete /var/run/netns to simulate a fresh install.
 docker rm -f node1 node2 etcd || true
 docker run -d --net=host --name etcd quay.io/coreos/etcd:v2.0.10
 $CALICO reset || true
+rm -rf /var/run/netns
 
+# Setup the nodes.
 $CALICO node --ip=172.17.8.10
 $CALICO profile add TEST_GROUP
 
@@ -20,11 +22,17 @@ echo "Waiting for powerstrip to come up"
   sleep 1
 done
 
+# Add node 1 using powerstrip, add an IP and then set the profile and a
+# a third IP.
 docker run -e CALICO_IP=192.168.1.1 -tid --name=node1 busybox
+$CALICO container node1 ip add 192.168.2.1
+$CALICO profile TEST_GROUP member add node1
+$CALICO container node1 ip add 192.168.3.1
+
+# Add node 2 not using powerstrip, add an IP and set the profile.
 docker run -tid --name=node2 busybox
 $CALICO container add node2 192.168.1.2 --interface=hello
-
-$CALICO profile TEST_GROUP member add node1
+$CALICO container node2 ip add 192.168.2.2 --interface=hello
 $CALICO profile TEST_GROUP member add node2
 
 # Check it works
@@ -32,12 +40,6 @@ while ! docker exec node1 ping 192.168.1.2 -c 1 -W 1; do
 echo "Waiting for network to come up"
   sleep 1
 done
-
-# Add two more addresses to node1 and one more to node2
-$CALICO container node1 ip add 192.168.2.1
-$CALICO container node1 ip add 192.168.3.1
-
-$CALICO container node2 ip add 192.168.2.2 --interface=hello
 
 docker exec node1 ping 192.168.2.2 -c 1
 docker exec node2 ping 192.168.1.1 -c 1
