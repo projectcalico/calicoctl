@@ -22,7 +22,7 @@ RUN add-apt-repository -y ppa:cz.nic-labs/bird && \
     add-apt-repository -y ppa:project-calico/icehouse && \
     apt-get update && \
     apt-get install -qy \
-        calico-felix \
+        calico-felix=0.18 \
         bird \
         bird6 \
         build-essential \
