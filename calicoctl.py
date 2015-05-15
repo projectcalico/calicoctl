@@ -22,7 +22,7 @@ Usage:
   calicoctl bgppeer rr (add|remove) <IP>
   calicoctl bgppeer rr show [--ipv4 | --ipv6]
   calicoctl container <CONTAINER> ip (add|remove) <IP> [--interface=<INTERFACE>]
-  calicoctl container add <CONTAINER> <IP> [--interface=<INTERFACE>]
+  calicoctl container add <CONTAINER> <IP> [--interface=<INTERFACE>] [--rkt] [--netns_path=<NETNS_PATH>]
   calicoctl container remove <CONTAINER> [--force]
   calicoctl reset
   calicoctl diags
@@ -39,6 +39,9 @@ Options:
                           [default: calico/node:latest]
  --ipv4                   Show IPv4 information only.
  --ipv6                   Show IPv6 information only.
+ --rkt                    Apply command to a rkt container.
+ --netns_path=<NETNS_PATH>  Path to a network namespace file to override the
+                            default with.
 """
 import json
 import os
@@ -86,6 +89,7 @@ except sh.CommandNotFound as e:
 DEFAULT_IPV4_POOL = IPNetwork("192.168.0.0/16")
 DEFAULT_IPV6_POOL = IPNetwork("fd80:24e2:f998:72d6::/64")
 POWERSTRIP_PORT = "2377"
+
 
 class ConfigError(Exception):
     pass
@@ -149,17 +153,24 @@ def get_pool_or_exit(ip):
     return pool
 
 
-def container_add(container_name, ip, interface):
+def container_add(container_name, ip, interface, rkt_mode=False, netns_path=None):
     """
     Add a container (on this host) to Calico networking with the given IP.
 
     :param container_name: The name or ID of the container.
     :param ip: An IPAddress object with the desired IP to assign.
+    :param interface: The name of the interface to create in the container.
+    :param rkt_mode: If true, the target container is a rkt container.
     """
     # The netns manipulations must be done as root.
     enforce_root()
-    info = get_container_info_or_exit(container_name)
-    container_id = info["Id"]
+
+    info = None
+    if rkt_mode:
+        container_id = container_name
+    else:
+        info = get_container_info_or_exit(container_name)
+        container_id = info["Id"]
 
     # Check if the container already exists
     try:
@@ -176,10 +187,11 @@ def container_add(container_name, ip, interface):
               container_name
         sys.exit(1)
 
-    # Check the container is actually running.
-    if not info["State"]["Running"]:
-        print "%s is not currently running." % container_name
-        sys.exit(1)
+    if not rkt_mode:
+        # Check the container is actually running.
+        if not info["State"]["Running"]:
+            print "%s is not currently running." % container_name
+            sys.exit(1)
 
     # Check the IP is in the allocation pool.  If it isn't, BIRD won't export
     # it.
@@ -204,7 +216,8 @@ def container_add(container_name, ip, interface):
     pid = info["State"]["Pid"]
     endpoint = netns.set_up_endpoint(ip, pid, next_hops,
                                      veth_name=interface,
-                                     proc_alias="proc")
+                                     proc_alias="proc",
+                                     netns_path=netns_path)
 
     # Register the endpoint
     client.set_endpoint(hostname, container_id, endpoint)
@@ -1193,7 +1206,9 @@ if __name__ == '__main__':
                 if arguments["add"]:
                     container_add(arguments["<CONTAINER>"],
                                   arguments["<IP>"],
-                                  arguments["--interface"])
+                                  arguments["--interface"],
+                                  arguments['--rkt'],
+                                  arguments['--netns_path'])
                 if arguments["remove"]:
                     container_remove(arguments["<CONTAINER>"])
     except SystemExit:

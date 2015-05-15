@@ -92,6 +92,7 @@ def add_ip_to_interface(container_pid, ip, interface_name):
                 "device": interface_name},
                shell=True)
 
+
 def remove_ip_from_interface(container_pid, ip, interface_name):
     """
     Remove an IP from an interface in a container.
@@ -114,7 +115,8 @@ def remove_ip_from_interface(container_pid, ip, interface_name):
 def set_up_endpoint(ip, cpid, next_hop_ips,
                     in_container=False,
                     veth_name=VETH_NAME,
-                    proc_alias=PROC_ALIAS):
+                    proc_alias=PROC_ALIAS,
+                    netns_path=None):
     """
     Set up an endpoint (veth) in the network namespace idenfitied by the PID.
 
@@ -142,20 +144,10 @@ def set_up_endpoint(ip, cpid, next_hop_ips,
 
     # Provision the networking
     check_call("mkdir -p /var/run/netns", shell=True)
-    check_call("ln -s /%s/%s/ns/net /var/run/netns/%s" % (proc_alias,
-                                                          cpid,
-                                                          cpid),
-               shell=True)
+    if not netns_path:
+        netns_path = '/%s/%s/ns/net' % (proc_alias, cpid)
+    check_call("ln -s %s /var/run/netns/%s" % (netns_path, cpid), shell=True)
 
-    # If running in a container, set up a link to the root netns.
-    if in_container:
-        try:
-            check_call("ln -s /%s/%s/ns/net /var/run/netns/%s" % (proc_alias,
-                                                                  ROOT_NETNS,
-                                                                  ROOT_NETNS),
-                       shell=True)
-        except CalledProcessError:
-            pass  # Only need to do this once.
     _log.debug(check_output("ls -l /var/run/netns", shell=True))
 
     # Create the veth pair and move one end into container:
