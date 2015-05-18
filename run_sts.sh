@@ -20,14 +20,14 @@ docker exec -t host1 bash -c \
  ./build_node.sh && \
  ./create_binary.sh'
 
-# Run the FVs
-docker exec -t host1 bash -c 'cd /code && sudo ./tests/fv/mainline.sh'
-docker exec -t host1 bash -c 'cd /code && sudo ./tests/fv/add_container.sh'
-docker exec -t host1 bash -c 'cd /code && sudo ./tests/fv/add_ip.sh'
-docker exec -t host1 bash -c 'cd /code && sudo ./tests/fv/arg_parsing.sh'
-docker exec -t host1 bash -c 'cd /code && sudo ./tests/fv/profile_commands.sh'
-docker exec -t host1 bash -c 'cd /code && sudo ./tests/fv/no_powerstrip.sh'
-docker exec -t host1 bash -c 'cd /code && sudo ./tests/fv/diags.sh'
+# Run the STs
+docker exec -t host1 bash -c 'cd /code && sudo ./tests/st/mainline.sh'
+docker exec -t host1 bash -c 'cd /code && sudo ./tests/st/add_container.sh'
+docker exec -t host1 bash -c 'cd /code && sudo ./tests/st/add_ip.sh'
+docker exec -t host1 bash -c 'cd /code && sudo ./tests/st/arg_parsing.sh'
+docker exec -t host1 bash -c 'cd /code && sudo ./tests/st/profile_commands.sh'
+docker exec -t host1 bash -c 'cd /code && sudo ./tests/st/no_powerstrip.sh'
+docker exec -t host1 bash -c 'cd /code && sudo ./tests/st/diags.sh'
 
 docker exec -t host1 bash -c 'docker rm -f $(docker ps -qa) ; \
                               docker rmi $(docker images -qa)' || true
