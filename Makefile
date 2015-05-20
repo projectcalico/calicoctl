@@ -6,7 +6,7 @@ rkt:
 	mkdir -p dist
 	chmod 777 `pwd`/dist
 	# Build the rkt plugin
-	docker run -u user -v `pwd`/node/integrations/rkt:/calico -v `pwd`/dist:/code/dist calico-build pyinstaller /calico/calico_rkt.py -a -F -s --clean
+	docker run -u user -v `pwd`/calico_containers/integrations/rkt:/calico -v `pwd`/dist:/code/dist calico-build pyinstaller /calico/calico_rkt.py -a -F -s --clean
 
 clean:
 	rm -rf dist
