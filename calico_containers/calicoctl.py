@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 """calicoctl
 
 Override the host:port of the ETCD server by setting the environment variable
@@ -62,15 +63,15 @@ from netaddr import IPNetwork, IPAddress
 from netaddr.core import AddrFormatError
 from prettytable import PrettyTable
 
-from node.adapter.datastore import (ETCD_AUTHORITY_ENV,
-                                    ETCD_AUTHORITY_DEFAULT,
-                                    Rules,
-                                    DataStoreError)
-from node.adapter.docker_restart import REAL_SOCK, POWERSTRIP_SOCK
-from node.adapter.ipam import IPAMClient
-from node.adapter import netns, docker_restart
+from calico_containers.adapter.datastore import (ETCD_AUTHORITY_ENV,
+                                             ETCD_AUTHORITY_DEFAULT,
+                                             Rules,
+                                             DataStoreError)
+from calico_containers.adapter.docker_restart import REAL_SOCK, POWERSTRIP_SOCK
+from calico_containers.adapter.ipam import IPAMClient
+from calico_containers.adapter import netns, docker_restart
 from requests.exceptions import ConnectionError
-from requests.packages.urllib3.exceptions import ProtocolError
+from urllib3.exceptions import MaxRetryError
 
 hostname = socket.gethostname()
 client = IPAMClient()
@@ -81,7 +82,6 @@ docker_client = docker.Client(version=DOCKER_VERSION,
 docker_restarter = docker_restart.create_restarter()
 
 try:
-    modprobe = sh.Command._create('modprobe')
     sysctl = sh.Command._create("sysctl")
 except sh.CommandNotFound as e:
     print "Missing command: %s" % e.message
@@ -216,7 +216,7 @@ def container_add(container_name, ip, interface, rkt_mode=False, netns_path=None
     pid = info["State"]["Pid"]
     endpoint = netns.set_up_endpoint(ip, pid, next_hops,
                                      veth_name=interface,
-                                     proc_alias="proc",
+                                     proc_alias="/proc",
                                      netns_path=netns_path)
 
     # Register the endpoint
@@ -429,6 +429,7 @@ def status():
     else:
         print "calico-node container is running. Status: %s" % \
               calico_node_info[0]["Status"]
+
         apt_cmd = docker_client.exec_create("calico-node", ["/bin/bash", "-c",
                                            "apt-cache policy calico-felix"])
         result = re.search(r"Installed: (.*?)\s", docker_client.exec_start(apt_cmd))
@@ -916,10 +917,10 @@ def container_ip_add(container_name, ip, version, interface):
 
     try:
         container_pid = info["State"]["Pid"]
-        netns.ensure_namespace_named(container_pid)
         netns.add_ip_to_interface(container_pid,
                                   address,
-                                  interface)
+                                  interface,
+                                  proc_alias="/proc")
 
     except CalledProcessError:
         print "Error updating networking in container. Aborting."
@@ -988,10 +989,10 @@ def container_ip_remove(container_name, ip, version, interface):
 
     try:
         container_pid = info["State"]["Pid"]
-        netns.ensure_namespace_named(container_pid)
         netns.remove_ip_from_interface(container_pid,
                                        address,
-                                       interface)
+                                       interface,
+                                       proc_alias="/proc")
 
     except CalledProcessError:
         print "Error updating networking in container. Aborting."
@@ -1059,31 +1060,32 @@ def get_container_ipv_from_arguments():
     return version
 
 
-def get_socket_errno_from_connection_error(conn_error):
+def permission_denied_error(conn_error):
     """
-    Determine the socker error from the supplied connection error.
+    Determine whether the supplied connection error is from a permission denied
+    error.
     :param conn_error: A requests.exceptions.ConnectionError instance
-    :return: The socket error code.
+    :return: True if error is from permission denied.
     """
-    # Grab the ProtocolError from the ConnectionError arguments.
-    pe = None
+    # Grab the MaxRetryError from the ConnectionError arguments.
+    mre = None
     for arg in conn_error.args:
-        if isinstance(arg, ProtocolError):
-            pe = arg
+        if isinstance(arg, MaxRetryError):
+            mre = arg
             break
-    if not pe:
+    if not mre:
         return None
 
-    # Grab the socket error from the ProtocolError arguments.
+    # See if permission denied is in the MaxRetryError arguments.
     se = None
-    for arg in pe.args:
-        if isinstance(arg, socket.error):
+    for arg in mre.args:
+        if "Permission denied" in str(arg):
             se = arg
             break
     if not se:
         return None
 
-    return se.errno
+    return True
 
 
 def print_container_not_in_calico_msg(container_name):
@@ -1216,8 +1218,7 @@ if __name__ == '__main__':
     except ConnectionError as e:
         # We hit a "Permission denied error (13) if the docker daemon does not
         # have sudo permissions
-        errno = get_socket_errno_from_connection_error(e)
-        if errno == 13:
+        if permission_denied_error(e):
             print_paragraph("Unable to run command.  Re-run the "
                             "command as root, or configure the docker group "
                             "to run with sudo privileges (see docker "
@@ -1233,6 +1234,5 @@ if __name__ == '__main__':
         print "Unexpected error executing command.\n"
         traceback.print_exc()
         print dir(e)
-        print e.__module__ + "." + e.__class__.__name__
         sys.exit(1)
 
