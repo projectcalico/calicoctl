@@ -26,23 +26,17 @@ protocol kernel {
   # BIRD configuration.  With a full automatic mesh, there is no way to prevent
   # BGP from flapping since multiple nodes update their BGP configuration at
   # the same time, GR is not guaranteed to work correctly in this scenario.
-  graceful restart;
+  #graceful restart;
 }
 
 # Watch interface up/down events.
 protocol device {
   scan time 2;    # Scan interfaces every 2 seconds
-
-  # See comment in kernel section about graceful restart.
-  graceful restart;
 }
 
 protocol direct {
    debug all;
    interface -"cali*", "*"; # Exclude cali* but include everything else.
-
-  # See comment in kernel section about graceful restart.
-  graceful restart;
 }
 
 # Template for all BGP clients
@@ -61,7 +55,7 @@ template bgp bgp_template {
   add paths on;
 
   # See comment in kernel section about graceful restart.
-  graceful restart;
+  #graceful restart;
 }
 
 {{if ls "/config/bgp_peer_rr_v4"}}
