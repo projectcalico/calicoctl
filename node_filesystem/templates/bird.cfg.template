@@ -32,11 +32,17 @@ protocol kernel {
 # Watch interface up/down events.
 protocol device {
   scan time 2;    # Scan interfaces every 2 seconds
+
+  # See comment in kernel section about graceful restart.
+  graceful restart;
 }
 
 protocol direct {
    debug all;
    interface -"cali*", "*"; # Exclude cali* but include everything else.
+
+  # See comment in kernel section about graceful restart.
+  graceful restart;
 }
 
 # Template for all BGP clients

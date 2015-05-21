@@ -21,17 +21,28 @@ protocol kernel {
   import all;
   device routes;
   export all;     # Default is export none
+
+  # Turn on graceful restart to reduce potential flaps in routes when reloading
+  # BIRD configuration.  With a full automatic mesh, there is no way to prevent
+  # BGP from flapping since multiple nodes update their BGP configuration at
+  # the same time, GR is not guaranteed to work correctly in this scenario.
   graceful restart;
 }
 
 # Watch interface up/down events.
 protocol device {
   scan time 2;    # Scan interfaces every 2 seconds
+
+  # See comment in kernel section about graceful restart.
+  graceful restart;
 }
 
 protocol direct {
    debug all;
    interface -"cali*", "*"; # Exclude cali* but include everything else.
+
+  # See comment in kernel section about graceful restart.
+  graceful restart;
 }
 
 # Template for all BGP clients
