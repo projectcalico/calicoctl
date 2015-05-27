@@ -1,0 +1,23 @@
+name: calico-docker
+summary: Calico can provide networking in a Docker environment.
+maintainers:
+    - Charles Butler <charles.butler@canonical.com>
+description: |
+  Calico can provide networking in a Docker environment. Each container gets
+  its own IP, there is no encapsulation and it can support massive scale.
+  Calico connects datacenter workloads (containers, VMs, or bare metal) via IP
+  no matter which compute host they are on. Read about it on the
+  [Project Calico website](http://www.projectcalico.org/).
+  Endpoints are network interfaces associated with workloads.
+tags:
+  - networking
+  - containers
+subordinate: true
+requires:
+  db:
+    interface: etcd
+  etcdctl:
+    interface: etcdctl
+  docker-host:
+    interface: juju-info
+    scope: container

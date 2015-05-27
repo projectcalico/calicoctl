@@ -1,0 +1,8 @@
+#!/usr/bin/env python
+
+import setup
+import sys
+
+if __name__ == "__main__":
+    setup.pre_install()
+

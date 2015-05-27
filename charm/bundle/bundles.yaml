@@ -1,0 +1,21 @@
+calico-testing-formation:
+  services:
+    etcd:
+      charm: cs:~kubernetes/trusty/etcd
+      num_units: 1
+    docker:
+      charm: cs:trusty/docker
+      num_units: 2
+      options:
+        latest: true
+        version: 1.6.2
+    calico-docker:
+      charm: local:trusty/calico-docker
+      options:
+        docker-image: calico/node:latest
+  series: trusty
+  relations:
+    - - "calico-docker:docker-host"
+      - "docker:juju-info"
+    - - "calico-docker:db"
+      - "etcd:client"

@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -e
+
+. /etc/action-config.sh
+
+WORKLOADD=$(scripts/container-status.py -t workload-D)
+WORKLOADE=$(scripts/container-status.py -t workload-E)
+
+if [[ -z "${WORKLOADD}" ]]; then
+    docker run -e CALICO_IP=192.168.1.4 --name workload-D -tid busybox
+fi
+if [[ -z "${WORKLOADE}" ]]; then
+    docker run -e CALICO_IP=192.168.1.5 --name workload-E -tid busybox
+fi
+
+calicoctl profile PROF_D member add workload-D
+calicoctl profile PROF_A_C_E member add workload-E
+
+action-set result-map.message="Network profiles added, workloads spawned"
+action-set result-map.routetable="$(ip route)"

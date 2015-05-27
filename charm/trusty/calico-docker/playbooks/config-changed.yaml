@@ -1,0 +1,41 @@
+---
+
+    - set_fact:
+        db_relation: "{{ relations.db | default([]) }}"
+
+    - set_fact:
+        etcd_authority: "{{ relations.db[0].hostname }}:{{ relations.db[0].port }}"
+      when: db_relation != []
+
+
+    - name: Pull CalicoNode image
+      docker:
+          name=caliconode
+          image={{ docker_image }}
+          state=present
+
+    - name: Pull CalicoCTL
+      get_url: url={{calicoctl_package}} sha256sum={{calicoctl_sum}} dest="/usr/local/bin/calicoctl"
+
+    - name: Set Permissions on CalicoCTL
+      file: path="/usr/local/bin/calicoctl" mode="0755"
+
+    - name: load kernel modules
+      command: modprobe {{item}}
+      with_items:
+          - ip6_tables
+          - xt_set
+
+    - name: Check status of CalicoNode Container
+      command: "$CHARM_DIR/scripts/container-status.py -t calico-node"
+      register: caliconode_status
+
+    - name: Start calico node
+      command: "calicoctl node --ip={{unit_private_address}}"
+      environment:
+        ETCD_AUTHORITY: "{{ relations.db[0].hostname }}:{{ relations.db[0].port }}"
+      when: db_relation != [] and caliconode_status.stdout == ""
+
+    - name: Render Action Config Template
+      template: src=action-config.sh.jinja2 dest=/etc/action-config.sh
+      when: db_relation != []

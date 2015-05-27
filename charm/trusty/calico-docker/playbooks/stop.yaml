@@ -1,0 +1,20 @@
+---
+
+    - set_fact:
+        db_relation: "{{ relations.db | default([]) }}"
+
+    - name: Nuke all traces of CalicoNode image
+      docker:
+          name=caliconode
+          image={{ docker_image }}
+          state=absent
+
+    - name: delete CalicoCTL
+      file: path="/usr/local/bin/calicoctl" state=absent
+
+    - name: Remove Kernel Modules
+      command: modprobe {{item}} state=absent
+      with_items:
+          - ip6_tables
+          - xt_set
+
