@@ -57,7 +57,7 @@ image.
 
     juju set calico-docker docker-image=calico/node:v0.4.2
 
-The CalicoCTL tool is also versioned, along with a sha256 sum to ensure the
+The calicoctl tool is also versioned, along with a sha256 sum to ensure the
 payload is delivered correctly:
 
     juju set calico-docker calicoctl-package=https://github.com/Metaswitch/calico-docker/releases/download/v0.4.2/calicoctl
@@ -72,7 +72,9 @@ payload is delivered correctly:
 
 - Upstream website
   - [projectcalico.org](http://projectcalico.org)
+- Upstream Contact
+  - [project calico contacts](http://www.projectcalico.org/contact/)
 - Upstream bug tracker
   - [Calico-Docker bugtracker](https://github.com/Metaswitch/calico-docker/issues)
 - Upstream mailing list or contact information
-  - [Calico Mailing List](http://lists.projectcalico.org/listinfo/calico)
+  - [Calico Mailing List](http://lists.projectcalico.org/listinfo/calico-tech)

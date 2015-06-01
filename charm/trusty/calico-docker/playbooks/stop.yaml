@@ -9,7 +9,7 @@
           image={{ docker_image }}
           state=absent
 
-    - name: delete CalicoCTL
+    - name: delete calicoctl
       file: path="/usr/local/bin/calicoctl" state=absent
 
     - name: Remove Kernel Modules

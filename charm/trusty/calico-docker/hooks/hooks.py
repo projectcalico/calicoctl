@@ -9,7 +9,7 @@ from charmhelpers.contrib.ansible import AnsibleHooks
 # tagged with the hook name.
 
 def hook_names(here=path(__file__).parent):
-    for name in (x.basename() \
+    for name in (x.basename()
                  for x in here.files() if x.islink()):
         yield name
 
