@@ -1,5 +1,5 @@
 import sh
-from sh import docker
+from sh import docker, ErrorReturnCode_127, ErrorReturnCode_255
 import socket
 from time import sleep
 
@@ -17,14 +17,22 @@ def cleanup_inside(name):
     """
     Clean the inside of a container by deleting the containers and images within it.
     """
-    docker("exec", "-t", name, "bash", "-c",
-           "docker rm -f $(docker ps -qa) ; docker rmi $(docker images -qa)",
-           _ok_code=[0,
-                     1,  # Caused by 'docker: "rm" requires a minimum of 1 argument.' et al.
-                     127,  # Caused by '"docker": no command found'
-                     255,  # Caused by '"bash": executable file not found in $PATH'
-                    ]
-          )
+    try:
+        inner_containers = docker("exec", "-t", name, "bash", "-c", "docker ps -qa").stdout.split()
+        for container in inner_containers:
+            docker("exec", "-t", name, "bash", "-c", "docker rm -f %s" % container)
+
+        inner_images = docker("exec", "-t", name, "bash", "-c", "docker images -q").stdout.split()
+        for image in inner_images:
+            docker("exec", "-t", name, "bash", "-c", "docker rmi %s" % image)
+    except ErrorReturnCode_127:
+        # Caused by '"bash": executable file not found in $PATH'
+        # This happens in the etcd container.
+        pass
+    except ErrorReturnCode_255:
+        # Caused by '"bash": executable file not found in $PATH'
+        # This happens in the etcd container.
+        pass
 
 
 def delete_container(name):
