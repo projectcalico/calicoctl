@@ -35,10 +35,9 @@ def cleanup_inside(name):
 def cleanup_inner_containers(name):
     try:
         inner_containers = docker("exec", "-t", name, "bash", "-c", "docker ps -qa").stdout.split()
-    except (ErrorReturnCode_127, ErrorReturnCode_255):
-        # 127 caused by '"docker": no command found'
+    except ErrorReturnCode_255:
         # 255 caused by '"bash": executable file not found in $PATH'
-        # These happen in the etcd container.
+        # This happens in the etcd container.
         pass
     else:
         for container in inner_containers:
@@ -48,10 +47,9 @@ def cleanup_inner_containers(name):
 def cleanup_inner_images(name):
     try:
         inner_images = docker("exec", "-t", name, "bash", "-c", "docker images -q").stdout.split()
-    except (ErrorReturnCode_127, ErrorReturnCode_255):
-        # 127 caused by '"docker": no command found'
+    except ErrorReturnCode_255:
         # 255 caused by '"bash": executable file not found in $PATH'
-        # These happen in the etcd container.
+        # This happens in the etcd container.
         pass
     else:
         for image in inner_images:
