@@ -1554,9 +1554,9 @@ class TestDatastoreClient(unittest.TestCase):
     @patch("calico_containers.adapter.datastore.DatastoreClient.get_hostnames", autospec=True)
     @patch("calico_containers.adapter.datastore.DatastoreClient.get_node_as_peer", autospec=True)
     @patch("calico_containers.adapter.datastore.DatastoreClient.get_bgp_node_mesh", autospec=True)
-    def test_get_node_to_node_mesh_peers_no_local(self, m_mesh, m_peer, m_hosts):
+    def test_get_node_to_node_mesh_peers(self, m_mesh, m_peer, m_hosts):
         """
-        Test get_node_to_node_mesh when there is no local BGP config.
+        Test get_node_to_node_mesh when there is a valid set of hosts.
 
         """
         def mock_get_peer(ds, version, host):
