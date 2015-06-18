@@ -1071,7 +1071,7 @@ def node_bgppeer_show(version, show_all_peers):
                                 "node, no peering will take "
                                 "place.\n" % version)
             else:
-                print "Our IP%s address: %s" % our_node.ip
+                print "Our IP%s address: %s" % (version, our_node.ip)
                 print "Our BGP AS Number: %s\n" % our_node.as_num
             heading = "Node IP%s BGP Peers" % version
             x = PrettyTable([heading, "AS Num", "Type"], sortby=heading)
