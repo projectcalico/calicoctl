@@ -51,6 +51,9 @@ BGP_NODE_DEF_AS_PATH = CONFIG_PATH + "bgp_as"
 BGP_NODE_MESH_PATH = CONFIG_PATH + "bgp_node_mesh"
 HOST_BGP_PEERS_PATH = HOST_PATH + "bgp_peer_%(version)s/"
 HOST_BGP_PEER_PATH = HOST_PATH + "bgp_peer_%(version)s/%(peer_ip)s"
+BGP_NODE_IPV4 = HOST_PATH + "bird_ip"
+BGP_NODE_IPV6 = HOST_PATH + "bird6_ip"
+BGP_NODE_AS = HOST_PATH + "bgp_as"
 
 # Paths used in endpoint enumeration depending on available parameters.
 ALL_ENDP_PATH = HOSTS_PATH
@@ -453,10 +456,13 @@ class DatastoreClient(object):
         :return: nothing.
         """
         host_path = HOST_PATH % {"hostname": hostname}
+        bgp_ipv4 = BGP_NODE_IPV4 %  {"hostname": hostname}
+        bgp_ipv6 = BGP_NODE_IPV6 %  {"hostname": hostname}
+        bgp_as = BGP_NODE_AS %  {"hostname": hostname}
 
         # Set up the host
-        self.etcd_client.write(host_path + "bird_ip", bird_ip)
-        self.etcd_client.write(host_path + "bird6_ip", bird6_ip)
+        self.etcd_client.write(bgp_ipv4, bird_ip)
+        self.etcd_client.write(bgp_ipv6, bird6_ip)
         self.etcd_client.write(host_path + "config/marker", "created")
         workload_dir = host_path + "workload"
         try:
@@ -471,11 +477,11 @@ class DatastoreClient(object):
         # hardcoded default value).
         if as_num is None:
             try:
-                self.etcd_client.delete(host_path + "bgp_as")
+                self.etcd_client.delete(bgp_as)
             except EtcdKeyNotFound:
                 pass
         else:
-            self.etcd_client.write(host_path + "bgp_as", as_num)
+            self.etcd_client.write(bgp_as, as_num)
 
         return
 
@@ -595,6 +601,87 @@ class DatastoreClient(object):
         except (KeyError, EtcdKeyNotFound):
             # Re-raise with a better error message.
             raise KeyError("%s is not a configured IP pool." % pool)
+
+    @handle_errors
+    def get_hostnames(self):
+        """
+        Return a list of hostnames
+        :return:  A list of hostnames configured in etcd.
+        """
+        # Get a list of the hosts.
+        hosts = []
+        results = self.etcd_client.read(HOSTS_PATH)
+        for result in results.children:
+            packed = result.key.split("/")
+            # Handle no hosts being configured (etcd returns the parent).
+            if len(packed) != 5:
+                continue
+            hosts.append(packed[-1])
+        return hosts
+
+    @handle_errors
+    def get_node_as_peer(self, version, hostname):
+        """
+        Return the node BGP information as a BGPPeer object
+
+        :param version: "v4" for IPv4, "v6" for IPv6
+        :param hostname: The node hostname.
+        :return: A BGP Peer object, or None if there is no IP configuration of
+        the requested version.
+        """
+        assert version in ("v4", "v6")
+        if version == "v4":
+            bgp_ip = BGP_NODE_IPV4 %  {"hostname": hostname}
+        else:
+            bgp_ip = BGP_NODE_IPV6 %  {"hostname": hostname}
+        bgp_as = BGP_NODE_AS %  {"hostname": hostname}
+
+        # Get the BGP IP address.  If no key is present, return None.
+        try:
+            ip = self.etcd_client.read(bgp_ip).value
+        except EtcdKeyNotFound:
+            return None
+        if not ip:
+            return None
+
+        # Get the BGP AS number.  If not present, use the default.
+        try:
+            as_num = self.etcd_client.read(bgp_as).value
+        except EtcdKeyNotFound:
+            as_num = None
+        if not as_num:
+            as_num = self.get_default_node_as()
+
+        return BGPPeer(ip, as_num)
+
+    @handle_errors
+    def get_node_to_node_mesh_peers(self, version, hostname):
+        """
+        Get the node-to-node mesh peers for this host.
+
+        :param version: "v4" for IPv4, "v6" for IPv6
+        :param hostname: The node hostname.
+        :return: List of BGPPeer.
+        """
+        assert version in ("v4", "v6")
+        if not self.get_bgp_node_mesh():
+            return []
+
+        our_peer = self.get_node_as_peer(version, hostname)
+        if not our_peer:
+            # We have no BGP information for the requested version and so
+            # we will not peer with other nodes.
+            return []
+
+        peers = []
+        hostnames = self.get_hostnames()
+        for ohostname in hostnames:
+            if ohostname == hostname:
+                continue
+            peer = self.get_node_as_peer(version, ohostname)
+            if peer:
+                peers.append(peer)
+        return peers
 
     @handle_errors
     def get_bgp_peers(self, version, hostname=None):
