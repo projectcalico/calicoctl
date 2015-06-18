@@ -110,6 +110,7 @@ class TestArgParsing(TestBase):
         for [peer, version] in examples:
             host2.calicoctl("node bgppeer add %s as 12345" % peer)
             self.assertIn(peer, host2.calicoctl("node bgppeer show").stdout.rstrip())
+            self.assertIn(peer, host2.calicoctl("node bgppeer show --show-all-peers").stdout.rstrip())
             self.assertIn(peer, host2.calicoctl("node bgppeer show --ipv%s" % version).stdout.rstrip())
             self.assertNotIn(peer, host2.calicoctl("node bgppeer show --ipv%s" % self.ip_not(version)).stdout.rstrip())
             host2.calicoctl("node bgppeer remove %s" % peer)
