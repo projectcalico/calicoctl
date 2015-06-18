@@ -35,6 +35,7 @@ TEST_PROFILE = "TEST"
 TEST_CONT_ID = "1234"
 TEST_ENDPOINT_ID = "1234567890ab"
 TEST_ENDPOINT_ID2 = "90abcdef1234"
+HOSTS_PATH = CALICO_V_PATH + "/host/"
 TEST_HOST_PATH = CALICO_V_PATH + "/host/TEST_HOST"
 IPV4_POOLS_PATH = CALICO_V_PATH + "/ipam/v4/pool"
 IPV6_POOLS_PATH = CALICO_V_PATH + "/ipam/v6/pool"
@@ -1195,6 +1196,136 @@ class TestDatastoreClient(unittest.TestCase):
         self.etcd_client.read.side_effect = EtcdKeyNotFound()
 
         assert_equal(self.datastore.get_default_node_as(), 64511)
+
+    def test_get_hostnames(self):
+        """
+        Test get_hostnames()
+        """
+        def mock_read(path):
+            assert path == HOSTS_PATH
+            result = Mock(spec=EtcdResult)
+            etcd_children = []
+            for path in [HOSTS_PATH[:-1], HOSTS_PATH + "Test1",
+                         HOSTS_PATH + "Test2"]:
+                etcd_child = Mock(EtcdResult)
+                etcd_child.key = path
+                etcd_child.value = None
+                etcd_children.append(etcd_child)
+            result.children = iter(etcd_children)
+            return result
+        self.etcd_client.read = mock_read
+
+        hostnames = self.datastore.get_hostnames()
+        assert_equal(hostnames, ["Test1", "Test2"])
+
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_default_node_as", autospec=True)
+    def test_get_node_as_peer(self, m_default_as):
+        """
+        Test get_node_as_peer() when both IP and AS are assigned.
+        """
+        m_default_as.return_value = 22334
+        as_result = None
+
+        def mock_read(path):
+            result = Mock(spec=EtcdResult)
+            result.key = path
+            if path == TEST_HOST_PATH + "/bird_ip":
+                result.value = "1.2.3.4"
+            elif path == TEST_HOST_PATH + "/bird6_ip":
+                result.value = "aa::ff"
+            elif path == TEST_HOST_PATH + "/bgp_as":
+                if as_result:
+                    result.value = as_result
+                else:
+                    raise EtcdKeyNotFound()
+            else:
+                assert False, "Unexpected path in read"
+            return result
+        self.etcd_client.read = mock_read
+
+        as_result = None
+        bgp_peer = self.datastore.get_node_as_peer("v4", "TEST_HOST")
+        assert_equals(bgp_peer.ip, IPAddress("1.2.3.4"))
+        assert_equals(bgp_peer.as_num, 22334)
+
+        as_result = "12345"
+        bgp_peer = self.datastore.get_node_as_peer("v4", "TEST_HOST")
+        assert_equals(bgp_peer.ip, IPAddress("1.2.3.4"))
+        assert_equals(bgp_peer.as_num, 12345)
+
+        bgp_peer = self.datastore.get_node_as_peer("v6", "TEST_HOST")
+        assert_equals(bgp_peer.ip, IPAddress("aa::ff"))
+        assert_equals(bgp_peer.as_num, 12345)
+
+    def test_get_node_as_peer_no_ip(self):
+        """
+        Test get_node_as_peer() when the configured IP is empty.
+        """
+        def mock_read(path):
+            result = Mock(spec=EtcdResult)
+            result.key = path
+            result.value = ""
+            return result
+        self.etcd_client.read = mock_read
+
+        bgp_peer = self.datastore.get_node_as_peer("v4", "TEST_HOST")
+        assert_equal(bgp_peer, None)
+
+    def test_get_node_as_peer_no_ip_key(self):
+        """
+        Test get_node_as_peer() when the BGP IP key is missing.
+        """
+        self.etcd_client.read.side_effect = EtcdKeyNotFound
+        bgp_peer = self.datastore.get_node_as_peer("v4", "TEST_HOST")
+        assert_equal(bgp_peer, None)
+
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_bgp_node_mesh", autospec=True)
+    def test_get_node_to_node_mesh_peers_disabled(self, m_mesh):
+        """
+        Test get_node_to_node_mesh when the mesh is disabled.
+
+        """
+        m_mesh.return_value = False
+        peers = self.datastore.get_node_to_node_mesh_peers("v4", "BLAH")
+        assert_equal(peers, [])
+
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_node_as_peer", autospec=True)
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_bgp_node_mesh", autospec=True)
+    def test_get_node_to_node_mesh_peers_no_local(self, m_mesh, m_peer):
+        """
+        Test get_node_to_node_mesh when there is no local BGP config.
+
+        """
+        m_mesh.return_value = True
+        m_peer.return_value = None
+        peers = self.datastore.get_node_to_node_mesh_peers("v4", "BLAH")
+        assert_equal(peers, [])
+
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_hostnames", autospec=True)
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_node_as_peer", autospec=True)
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_bgp_node_mesh", autospec=True)
+    def test_get_node_to_node_mesh_peers_no_local(self, m_mesh, m_peer, m_hosts):
+        """
+        Test get_node_to_node_mesh when there is no local BGP config.
+
+        """
+        def mock_get_peer(ds, version, host):
+            if host == "TEST_HOST":
+                return BGPPeer("1.2.3.4", 1234)
+            elif host == "OTHER1":
+                return BGPPeer("2.3.4.5", 2234)
+            elif host == "OTHER2":
+                return BGPPeer("3.4.5.6", 3456)
+            elif host == "OTHER3":
+                return None
+            assert False, "Unexpected host name"
+
+        m_mesh.return_value = True
+        m_peer.side_effect = mock_get_peer
+        m_hosts.return_value = ["OTHER1", "TEST_HOST", "OTHER2", "OTHER3"]
+        peers = self.datastore.get_node_to_node_mesh_peers("v4", "TEST_HOST")
+        assert_equal(peers, [BGPPeer("2.3.4.5", 2234),
+                             BGPPeer("3.4.5.6", 3456)])
 
 
 def mock_read_2_peers(path):

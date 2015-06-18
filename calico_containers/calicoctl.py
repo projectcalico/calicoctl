@@ -24,7 +24,7 @@ Usage:
   calicoctl node stop [--force]
   calicoctl node bgppeer add <PEER_IP> as <AS_NUM>
   calicoctl node bgppeer remove <PEER_IP>
-  calicoctl node bgppeer show [--ipv4 | --ipv6]
+  calicoctl node bgppeer show [--ipv4 | --ipv6] [--show-all-peers]
   calicoctl status
   calicoctl profile show [--detailed]
   calicoctl profile (add|remove) <PROFILE>
@@ -73,6 +73,9 @@ Options:
  --workload=<WORKLOAD_ID> Filters endpoints on a specific workload.
  --endpoint=<ENDPOINT_ID> Filters endpoints with a specific endpoint ID.
  --as=<AS_NUM>            The AS number to assign to the node.
+ --show-all-peers         Show all of the nodes BGP Peers, including globally
+                          configured peers, node-specfic peers and (if enabled)
+                          the node-to-node mesh peers.
 """
 __doc__ = __doc__ % {"rule_spec": """    (allow|deny) [(
       (tcp|udp) [(from [(ports <SRCPORTS>)] [(tag <SRCTAG>)] [<SRCCIDR>])]
@@ -1053,6 +1056,8 @@ def bgppeer_remove(ip, version):
 def bgppeer_show(version):
     """
     Print a list of the global BGP Peers.
+
+    :param version: v4 or v6
     """
     assert version in ("v4", "v6")
     peers = client.get_bgp_peers(version)
@@ -1062,7 +1067,7 @@ def bgppeer_show(version):
         for peer in peers:
             x.add_row([peer.ip, peer.as_num])
         x.align = "l"
-        print x.get_string(sortby=heading)
+        print x.get_string(sortby=heading) + "\n"
     else:
         print "No global IP%s BGP Peers defined.\n" % version
 
@@ -1099,22 +1104,54 @@ def node_bgppeer_remove(ip, version):
         print "BGP peer removed from node configuration"
 
 
-def node_bgppeer_show(version):
+def node_bgppeer_show(version, show_all_peers):
     """
     Print a list of the BGP Peers for this node.
+
+    :param version: v4 or v6
+    :param show_all_peers: Whether to display a full list of peers for this
+    node.  This includes the node-to-node mesh, the global peers and the
+    node-specific peers.
     """
     assert version in ("v4", "v6")
-    peers = client.get_bgp_peers(version, hostname=hostname)
-    if peers:
-        heading = "Node specific IP%s BGP Peer" % version
-        x = PrettyTable([heading, "AS Num"], sortby=heading)
-        for peer in peers:
-            x.add_row([peer.ip, peer.as_num])
-        x.align = "l"
-        print x.get_string(sortby=heading)
+    if not show_all_peers:
+        peers = client.get_bgp_peers(version, hostname=hostname)
+        if peers:
+            heading = "Node specific IP%s BGP Peer" % version
+            x = PrettyTable([heading, "AS Num"], sortby=heading)
+            for peer in peers:
+                x.add_row([peer.ip, peer.as_num])
+            x.align = "l"
+            print x.get_string(sortby=heading) + "\n"
+        else:
+            print "No IP%s BGP Peers defined for this node.\n" % version
     else:
-        print "No IP%s BGP Peers defined for this node.\n" % version
+        our_node = client.get_node_as_peer(version, hostname)
+        node_peers = client.get_bgp_peers(version, hostname=hostname)
+        global_peers = client.get_bgp_peers(version)
+        mesh_peers = client.get_node_to_node_mesh_peers(version, hostname)
 
+        if node_peers or global_peers or mesh_peers:
+            if not our_node:
+                print_paragraph("This node has no IP%s BGP configuration.  "
+                                "Whilst there are configured peers for this "
+                                "node, no peering will take "
+                                "place.\n" % version)
+            else:
+                print "Our IP%s address: %s" % our_node.ip
+                print "Our BGP AS Number: %s\n" % our_node.as_num
+            heading = "Node IP%s BGP Peers" % version
+            x = PrettyTable([heading, "AS Num", "Type"], sortby=heading)
+            for peer in node_peers:
+                x.add_row([peer.ip, peer.as_num, "Node"])
+            for peer in global_peers:
+                x.add_row([peer.ip, peer.as_num, "Global"])
+            for peer in mesh_peers:
+                x.add_row([peer.ip, peer.as_num, "Mesh"])
+            x.align = "l"
+            print x.get_string(sortby=heading) + "\n"
+        else:
+            print "No IP%s BGP Peers for this node.\n" % version
 
 def check_ip_version(ip, version, cls):
     """
@@ -1774,10 +1811,11 @@ if __name__ == '__main__':
                     node_bgppeer_remove(arguments["<PEER_IP>"], ip_version)
                 elif arguments["show"]:
                     if not ip_version:
-                        node_bgppeer_show("v4")
-                        node_bgppeer_show("v6")
+                        node_bgppeer_show("v4", arguments["--show-all-peers"])
+                        node_bgppeer_show("v6", arguments["--show-all-peers"])
                     else:
-                        node_bgppeer_show(ip_version)
+                        node_bgppeer_show(ip_version,
+                                          arguments["--show-all-peers"])
             elif arguments["stop"]:
                 node_stop(arguments["--force"])
             else:
