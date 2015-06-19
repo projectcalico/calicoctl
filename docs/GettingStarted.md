@@ -87,18 +87,20 @@ Create some profiles (this can be done on either host)
     ./calicoctl profile add PROF_B
     ./calicoctl profile add PROF_D
 
-Now add the containers to the profile (note that `profile add` works from any Calico node, but `profile <PROFILE> member add` only works from the Calico node where the container is hosted).
+When we created the containers, calico created an "endpoint" for each container's interface. In order to allow communication between containers, we must add the profile to the container's endpoint. To do this, we must know the endpoint's ID. This can viewed in table-view with the `endpoint show --detailed` command, or immediately returned with the `container <CONTAINER> endpoint-id show` command. We will use bash substitution to assign the profile to the endpoint in one go.
 
 On core-01:
 
-    ./calicoctl profile PROF_A_C_E member add workload-A
-    ./calicoctl profile PROF_B member add workload-B
-    ./calicoctl profile PROF_A_C_E member add workload-C
+    ./calicoctl endpoint `./calicoctl container workload-A endpoint-id show` profile append PROF_A_C_E
+    ./calicoctl endpoint `./calicoctl container workload-B endpoint-id show` profile append PROF_B
+    ./calicoctl endpoint `./calicoctl container workload-C endpoint-id show` profile append PROF_A_C_E
 
 On core-02:
 
-    ./calicoctl profile PROF_D member add workload-D
-    ./calicoctl profile PROF_A_C_E member add workload-E
+    ./calicoctl endpoint `./calicoctl container workload-D endpoint-id show` profile append PROF_D
+    ./calicoctl endpoint `./calicoctl container workload-E endpoint-id show` profile append PROF_A_C_E
+
+*Note that `profile add` works from any Calico node, but `endpoint <ENDPOINT_ID> profile append` only works from the Calico node where the container is hosted).*
 
 Now, check that A can ping C (192.168.1.3) and E (192.168.1.5):
 
@@ -150,14 +152,14 @@ On core-01
 
     docker run -e CALICO_IP=fd80:24e2:f998:72d6::1:1 --name workload-F -tid phusion/baseimage:0.9.16
     ./calicoctl profile add PROF_F_G
-    ./calicoctl profile PROF_F_G member add workload-F
+    ./calicoctl endpoint `./calicoctl container workload-F endpoint-id show` profile append PROF_F_G
 
 Note that we have used `phusion/baseimage:0.9.16` instead of `busybox`.  Busybox doesn't support IPv6 versions of network tools like ping.  Baseimage was chosen since it is the base for the Calico service images, and thus won't require an additional download, but of course you can use whatever image you'd like.
 
 One core-02
 
     docker run -e CALICO_IP=fd80:24e2:f998:72d6::1:2 --name workload-G -tid phusion/baseimage:0.9.16
-    ./calicoctl profile PROF_F_G member add workload-G
+    ./calicoctl endpoint `./calicoctl container workload-G endpoint-id show` profile append PROF_F_G
     docker exec workload-G ping6 -c 4 fd80:24e2:f998:72d6::1:1
 
 [calico-coreos-vagrant]: https://github.com/Metaswitch/calico-coreos-vagrant-example
