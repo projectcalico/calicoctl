@@ -13,7 +13,7 @@
 # limitations under the License.
 import os
 import sh
-from sh import docker
+from sh import docker, ErrorReturnCode_127, ErrorReturnCode_255
 import socket
 from time import sleep
 
@@ -32,20 +32,6 @@ def get_ip():
     return ip
 
 
-def cleanup_inside(name):
-    """
-    Clean the inside of a container by deleting the containers and images within it.
-    """
-    docker("exec", "-t", name, "bash", "-c",
-           "docker rm -f $(docker ps -qa) ; docker rmi $(docker images -qa)",
-           _ok_code=[0,
-                     1,  # Caused by 'docker: "rm" requires a minimum of 1 argument.' et al.
-                     127,  # Caused by '"docker": no command found'
-                     255,  # Caused by '"bash": executable file not found in $PATH'
-                    ]
-          )
-
-
 def delete_container(name):
     """
     Cleanly delete a container.
@@ -55,6 +41,38 @@ def delete_container(name):
     # https://github.com/jpetazzo/dind#important-warning-about-disk-usage
     cleanup_inside(name)
     sh.docker.rm("-f", name, _ok_code=[0, 1])
+
+
+def cleanup_inside(name):
+    """
+    Clean the inside of a container by deleting the containers and images within it.
+    """
+    cleanup_inner_containers(name)
+    cleanup_inner_images(name)
+
+
+def cleanup_inner_containers(name):
+    try:
+        inner_containers = docker("exec", "-t", name, "bash", "-c", "docker ps -qa").stdout.split()
+    except ErrorReturnCode_255:
+        # 255 caused by '"bash": executable file not found in $PATH'
+        # This happens in the etcd container.
+        pass
+    else:
+        for container in inner_containers:
+            docker("exec", "-t", name, "bash", "-c", "docker rm -f %s" % container)
+
+
+def cleanup_inner_images(name):
+    try:
+        inner_images = docker("exec", "-t", name, "bash", "-c", "docker images -q").stdout.split()
+    except ErrorReturnCode_255:
+        # 255 caused by '"bash": executable file not found in $PATH'
+        # This happens in the etcd container.
+        pass
+    else:
+        for image in inner_images:
+            docker("exec", "-t", name, "bash", "-c", "docker rmi %s" % image)
 
 
 def retry_until_success(function, retries=10, ex_class=Exception):
