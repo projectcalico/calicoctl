@@ -11,11 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from sh import ErrorReturnCode
-from functools import partial
+import unittest
+import uuid
 
 from test_base import TestBase
-from docker_host import DockerHost
+from calico_containers.tests.st.utils.docker_host import DockerHost
 
 
 class TestMainline(TestBase):
@@ -23,25 +23,24 @@ class TestMainline(TestBase):
         """
         Setup two endpoints on one host and check connectivity.
         """
-        host = DockerHost('host')
+        # TODO dind=True is just to work around https://github.com/docker/docker/issues/14107
+        with DockerHost('host', dind=True) as host:
+            network = host.create_network(str(uuid.uuid4()))
+            node1 = host.create_workload(str(uuid.uuid4()), network=network)
+            node2 = host.create_workload(str(uuid.uuid4()), network=network)
 
-        node1 = host.create_workload("node1", ip1)
-        node2 = host.create_workload("node2", ip2)
+            # Allow network to converge
+            node1.assert_can_ping(node2.ip, retries=5)
 
-        # Configure the nodes with the same profiles.
-        host.calicoctl("profile add TEST_GROUP")
-        host.calicoctl("profile TEST_GROUP member add %s" % node1)
-        host.calicoctl("profile TEST_GROUP member add %s" % node2)
+            # Check connectivity.
+            self.assert_connectivity([node1, node2])
 
-        # Check connectivity.
-        self.assert_connectivity([node1, node2])
-
-        # Test calicoctl teardown commands.
-        host.calicoctl("profile remove TEST_GROUP")
-        host.calicoctl("container remove %s" % node1)
-        host.calicoctl("container remove %s" % node2)
-        host.calicoctl("pool remove 192.168.0.0/16")
-        host.calicoctl("node stop")
+            # Test calicoctl teardown commands.
+            # TODO - move this to a different test.
+            # host.execute("docker rm -f %s" % node1)
+            # host.execute("docker rm -f %s" % node2)
+            # host.calicoctl("pool remove 192.168.0.0/16")
+            # host.calicoctl("node stop")
 
     def test_auto(self):
         """
@@ -49,6 +48,7 @@ class TestMainline(TestBase):
         """
         self.run_mainline("auto", "auto")
 
+    @unittest.skip("Docker Driver doesn't support static IP assignment yet.")
     def test_hardcoded_ip(self):
         """
         Run the test using hard coded IPV4 assignments.

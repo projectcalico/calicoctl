@@ -12,22 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from mock import patch, Mock, call, ANY
-from calico_containers.adapter.datastore import (DatastoreClient,
-                                                 Rule,
-                                                 BGPPeer,
-                                                 Profile,
-                                                 Rules,
-                                                 Endpoint,
-                                                 NoEndpointForContainer,
-                                                 CALICO_V_PATH,
-                                                 DataStoreError)
 from etcd import Client as EtcdClient
 from etcd import EtcdKeyNotFound, EtcdResult, EtcdException
-from netaddr import IPNetwork, IPAddress
 import json
-from nose.tools import *
 import unittest
+
+from mock import ANY
+from netaddr import IPNetwork, IPAddress
+from nose.tools import *
+from mock import patch, Mock, call
+
+from calico_containers.pycalico.datastore import (BGPPeer)
+from calico_containers.pycalico.datastore import (DatastoreClient,
+                                                  Rule,
+                                                  Profile,
+                                                  Rules,
+                                                  Endpoint,
+                                                  NoEndpointForContainer,
+                                                  CALICO_V_PATH,
+                                                  DataStoreError,
+                                                  ProfileAlreadyInEndpoint,
+                                                  ProfileNotInEndpoint,
+                                                  MultipleEndpointsMatch)
 
 TEST_HOST = "TEST_HOST"
 TEST_ORCH_ID = "docker"
@@ -35,6 +41,7 @@ TEST_PROFILE = "TEST"
 TEST_CONT_ID = "1234"
 TEST_ENDPOINT_ID = "1234567890ab"
 TEST_ENDPOINT_ID2 = "90abcdef1234"
+HOSTS_PATH = CALICO_V_PATH + "/host/"
 TEST_HOST_PATH = CALICO_V_PATH + "/host/TEST_HOST"
 IPV4_POOLS_PATH = CALICO_V_PATH + "/ipam/v4/pool"
 IPV6_POOLS_PATH = CALICO_V_PATH + "/ipam/v6/pool"
@@ -44,9 +51,11 @@ ALL_PROFILES_PATH = CALICO_V_PATH + "/policy/profile/"
 ALL_ENDPOINTS_PATH = CALICO_V_PATH + "/host/"
 ALL_HOSTS_PATH = CALICO_V_PATH + "/host/"
 TEST_NODE_BGP_PEERS_PATH = TEST_HOST_PATH + "/bgp_peer_v4/"
+TEST_ORCHESTRATORS_PATH = CALICO_V_PATH + "/host/TEST_HOST/workload/"
+TEST_WORKLOADS_PATH = CALICO_V_PATH + "/host/TEST_HOST/workload/docker/"
 TEST_ENDPOINT_PATH = CALICO_V_PATH + "/host/TEST_HOST/workload/docker/1234/" \
                                      "endpoint/1234567890ab"
-TEST_CONT_ENDPOINT_PATH = CALICO_V_PATH + "/host/TEST_HOST/workload/docker/" \
+TEST_CONT_ENDPOINTS_PATH = CALICO_V_PATH + "/host/TEST_HOST/workload/docker/" \
                                           "1234/endpoint/"
 TEST_CONT_PATH = CALICO_V_PATH + "/host/TEST_HOST/workload/docker/1234/"
 CONFIG_PATH = CALICO_V_PATH + "/config/"
@@ -180,9 +189,10 @@ class TestRule(unittest.TestCase):
 
         rule4 = Rule(action="allow",
                      protocol="icmp",
+                     icmp_code=100,
                      icmp_type=8,
                      src_net=IPNetwork("10/8"))
-        assert_equal("allow icmp type 8 from 10.0.0.0/8",
+        assert_equal("allow icmp type 8 code 100 from 10.0.0.0/8",
                      rule4.pprint())
 
 
@@ -297,6 +307,33 @@ class TestEndpoint(unittest.TestCase):
         assert_not_equal(endpoint1, 1)
         assert_false(endpoint1 == "this is not an endpoint")
 
+    def test_matches(self):
+        """
+        Test Endpoint.matches() with various match conditions.
+        """
+        endpoint1 = Endpoint(TEST_HOST, "docker", TEST_CONT_ID,
+                             "aabbccddeeff112233",
+                             "active", "11-22-33-44-55-66")
+        assert_true(endpoint1.matches(hostname=TEST_HOST,
+                                      orchestrator_id="docker",
+                                      workload_id=TEST_CONT_ID,
+                                      endpoint_id="aabbccddeeff112233"))
+        assert_false(endpoint1.matches(hostname="INVALID",
+                                       orchestrator_id="docker",
+                                       workload_id=TEST_CONT_ID,
+                                       endpoint_id="aabbccddeeff112233"))
+        assert_false(endpoint1.matches(hostname=TEST_HOST,
+                                       orchestrator_id="INVALID",
+                                       workload_id=TEST_CONT_ID,
+                                       endpoint_id="aabbccddeeff112233"))
+        assert_false(endpoint1.matches(hostname=TEST_HOST,
+                                       orchestrator_id="docker",
+                                       workload_id="INVALID",
+                                       endpoint_id="aabbccddeeff112233"))
+        assert_false(endpoint1.matches(hostname=TEST_HOST,
+                                       orchestrator_id="docker",
+                                       workload_id=TEST_CONT_ID,
+                                       endpoint_id="INVALID"))
 
 class TestBGPPeer(unittest.TestCase):
     def test_operator(self):
@@ -315,8 +352,8 @@ class TestBGPPeer(unittest.TestCase):
 
 class TestDatastoreClient(unittest.TestCase):
 
-    @patch("calico_containers.adapter.datastore.os.getenv", autospec=True)
-    @patch("calico_containers.adapter.datastore.etcd.Client", autospec=True)
+    @patch("calico_containers.pycalico.datastore.os.getenv", autospec=True)
+    @patch("calico_containers.pycalico.datastore.etcd.Client", autospec=True)
     def setUp(self, m_etcd_client, m_getenv):
         m_getenv.return_value = "127.0.0.2:4002"
         self.etcd_client = Mock(spec=EtcdClient)
@@ -470,6 +507,123 @@ class TestDatastoreClient(unittest.TestCase):
             TEST_PROFILE_PATH + "rules",
             profile.rules.to_json())
 
+    @patch("calico_containers.pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
+    @patch("calico_containers.pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
+    def test_append_profiles_to_endpoint(self, m_update, m_get):
+        """
+        Test append_profiles_to_endpoint() to check profile_ids are updated.
+        :return: None.
+        """
+        endpoint1 = Endpoint(TEST_HOST, "docker", TEST_CONT_ID,
+                             "aabbccddeeff112233",
+                             "active", "11-22-33-44-55-66")
+        endpoint1.profile_ids = ["PROF1", "PROFA", "PROF2", "PROFB"]
+        m_get.return_value = endpoint1
+
+        endpoint2 = endpoint1.copy()
+        endpoint2.profile_ids = ["PROF1", "PROFA", "PROF2", "PROFB",
+                                 "PROFZ", "PROF5"]
+
+        def update_endpoint(_ds, ep):
+            assert_list_equal(ep.profile_ids,
+                              ["PROF1", "PROFA", "PROF2",
+                               "PROFB", "PROFZ", "PROF5"])
+            assert_equal(endpoint1, endpoint2)
+        m_update.side_effect = update_endpoint
+
+        self.datastore.append_profiles_to_endpoint(["PROFZ", "PROF5"])
+        assert_true(m_update.called)
+
+    @patch("calico_containers.pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
+    @patch("calico_containers.pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
+    def test_append_profiles_to_endpoint_duplicate(self, m_update, m_get):
+        """
+        Test append_profiles_to_endpoint() with a duplicate profile.
+
+        No update should occur.
+        :return: None.
+        """
+        endpoint1 = Endpoint(TEST_HOST, "docker", TEST_CONT_ID,
+                             "aabbccddeeff112233",
+                             "active", "11-22-33-44-55-66")
+        endpoint1.profile_ids = ["PROF1", "PROFA", "PROF2", "PROFB"]
+        m_get.return_value = endpoint1
+
+        self.assertRaises(ProfileAlreadyInEndpoint,
+                          self.datastore.append_profiles_to_endpoint,
+                          ["PROFZ", "PROFA"])
+        assert_false(m_update.called)
+
+    @patch("calico_containers.pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
+    @patch("calico_containers.pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
+    def test_set_profiles_on_endpoint(self, m_update, m_get):
+        """
+        Test set_profiles_on_endpoint() to check profile_ids are updated.
+        :return: None.
+        """
+        endpoint1 = Endpoint(TEST_HOST, "docker", TEST_CONT_ID,
+                             "aabbccddeeff112233",
+                             "active", "11-22-33-44-55-66")
+        endpoint1.profile_ids = ["PROF1", "PROFA", "PROF2", "PROFB"]
+        m_get.return_value = endpoint1
+
+        endpoint2 = endpoint1.copy()
+        endpoint2.profile_ids = ["PROFZ", "PROF5"]
+
+        def update_endpoint(ds, ep):
+            assert_list_equal(ep.profile_ids,
+                              ["PROFZ", "PROF5"])
+            assert_equal(endpoint1, endpoint2)
+        m_update.side_effect = update_endpoint
+
+        self.datastore.set_profiles_on_endpoint(["PROFZ", "PROF5"])
+        assert_true(m_update.called)
+
+    @patch("calico_containers.pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
+    @patch("calico_containers.pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
+    def test_remove_profiles_from_endpoint(self, m_update, m_get):
+        """
+        Test remove_profiles_from_endpoint() to check profile_ids are updated.
+        :return: None.
+        """
+        endpoint1 = Endpoint(TEST_HOST, "docker", TEST_CONT_ID,
+                             "aabbccddeeff112233",
+                             "active", "11-22-33-44-55-66")
+        endpoint1.profile_ids = ["PROF1", "PROFA", "PROF2", "PROFB"]
+        m_get.return_value = endpoint1
+
+        endpoint2 = endpoint1.copy()
+        endpoint2.profile_ids = ["PROFA", "PROFB"]
+
+        def update_endpoint(_ds, ep):
+            assert_list_equal(ep.profile_ids,
+                              ["PROFA", "PROFB"])
+            assert_equal(endpoint1, endpoint2)
+        m_update.side_effect = update_endpoint
+
+        self.datastore.remove_profiles_from_endpoint(["PROF1", "PROF2"])
+        assert_true(m_update.called)
+
+    @patch("calico_containers.pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
+    @patch("calico_containers.pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
+    def test_remove_profiles_to_endpoint_missing(self, m_update, m_get):
+        """
+        Test remove_profiles_from_endpoint() with an invalid profile.
+
+        No update should occur.
+        :return: None.
+        """
+        endpoint1 = Endpoint(TEST_HOST, "docker", TEST_CONT_ID,
+                             "aabbccddeeff112233",
+                             "active", "11-22-33-44-55-66")
+        endpoint1.profile_ids = ["PROF1", "PROFA", "PROF2", "PROFB"]
+        m_get.return_value = endpoint1
+
+        self.assertRaises(ProfileNotInEndpoint,
+                          self.datastore.remove_profiles_from_endpoint,
+                          ["PROF1", "PROFZ"])
+        assert_false(m_update.called)
+
     def test_create_host_exists(self):
         """
         Test create_host() when the .../workload key already exists.
@@ -578,6 +732,36 @@ class TestDatastoreClient(unittest.TestCase):
         pools = self.datastore.get_ip_pools("v4")
         assert_list_equal([], pools)
 
+    def test_get_ip_pool_config(self):
+        """
+        Test get_ip_pool_config where valid data is returned..
+        """
+        def mock_read(path):
+            assert path == IPV4_POOLS_PATH + "/1.2.0.0-16"
+            result = Mock(spec=EtcdResult)
+            result.key = path
+            result.value = "{\"cidr\": \"1.2.0.0/16\"," \
+                            "\"ipip\": \"tunl0\"," \
+                            "\"masquerade\": true}"
+            return result
+
+        self.etcd_client.read.side_effect = mock_read
+        config = self.datastore.get_ip_pool_config("v4",
+                                                   IPNetwork("1.2.3.4/16"))
+        assert_dict_equal(config,
+                          {"cidr": "1.2.0.0/16",
+                           "ipip": "tunl0",
+                           "masquerade": True})
+
+    def test_get_ip_pool_config_doesnt_exist(self):
+        """
+        Test get_ip_pool_config where the pool does not exist.
+        """
+        self.etcd_client.read.side_effect = EtcdKeyNotFound
+        self.assertRaises(KeyError,
+                          self.datastore.get_ip_pool_config,
+                          "v4", IPNetwork("1.2.3.4/1"))
+
     def test_add_ip_pool(self):
         """
         Test adding an IP pool when the directory exists, but pool doesn't.
@@ -586,12 +770,13 @@ class TestDatastoreClient(unittest.TestCase):
         self.etcd_client.read.side_effect = mock_read_2_pools
 
         pool = IPNetwork("192.168.100.5/24")
-        self.datastore.add_ip_pool("v4", pool, masquerade=True)
+        self.datastore.add_ip_pool("v4", pool, ipip=True, masquerade=True)
         self.etcd_client.write.assert_called_once_with(IPV4_POOLS_PATH + "/192.168.100.0-24",
                                                        ANY)
         raw_data = self.etcd_client.write.call_args[0][1]
         data = json.loads(raw_data)
         self.assertEqual(data, {'cidr': '192.168.100.0/24',
+                                "ipip": "tunl0",
                                 'masquerade': True})
 
     def test_add_ip_pool_exists(self):
@@ -612,7 +797,6 @@ class TestDatastoreClient(unittest.TestCase):
         Test remove_ip_pool() when the pool does exist.
         :return: None
         """
-        self.etcd_client.read.side_effect = mock_read_2_pools
         pool = IPNetwork("192.168.3.1/24")
         self.datastore.remove_ip_pool("v4", pool)
         self.etcd_client.delete.assert_called_once_with(IPV4_POOLS_PATH + "/192.168.3.0-24")
@@ -622,11 +806,10 @@ class TestDatastoreClient(unittest.TestCase):
         Test remove_ip_pool() when the pool does not exist.
         :return: None
         """
-        self.etcd_client.read.side_effect = mock_read_2_pools
+        self.etcd_client.delete.side_effect = EtcdKeyNotFound
         pool = IPNetwork("192.168.100.1/24")
-        self.datastore.remove_ip_pool("v4", pool)
-        # delete is called for the key, but doesn't throw an exception.
-        self.etcd_client.delete.assert_called_once_with(IPV4_POOLS_PATH + "/192.168.100.0-24")
+        self.assertRaises(KeyError,
+                          self.datastore.remove_ip_pool, "v4", pool)
 
     def test_profile_exists_true(self):
         """
@@ -792,6 +975,15 @@ class TestDatastoreClient(unittest.TestCase):
                       hostname=TEST_HOST, orchestrator_id=TEST_ORCH_ID,
                       workload_id=TEST_CONT_ID, endpoint_id=TEST_ENDPOINT_ID)
 
+    def test_get_endpoints_multiple(self):
+        """
+        Test get_endpoints() with more than a single result.
+        """
+
+        self.etcd_client.read.side_effect = \
+            get_mock_read_2_ep_for_cont(ALL_ENDPOINTS_PATH, True)
+        self.assertRaises(MultipleEndpointsMatch, self.datastore.get_endpoint)
+
     def test_set_endpoint(self):
         """
         Test set_endpoint().
@@ -824,8 +1016,10 @@ class TestDatastoreClient(unittest.TestCase):
         """
         Test get_endpoint_id_from_cont() when container and endpoint exist.
         """
-        self.etcd_client.read.side_effect = mock_read_2_ep_for_cont
-        endpoint_id = self.datastore.get_endpoint_id_from_cont(TEST_HOST, TEST_CONT_ID)
+        self.etcd_client.read.side_effect = \
+            get_mock_read_2_ep_for_cont(TEST_CONT_ENDPOINTS_PATH, None)
+        endpoint_id = self.datastore.get_endpoint_id_from_cont(TEST_HOST,
+                                                               TEST_CONT_ID)
         assert_equal(endpoint_id, EP_12.endpoint_id)
 
     def test_get_endpoint_id_from_cont_no_ep(self):
@@ -849,9 +1043,40 @@ class TestDatastoreClient(unittest.TestCase):
 
     def test_get_endpoints_exists(self):
         """
-        Test get_endpoints() for a container that exists.
+        Test get_endpoints() passing in various numbers of parameters, with
+        matching return results.
         """
-        self.etcd_client.read.side_effect = mock_read_2_ep_for_cont
+
+        self.etcd_client.read.side_effect = \
+            get_mock_read_2_ep_for_cont(ALL_ENDPOINTS_PATH, True)  
+        eps = self.datastore.get_endpoints()
+        assert_equal(len(eps), 2)
+        assert_equal(eps[0].to_json(), EP_12.to_json())
+        assert_equal(eps[0].endpoint_id, EP_12.endpoint_id)
+        assert_equal(eps[1].to_json(), EP_78.to_json())
+        assert_equal(eps[1].endpoint_id, EP_78.endpoint_id)
+
+        self.etcd_client.read.side_effect = \
+            get_mock_read_2_ep_for_cont(TEST_ORCHESTRATORS_PATH, True)  
+        eps = self.datastore.get_endpoints(hostname=TEST_HOST)
+        assert_equal(len(eps), 2)
+        assert_equal(eps[0].to_json(), EP_12.to_json())
+        assert_equal(eps[0].endpoint_id, EP_12.endpoint_id)
+        assert_equal(eps[1].to_json(), EP_78.to_json())
+        assert_equal(eps[1].endpoint_id, EP_78.endpoint_id)
+
+        self.etcd_client.read.side_effect = \
+            get_mock_read_2_ep_for_cont(TEST_WORKLOADS_PATH, True)
+        eps = self.datastore.get_endpoints(hostname=TEST_HOST,
+                                           orchestrator_id=TEST_ORCH_ID)
+        assert_equal(len(eps), 2)
+        assert_equal(eps[0].to_json(), EP_12.to_json())
+        assert_equal(eps[0].endpoint_id, EP_12.endpoint_id)
+        assert_equal(eps[1].to_json(), EP_78.to_json())
+        assert_equal(eps[1].endpoint_id, EP_78.endpoint_id)
+
+        self.etcd_client.read.side_effect = \
+            get_mock_read_2_ep_for_cont(TEST_CONT_ENDPOINTS_PATH, True)  
         eps = self.datastore.get_endpoints(hostname=TEST_HOST,
                                            orchestrator_id=TEST_ORCH_ID,
                                            workload_id=TEST_CONT_ID)
@@ -861,13 +1086,24 @@ class TestDatastoreClient(unittest.TestCase):
         assert_equal(eps[1].to_json(), EP_78.to_json())
         assert_equal(eps[1].endpoint_id, EP_78.endpoint_id)
 
+    def test_get_endpoints_no_matches(self):
+        """
+        Test get_endpoints() with etcd data returned, but non-matching data.
+        """
+        self.etcd_client.read.side_effect = \
+              get_mock_read_2_ep_for_cont(TEST_WORKLOADS_PATH, True)
+        eps = self.datastore.get_endpoints(hostname=TEST_HOST,
+                                           orchestrator_id=TEST_ORCH_ID,
+                                           endpoint_id="NOTVALID")
+        assert_equal(len(eps), 0)
+
     def test_get_endpoints_doesnt_exist(self):
         """
         Test get_endpoints() for a container that doesn't exist.
         """
         def mock_read(path, recursive=None):
             assert_true(recursive)
-            assert_equal(path, TEST_CONT_ENDPOINT_PATH)
+            assert_equal(path, TEST_CONT_ENDPOINTS_PATH)
             raise EtcdKeyNotFound()
         self.etcd_client.read.side_effect = mock_read
         eps = self.datastore.get_endpoints(hostname=TEST_HOST,
@@ -1211,6 +1447,136 @@ class TestDatastoreClient(unittest.TestCase):
 
         assert_equal(self.datastore.get_default_node_as(), 64511)
 
+    def test_get_hostnames(self):
+        """
+        Test get_hostnames()
+        """
+        def mock_read(path):
+            assert path == HOSTS_PATH
+            result = Mock(spec=EtcdResult)
+            etcd_children = []
+            for path in [HOSTS_PATH[:-1], HOSTS_PATH + "Test1",
+                         HOSTS_PATH + "Test2"]:
+                etcd_child = Mock(EtcdResult)
+                etcd_child.key = path
+                etcd_child.value = None
+                etcd_children.append(etcd_child)
+            result.children = iter(etcd_children)
+            return result
+        self.etcd_client.read = mock_read
+
+        hostnames = self.datastore.get_hostnames()
+        assert_equal(hostnames, ["Test1", "Test2"])
+
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_default_node_as", autospec=True)
+    def test_get_node_as_peer(self, m_default_as):
+        """
+        Test get_node_as_peer() when both IP and AS are assigned.
+        """
+        m_default_as.return_value = 22334
+        as_result = None
+
+        def mock_read(path):
+            result = Mock(spec=EtcdResult)
+            result.key = path
+            if path == TEST_HOST_PATH + "/bird_ip":
+                result.value = "1.2.3.4"
+            elif path == TEST_HOST_PATH + "/bird6_ip":
+                result.value = "aa::ff"
+            elif path == TEST_HOST_PATH + "/bgp_as":
+                if as_result:
+                    result.value = as_result
+                else:
+                    raise EtcdKeyNotFound()
+            else:
+                assert False, "Unexpected path in read"
+            return result
+        self.etcd_client.read = mock_read
+
+        as_result = None
+        bgp_peer = self.datastore.get_node_as_peer("v4", "TEST_HOST")
+        assert_equals(bgp_peer.ip, IPAddress("1.2.3.4"))
+        assert_equals(bgp_peer.as_num, 22334)
+
+        as_result = "12345"
+        bgp_peer = self.datastore.get_node_as_peer("v4", "TEST_HOST")
+        assert_equals(bgp_peer.ip, IPAddress("1.2.3.4"))
+        assert_equals(bgp_peer.as_num, 12345)
+
+        bgp_peer = self.datastore.get_node_as_peer("v6", "TEST_HOST")
+        assert_equals(bgp_peer.ip, IPAddress("aa::ff"))
+        assert_equals(bgp_peer.as_num, 12345)
+
+    def test_get_node_as_peer_no_ip(self):
+        """
+        Test get_node_as_peer() when the configured IP is empty.
+        """
+        def mock_read(path):
+            result = Mock(spec=EtcdResult)
+            result.key = path
+            result.value = ""
+            return result
+        self.etcd_client.read = mock_read
+
+        bgp_peer = self.datastore.get_node_as_peer("v4", "TEST_HOST")
+        assert_equal(bgp_peer, None)
+
+    def test_get_node_as_peer_no_ip_key(self):
+        """
+        Test get_node_as_peer() when the BGP IP key is missing.
+        """
+        self.etcd_client.read.side_effect = EtcdKeyNotFound
+        bgp_peer = self.datastore.get_node_as_peer("v4", "TEST_HOST")
+        assert_equal(bgp_peer, None)
+
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_bgp_node_mesh", autospec=True)
+    def test_get_node_to_node_mesh_peers_disabled(self, m_mesh):
+        """
+        Test get_node_to_node_mesh when the mesh is disabled.
+
+        """
+        m_mesh.return_value = False
+        peers = self.datastore.get_node_to_node_mesh_peers("v4", "BLAH")
+        assert_equal(peers, [])
+
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_node_as_peer", autospec=True)
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_bgp_node_mesh", autospec=True)
+    def test_get_node_to_node_mesh_peers_no_local(self, m_mesh, m_peer):
+        """
+        Test get_node_to_node_mesh when there is no local BGP config.
+
+        """
+        m_mesh.return_value = True
+        m_peer.return_value = None
+        peers = self.datastore.get_node_to_node_mesh_peers("v4", "BLAH")
+        assert_equal(peers, [])
+
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_hostnames", autospec=True)
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_node_as_peer", autospec=True)
+    @patch("calico_containers.adapter.datastore.DatastoreClient.get_bgp_node_mesh", autospec=True)
+    def test_get_node_to_node_mesh_peers(self, m_mesh, m_peer, m_hosts):
+        """
+        Test get_node_to_node_mesh when there is a valid set of hosts.
+
+        """
+        def mock_get_peer(ds, version, host):
+            if host == "TEST_HOST":
+                return BGPPeer("1.2.3.4", 1234)
+            elif host == "OTHER1":
+                return BGPPeer("2.3.4.5", 2234)
+            elif host == "OTHER2":
+                return BGPPeer("3.4.5.6", 3456)
+            elif host == "OTHER3":
+                return None
+            assert False, "Unexpected host name"
+
+        m_mesh.return_value = True
+        m_peer.side_effect = mock_get_peer
+        m_hosts.return_value = ["OTHER1", "TEST_HOST", "OTHER2", "OTHER3"]
+        peers = self.datastore.get_node_to_node_mesh_peers("v4", "TEST_HOST")
+        assert_equal(peers, [BGPPeer("2.3.4.5", 2234),
+                             BGPPeer("3.4.5.6", 3456)])
+
 
 def mock_read_2_peers(path):
     """
@@ -1386,30 +1752,31 @@ def mock_read_for_endpoint(ep):
     return mock_read_get_endpoint
 
 
-def mock_read_2_ep_for_cont(path, recursive=None):
-    assert recursive or recursive is None
-    assert path == TEST_CONT_ENDPOINT_PATH
-    leaves = []
-
-    specs = [
-        (CALICO_V_PATH + "/host/TEST_HOST/workload/docker/1234/endpoint/1234567890ab",
-         EP_12.to_json()),
-        (CALICO_V_PATH + "/host/TEST_HOST/workload/docker/1234/endpoint/7890abcdef12",
-         EP_78.to_json())
-    ]
-    for spec in specs:
-        leaf = Mock(spec=EtcdResult)
-        leaf.key = spec[0]
-        leaf.value = spec[1]
-        leaves.append(leaf)
-
-    result = Mock(spec=EtcdResult)
-    result.leaves = iter(leaves)
-    return result
-
+def get_mock_read_2_ep_for_cont(expected_path, expected_recursive):
+    def mock_read(path, recursive=None):
+        assert_equal(recursive, expected_recursive)
+        assert_equal(path, expected_path)
+        leaves = []
+    
+        specs = [
+            (CALICO_V_PATH + "/host/TEST_HOST/workload/docker/1234/endpoint/1234567890ab",
+             EP_12.to_json()),
+            (CALICO_V_PATH + "/host/TEST_HOST/workload/docker/1234/endpoint/7890abcdef12",
+             EP_78.to_json())
+        ]
+        for spec in specs:
+            leaf = Mock(spec=EtcdResult)
+            leaf.key = spec[0]
+            leaf.value = spec[1]
+            leaves.append(leaf)
+    
+        result = Mock(spec=EtcdResult)
+        result.leaves = iter(leaves)
+        return result
+    return mock_read
 
 def mock_read_0_ep_for_cont(path):
-    assert path == TEST_CONT_ENDPOINT_PATH
+    assert path == TEST_CONT_ENDPOINTS_PATH
     leaves = []
     result = Mock(spec=EtcdResult)
     result.leaves = iter(leaves)

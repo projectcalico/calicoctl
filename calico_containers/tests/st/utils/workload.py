@@ -11,20 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from netaddr import IPAddress, AddrFormatError
 from functools import partial
-from sh import ErrorReturnCode_1
+from subprocess import CalledProcessError
+import uuid
+
+from netaddr import IPAddress
 
 from utils import retry_until_success
+from calico_containers.tests.st.utils.network import DockerNetwork
 
+NET_NONE = "none"
 
 class Workload(object):
     """
     A calico workload.
 
-    These are the end-users containers that will run application-level software.
+    These are the end-users containers that will run application-level
+    software.
     """
-    def __init__(self, host, name, ip=None, image="busybox", use_powerstrip=True):
+    def __init__(self, host, name, ip=None, image="busybox", network=None):
         """
         Create the workload and detect its IPs.
 
@@ -40,8 +45,8 @@ class Workload(object):
         :param image: The docker image to be used to instantiate this
         container. busybox used by default because it is extremely small and
         has ping.
-        :param use_powerstrip: Use Powerstrip in front of docker to inform
-        calico of networking changes.
+        :param network: The DockerNetwork to connect to.  Set to None to use
+        default Docker networking.
         """
         self.host = host
         self.name = name
@@ -53,50 +58,49 @@ class Workload(object):
             "--detach",
             "--name", name,
         ]
-        if ip:
-            # Powerstrip passes the CALICO_IP var to calico.
-            args += ["--env", "CALICO_IP=%s" % ip]
+        assert ip is None, "Static IP assignment not supported by libnetwork."
+        if network:
+            if network is not NET_NONE:
+                assert isinstance(network, DockerNetwork)
+            # We don't yet care about service names and they are buggy.
+            # Currently they aren't deleted properly, so to ensure no
+            # clashes between tests, just use a uuid
+            args.append("--publish-service=%s.%s" % (str(uuid.uuid4()),
+                                                     network))
         args.append(image)
         command = ' '.join(args)
 
-        # Capture the container_id returned by the start command
-        results = host.execute(command, use_powerstrip=use_powerstrip)
-        self.container_id = results.stdout.strip()
+        host.execute(command)
 
         # There is an unofficial ip=auto option in addition to ip=None.
-        if ip is None or ip == 'auto':
+        if ip is None:
             version = None
         else:
             version = IPAddress(ip).version
 
-        # Because of a powerstrip limitation, we fail to pass the IPv6 address
-        # to docker, so the GlobalIPv6Address field is blank.
-
-        # if version == 6:
-        #     version_key = "GlobalIPv6Address"
-        # else:
-        #     version_key = "IPAddress"
-
-        # self.ip = host.execute("docker inspect --format "
-        #                        "'{{ .NetworkSettings.%s }}' %s" % (version_key, name),
-        #                        use_powerstrip=use_powerstrip).stdout.rstrip()
-        # if ip and ip != 'auto':
-        #     assert ip == self.ip, "IP param = %s, configured IP = %s." % (ip, self.ip)
-
         if version == 6:
-            self.ip = ip
+            version_key = "GlobalIPv6Address"
         else:
-            self.ip = host.execute("docker inspect --format "
-                                   "'{{ .NetworkSettings.IPAddress }}' %s" % name,
-                                   use_powerstrip=use_powerstrip).stdout.rstrip()
+            version_key = "IPAddress"
 
-        if version == 4:
-            assert ip == self.ip, "IP param = %s, configured IP = %s." % (ip, self.ip)
+        self.ip = host.execute("docker inspect --format "
+                               "'{{ .NetworkSettings.%s }}' %s" % (version_key,
+                                                                   name),
+                               ).rstrip()
+
+        if ip:
+            # Currently unhittable until libnetwork lets us configure IPs.
+            assert ip == self.ip, "IP param = %s, configured IP = %s." % \
+                                  (ip, self.ip)
 
     def execute(self, command, **kwargs):
         """
         Execute arbitrary commands on this workload.
         """
+        # Make sure we've been created in the context of a host. Done here
+        # instead of in __init__ as we can't exist in the host until we're
+        # created.
+        assert self in self.host.workloads
         return self.host.execute("docker exec %s %s" % (self.name, command))
 
     def assert_can_ping(self, ip, retries=0):
@@ -109,7 +113,7 @@ class Workload(object):
         assert version in [4, 6]
         if version == 4:
             ping = "ping"
-        elif version == 6:
+        else:  # if version == 6:
             ping = "ping6"
 
         args = [
@@ -121,17 +125,15 @@ class Workload(object):
         command = ' '.join(args)
 
         ping = partial(self.execute, command)
-        return retry_until_success(ping, retries=retries, ex_class=ErrorReturnCode_1)
+        return retry_until_success(ping,
+                                   retries=retries,
+                                   ex_class=CalledProcessError)
 
     def assert_cant_ping(self, ip, retries=0):
         for retry in range(retries + 1):
-            try:
-                self.assert_can_ping(ip)
-            except ErrorReturnCode_1:
-                return
-            else:
-                if retry >= retries:
-                    raise Exception("Workload can unexpectedly ping %s" % ip)
+            self.assert_can_ping(ip)
+            if retry >= retries:
+                raise Exception("Workload can unexpectedly ping %s" % ip)
 
     def __str__(self):
         return self.name

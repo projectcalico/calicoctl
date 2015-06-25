@@ -20,11 +20,12 @@ Override the host:port of the ETCD server by setting the environment variable
 ETCD_AUTHORITY [default: 127.0.0.1:4001]
 
 Usage:
-  calicoctl node --ip=<IP> [--node-image=<DOCKER_IMAGE_NAME>] [--ip6=<IP6>] [--as=<AS_NUM>]
+  calicoctl node --ip=<IP> [--node-image=<DOCKER_IMAGE_NAME>] [--ip6=<IP6>]
+                           [--as=<AS_NUM>] [--log-dir=<LOG_DIR>]
   calicoctl node stop [--force]
   calicoctl node bgppeer add <PEER_IP> as <AS_NUM>
   calicoctl node bgppeer remove <PEER_IP>
-  calicoctl node bgppeer show [--ipv4 | --ipv6]
+  calicoctl node bgppeer show [--ipv4 | --ipv6] [--show-all-peers]
   calicoctl status
   calicoctl profile show [--detailed]
   calicoctl profile (add|remove) <PROFILE>
@@ -51,10 +52,8 @@ Usage:
   calicoctl endpoint show [--host=<HOSTNAME>] [--orchestrator=<ORCHESTRATOR_ID>] [--workload=<WORKLOAD_ID>] [--endpoint=<ENDPOINT_ID>] [--detailed]
   calicoctl endpoint <ENDPOINT_ID> profile (append|remove|set) [--host=<HOSTNAME>] [--orchestrator=<ORCHESTRATOR_ID>] [--workload=<WORKLOAD_ID>]  [<PROFILES>...]
   calicoctl endpoint <ENDPOINT_ID> profile show [--host=<HOSTNAME>] [--orchestrator=<ORCHESTRATOR_ID>] [--workload=<WORKLOAD_ID>]
-  calicoctl diags [--upload]
+  calicoctl diags [--log-dir=<LOG_DIR>] [--upload]
   calicoctl checksystem [--fix]
-  calicoctl restart-docker-with-alternative-unix-socket
-  calicoctl restart-docker-without-alternative-unix-socket
 
 Options:
  --interface=<INTERFACE>  The name to give to the interface in the container
@@ -63,14 +62,18 @@ Options:
  --ip6=<IP6>              The local IPv6 management address to use.
  --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for
                           Calico's per-node container
-                          [default: calico/node:latest]
+                          [default: calico/node:libnetwork-release]
  --ipv4                   Show IPv4 information only.
  --ipv6                   Show IPv6 information only.
+ --log-dir=<LOG_DIR>      The directory for logs [default: /var/log/calico]
  --host=<HOSTNAME>        Filters endpoints on a specific host.
  --orchestrator=<ORCHESTRATOR_ID>    Filters endpoints created on a specific orchestrator.
  --workload=<WORKLOAD_ID> Filters endpoints on a specific workload.
  --endpoint=<ENDPOINT_ID> Filters endpoints with a specific endpoint ID.
  --as=<AS_NUM>            The AS number to assign to the node.
+ --show-all-peers         Show all of the nodes BGP Peers, including globally
+                          configured peers, node-specfic peers and (if enabled)
+                          the node-to-node mesh peers.
 """
 __doc__ = __doc__ % {"rule_spec": """    (allow|deny) [(
       (tcp|udp) [(from [(ports <SRCPORTS>)] [(tag <SRCTAG>)] [<SRCCIDR>])]
@@ -88,7 +91,6 @@ import socket
 from subprocess import CalledProcessError
 import sys
 import textwrap
-import time
 import traceback
 
 import netaddr
@@ -100,8 +102,13 @@ import docker.errors
 from netaddr import IPNetwork, IPAddress
 from netaddr.core import AddrFormatError
 from prettytable import PrettyTable
+from requests.exceptions import ConnectionError
 
-from adapter.datastore import (ETCD_AUTHORITY_ENV,
+from urllib3.exceptions import MaxRetryError
+
+from pycalico import netns
+from pycalico import diags
+from pycalico.datastore import (ETCD_AUTHORITY_ENV,
                                ETCD_AUTHORITY_DEFAULT,
                                Rule,
                                Rules,
@@ -111,14 +118,7 @@ from adapter.datastore import (ETCD_AUTHORITY_ENV,
                                MultipleEndpointsMatch,
                                Vividict,
                                BGPPeer)
-from adapter.docker_restart import REAL_SOCK, POWERSTRIP_SOCK
-from adapter.ipam import IPAMClient
-from adapter import netns, docker_restart
-from adapter import diags
-
-from requests.exceptions import ConnectionError
-from urllib3.exceptions import MaxRetryError
-
+from pycalico.ipam import IPAMClient
 
 hostname = socket.gethostname()
 client = IPAMClient()
@@ -126,7 +126,6 @@ DOCKER_VERSION = "1.16"
 docker_client = docker.Client(version=DOCKER_VERSION,
                               base_url=os.getenv("DOCKER_HOST",
                                                  "unix://var/run/docker.sock"))
-docker_restarter = docker_restart.create_restarter()
 
 ORCHESTRATOR_ID = "docker"
 
@@ -137,7 +136,6 @@ except sh.CommandNotFound as e:
 
 DEFAULT_IPV4_POOL = IPNetwork("192.168.0.0/16")
 DEFAULT_IPV6_POOL = IPNetwork("fd80:24e2:f998:72d6::/64")
-POWERSTRIP_PORT = "2377"
 
 class ConfigError(Exception):
     pass
@@ -335,7 +333,7 @@ def module_loaded(module):
     return any(s.startswith(module) for s in open("/proc/modules").readlines())
 
 
-def node(ip, node_image, ip6="", as_num=None):
+def node(ip, node_image, log_dir, ip6="", as_num=None):
     """
     Create the calico-node container and establish Calico networking on this
     host.
@@ -347,6 +345,10 @@ def node(ip, node_image, ip6="", as_num=None):
     the global default value will be used.
     :return:  None.
     """
+    # Ensure log directory exists
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
     # Print warnings for any known system issues before continuing
     checksystem(fix=False, quit_if_error=False)
 
@@ -363,19 +365,8 @@ def node(ip, node_image, ip6="", as_num=None):
     client.ensure_global_config()
     client.create_host(hostname, ip, ip6, as_num)
 
-    if docker_restarter.is_using_alternative_socket():
-        # At this point, docker is listening on a new port but powerstrip
-        # might not be running, so docker clients need to talk directly to
-        # docker.
-        node_docker_client = docker.Client(version=DOCKER_VERSION,
-                                           base_url="unix://%s" % REAL_SOCK)
-        enable_socket = "YES"
-    else:
-        node_docker_client = docker_client
-        enable_socket = "NO"
-
     try:
-        node_docker_client.remove_container("calico-node", force=True)
+        docker_client.remove_container("calico-node", force=True)
     except docker.errors.APIError as err:
         if err.response.status_code != 404:
             raise
@@ -384,7 +375,6 @@ def node(ip, node_image, ip6="", as_num=None):
 
     environment = [
         "HOSTNAME=%s" % hostname,
-        "POWERSTRIP_UNIX_SOCKET=%s" % enable_socket,
         "IP=%s" % ip,
         "IP6=%s" % (ip6 or ""),
         "ETCD_AUTHORITY=%s" % etcd_authority,  # etcd host:port
@@ -392,19 +382,21 @@ def node(ip, node_image, ip6="", as_num=None):
     ]
 
     binds = {
-        "/var/run":
-            {
-                "bind": "/host-var-run",
-                "ro": False
-            },
         "/proc":
             {
                 "bind": "/proc_host",
                 "ro": False
             },
-        "/var/log/calico":
+        log_dir:
             {
                 "bind": "/var/log/calico",
+                "ro": False
+            },
+        "/usr/share/docker/plugins/": #TODO make this an optional node
+        # parameter like log_dir
+        #"/run/docker/plugins/":
+            {
+                "bind": "/usr/share/docker/plugins",
                 "ro": False
             }
     }
@@ -415,30 +407,19 @@ def node(ip, node_image, ip6="", as_num=None):
         network_mode="host",
         binds=binds)
 
-    _find_or_pull_node_image(node_image, node_docker_client)
-    container = node_docker_client.create_container(
+    _find_or_pull_node_image(node_image, docker_client)
+    container = docker_client.create_container(
         node_image,
         name="calico-node",
         detach=True,
         environment=environment,
         host_config=host_config,
-        volumes=["/host-var-run",
-                 "/proc_host",
-                 "/var/log/calico"])
+        volumes=["/proc_host",
+                 "/var/log/calico",
+                 "/usr/share/docker/plugins"])
     cid = container["Id"]
 
-    node_docker_client.start(container)
-
-    if enable_socket == "YES":
-        while not os.path.exists(POWERSTRIP_SOCK):
-            time.sleep(0.1)
-        uid = os.stat(REAL_SOCK).st_uid
-        gid = os.stat(REAL_SOCK).st_gid
-        os.chown(POWERSTRIP_SOCK, uid, gid)
-    else:
-        print "Docker Remote API is on port %s.  Run \n" % POWERSTRIP_PORT
-        print "export DOCKER_HOST=localhost:%s\n" % POWERSTRIP_PORT
-        print "before using `docker run` for Calico networking.\n"
+    docker_client.start(container)
 
     print "Calico node is running with id: %s" % cid
 
@@ -854,7 +835,7 @@ def node_show(detailed):
     print x.get_string(sortby="Host")
 
 
-def save_diags(upload):
+def save_diags(log_dir, upload):
     """
     Gather Calico diagnostics for bug reporting.
     :return: None
@@ -862,7 +843,7 @@ def save_diags(upload):
     # This needs to be run as root.
     enforce_root()
     print("Collecting diags")
-    diags.save_diags(upload)
+    diags.save_diags(log_dir, upload)
 
 def ip_pool_add(cidr_pool, version, ipip, masquerade):
     """
@@ -917,28 +898,6 @@ def ip_pool_show(version):
         row = [pool, ','.join(enabled_options)]
         x.add_row(row)
     print x.get_string(sortby=headings[0])
-
-
-def restart_docker_with_alternative_unix_socket():
-    """
-    Update docker to use a different unix socket, so powerstrip can run
-    its proxy on the "normal" one. This provides simple access for
-    existing tools to the powerstrip proxy.
-
-    Set the docker daemon to listen on the docker.real.sock by updating
-    the config, clearing old sockets and restarting.
-    """
-    enforce_root()
-    docker_restarter.restart_docker_with_alternative_unix_socket()
-
-
-def restart_docker_without_alternative_unix_socket():
-    """
-    Remove any "alternative" unix socket config.
-    """
-    enforce_root()
-    docker_restarter.restart_docker_without_alternative_unix_socket()
-
 
 def set_bgp_node_mesh(enable):
     """
@@ -1016,6 +975,8 @@ def bgppeer_remove(ip, version):
 def bgppeer_show(version):
     """
     Print a list of the global BGP Peers.
+
+    :param version: v4 or v6
     """
     assert version in ("v4", "v6")
     peers = client.get_bgp_peers(version)
@@ -1025,7 +986,7 @@ def bgppeer_show(version):
         for peer in peers:
             x.add_row([peer.ip, peer.as_num])
         x.align = "l"
-        print x.get_string(sortby=heading)
+        print x.get_string(sortby=heading) + "\n"
     else:
         print "No global IP%s BGP Peers defined.\n" % version
 
@@ -1062,22 +1023,54 @@ def node_bgppeer_remove(ip, version):
         print "BGP peer removed from node configuration"
 
 
-def node_bgppeer_show(version):
+def node_bgppeer_show(version, show_all_peers):
     """
     Print a list of the BGP Peers for this node.
+
+    :param version: v4 or v6
+    :param show_all_peers: Whether to display a full list of peers for this
+    node.  This includes the node-to-node mesh, the global peers and the
+    node-specific peers.
     """
     assert version in ("v4", "v6")
-    peers = client.get_bgp_peers(version, hostname=hostname)
-    if peers:
-        heading = "Node specific IP%s BGP Peer" % version
-        x = PrettyTable([heading, "AS Num"], sortby=heading)
-        for peer in peers:
-            x.add_row([peer.ip, peer.as_num])
-        x.align = "l"
-        print x.get_string(sortby=heading)
+    if not show_all_peers:
+        peers = client.get_bgp_peers(version, hostname=hostname)
+        if peers:
+            heading = "Node specific IP%s BGP Peer" % version
+            x = PrettyTable([heading, "AS Num"], sortby=heading)
+            for peer in peers:
+                x.add_row([peer.ip, peer.as_num])
+            x.align = "l"
+            print x.get_string(sortby=heading) + "\n"
+        else:
+            print "No IP%s BGP Peers defined for this node.\n" % version
     else:
-        print "No IP%s BGP Peers defined for this node.\n" % version
+        our_node = client.get_node_as_peer(version, hostname)
+        node_peers = client.get_bgp_peers(version, hostname=hostname)
+        global_peers = client.get_bgp_peers(version)
+        mesh_peers = client.get_node_to_node_mesh_peers(version, hostname)
 
+        if node_peers or global_peers or mesh_peers:
+            if not our_node:
+                print_paragraph("This node has no IP%s BGP configuration.  "
+                                "Whilst there are configured peers for this "
+                                "node, no peering will take "
+                                "place.\n" % version)
+            else:
+                print "Our IP%s address: %s" % (version, our_node.ip)
+                print "Our BGP AS Number: %s\n" % our_node.as_num
+            heading = "Node IP%s BGP Peers" % version
+            x = PrettyTable([heading, "AS Num", "Type"], sortby=heading)
+            for peer in node_peers:
+                x.add_row([peer.ip, peer.as_num, "Node"])
+            for peer in global_peers:
+                x.add_row([peer.ip, peer.as_num, "Global"])
+            for peer in mesh_peers:
+                x.add_row([peer.ip, peer.as_num, "Mesh"])
+            x.align = "l"
+            print x.get_string(sortby=heading) + "\n"
+        else:
+            print "No IP%s BGP Peers for this node.\n" % version
 
 def check_ip_version(ip, version, cls):
     """
@@ -1528,6 +1521,10 @@ def validate_arguments():
     """
     Validate common argument values.
     """
+    #TODO - validate profiles.
+    # profile_ok = (arguments["<PROFILE>"] is None or
+    #               re.match("^%s{1,40}$" % valid_chars, arguments["<PROFILE>"]))
+    profile_ok = True
     # List of valid characters that Felix permits
     valid_chars = '[a-zA-Z0-9_\.\-]'
     profile_ok = True
@@ -1554,7 +1551,9 @@ def validate_arguments():
         if arguments[arg]:
             try:
                 arguments[arg] = str(IPNetwork(arguments[arg]))
-            except AddrFormatError:
+            except (AddrFormatError, ValueError):
+                # Some versions of Netaddr have a bug causing them to return a
+                # ValueError rather than an AddrFormatError, so catch both.
                 cidr_ok = False
     icmp_ok = True
     for arg in ["<ICMPCODE>", "<ICMPTYPE>"]:
@@ -1652,11 +1651,7 @@ def print_container_not_in_calico_msg(container_name):
     :param container_name: The container name.
     :return: None.
     """
-    print_paragraph("Container %s is unknown to Calico.  This can occur if "
-                    "the container was created without setting the powerstrip "
-                    "port (%s) either in the DOCKER_HOST environment variable "
-                    "or using the -H flag on the `docker` command." %
-                    (container_name, POWERSTRIP_PORT))
+    print_paragraph("Container %s is unknown to Calico." % container_name)
     print_paragraph("Use `calicoctl container add` to add the container "
                     "to the Calico network.")
 
@@ -1724,11 +1719,7 @@ if __name__ == '__main__':
     validate_arguments()
     ip_version = get_container_ipv_from_arguments()
     try:
-        if arguments["restart-docker-with-alternative-unix-socket"]:
-            restart_docker_with_alternative_unix_socket()
-        elif arguments["restart-docker-without-alternative-unix-socket"]:
-            restart_docker_without_alternative_unix_socket()
-        elif arguments["node"]:
+        if arguments["node"]:
             if arguments["bgppeer"]:
                 if arguments["add"]:
                     node_bgppeer_add(arguments["<PEER_IP>"], ip_version,
@@ -1737,15 +1728,17 @@ if __name__ == '__main__':
                     node_bgppeer_remove(arguments["<PEER_IP>"], ip_version)
                 elif arguments["show"]:
                     if not ip_version:
-                        node_bgppeer_show("v4")
-                        node_bgppeer_show("v6")
+                        node_bgppeer_show("v4", arguments["--show-all-peers"])
+                        node_bgppeer_show("v6", arguments["--show-all-peers"])
                     else:
-                        node_bgppeer_show(ip_version)
+                        node_bgppeer_show(ip_version,
+                                          arguments["--show-all-peers"])
             elif arguments["stop"]:
                 node_stop(arguments["--force"])
             else:
                 node(arguments["--ip"],
-                     arguments['--node-image'],
+                     node_image=arguments['--node-image'],
+                     log_dir=arguments["--log-dir"],
                      ip6=arguments["--ip6"],
                      as_num=arguments["<AS_NUM>"])
         elif arguments["status"]:
@@ -1847,7 +1840,7 @@ if __name__ == '__main__':
             elif arguments["show"]:
                 profile_show(arguments["--detailed"])
         elif arguments["diags"]:
-            save_diags(arguments["--upload"])
+            save_diags(arguments["--log-dir"], arguments["--upload"])
         elif arguments["pool"]:
             if arguments["add"]:
                 ip_pool_add(arguments["<CIDR>"],

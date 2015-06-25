@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from etcd import EtcdKeyNotFound, EtcdAlreadyExist
-from netaddr import IPAddress
+from netaddr import IPAddress, IPNetwork
 from datastore import DatastoreClient
 from datastore import CALICO_V_PATH
 
@@ -102,6 +102,8 @@ class IPAMClient(DatastoreClient):
         exception is thrown for any error conditions.
         :rtype: bool
         """
+        assert isinstance(pool, IPNetwork)
+        assert isinstance(address, IPAddress)
         key = IP_ASSIGNMENT_KEY % {"version": "v%s" % pool.version,
                                    "pool": str(pool).replace("/", "-"),
                                    "address": address}

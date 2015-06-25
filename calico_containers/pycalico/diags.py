@@ -23,7 +23,7 @@ from datastore import DatastoreClient
 from etcd import EtcdException
 from shutil import copytree
 
-def save_diags(upload=False):
+def save_diags(log_dir, upload=False):
     # Create temp directory
     temp_dir = tempfile.mkdtemp()
     temp_diags_dir = os.path.join(temp_dir, 'diagnostics')
@@ -96,12 +96,11 @@ def save_diags(upload=False):
         except sh.CommandNotFound as e:
             print "Missing command: %s" % e.message
 
-    calico_dir = '/var/log/calico'
-    if os.path.isdir(calico_dir):
+    if os.path.isdir(log_dir):
         print("Copying Calico logs")
-        copytree(calico_dir, os.path.join(temp_diags_dir, "logs"))
+        copytree(log_dir, os.path.join(temp_diags_dir, "logs"))
     else:
-        print('No logs found in %s; skipping log copying' % calico_dir)
+        print('No logs found in %s; skipping log copying' % log_dir)
 
     print("Dumping datastore")
     # TODO: May want to move this into datastore.py as a dump-calico function

@@ -11,16 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
-import sh
-from sh import docker
 import socket
 from time import sleep
+import os
 
 LOCAL_IP_ENV = "MY_IP"
 
 def get_ip():
-    """Return a string of the IP of the hosts interface."""
+    """
+    Return a string of the IP of the hosts interface.
+    Try to get the local IP from the environment variables.  This allows
+    testers to specify the IP address in cases where there is more than one
+    configured IP address for the test system.
+    """
     try:
         ip = os.environ[LOCAL_IP_ENV]
     except KeyError:
@@ -30,31 +33,6 @@ def get_ip():
         ip = s.getsockname()[0]
         s.close()
     return ip
-
-
-def cleanup_inside(name):
-    """
-    Clean the inside of a container by deleting the containers and images within it.
-    """
-    docker("exec", "-t", name, "bash", "-c",
-           "docker rm -f $(docker ps -qa) ; docker rmi $(docker images -qa)",
-           _ok_code=[0,
-                     1,  # Caused by 'docker: "rm" requires a minimum of 1 argument.' et al.
-                     127,  # Caused by '"docker": no command found'
-                     255,  # Caused by '"bash": executable file not found in $PATH'
-                    ]
-          )
-
-
-def delete_container(name):
-    """
-    Cleanly delete a container.
-    """
-    # We *must* remove all inner containers and images before removing the outer
-    # container. Otherwise the inner images will stick around and fill disk.
-    # https://github.com/jpetazzo/dind#important-warning-about-disk-usage
-    cleanup_inside(name)
-    sh.docker.rm("-f", name, _ok_code=[0, 1])
 
 
 def retry_until_success(function, retries=10, ex_class=Exception):

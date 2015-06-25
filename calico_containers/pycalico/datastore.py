@@ -17,18 +17,20 @@ import copy
 import json
 import os
 import re
-
 import etcd
 from etcd import EtcdKeyNotFound, EtcdException
+
 from netaddr import IPNetwork, IPAddress, AddrFormatError
 
 ETCD_AUTHORITY_DEFAULT = "127.0.0.1:4001"
 ETCD_AUTHORITY_ENV = "ETCD_AUTHORITY"
 
 # etcd paths for Calico
-# TODO: modify string constants to accept orchestrator_id, replacing "docker" hardcoding.
+# TODO: modify string constants to accept orchestrator_id, replacing "docker"
+# hardcoding.
 # Any method that uses CONTAINER_PATH, LOCAL_ENDPOINTS_PATH, or ENDPOINT_PATH
-# will need to be refactored to include orchestrator_id as a passed in parameters.
+# will need to be refactored to include orchestrator_id as a passed in
+# parameters.
 CALICO_V_PATH = "/calico/v1"
 CONFIG_PATH = CALICO_V_PATH + "/config/"
 HOSTS_PATH = CALICO_V_PATH + "/host/"
@@ -49,11 +51,14 @@ BGP_NODE_DEF_AS_PATH = CONFIG_PATH + "bgp_as"
 BGP_NODE_MESH_PATH = CONFIG_PATH + "bgp_node_mesh"
 HOST_BGP_PEERS_PATH = HOST_PATH + "bgp_peer_%(version)s/"
 HOST_BGP_PEER_PATH = HOST_PATH + "bgp_peer_%(version)s/%(peer_ip)s"
+BGP_NODE_IPV4 = HOST_PATH + "bird_ip"
+BGP_NODE_IPV6 = HOST_PATH + "bird6_ip"
+BGP_NODE_AS = HOST_PATH + "bgp_as"
 
 # Paths used in endpoint enumeration depending on available parameters.
 ALL_ENDP_PATH = HOSTS_PATH
-HOST_ENDP_PATH = HOST_PATH
-ORCHESTRATOR_ENDP_PATH = HOST_ENDP_PATH + "workload/%(orchestrator_id)s/"
+HOST_ENDP_PATH = HOST_PATH + "workload/"
+ORCHESTRATOR_ENDP_PATH = HOST_ENDP_PATH + "%(orchestrator_id)s/"
 WORKLOAD_ENDP_PATH = ORCHESTRATOR_ENDP_PATH + "%(workload_id)s/endpoint/"
 ENDPOINT_ENDP_PATH = WORKLOAD_ENDP_PATH + "%(endpoint_id)s"
 
@@ -264,11 +269,9 @@ class BGPPeer(object):
 class Endpoint(object):
     """
     Class encapsulating an Endpoint.
-
     This class keeps track of the original JSON representation of the
     endpoint to allow atomic updates to be performed.
     """
-
     def __init__(self, hostname, orchestrator_id, workload_id, endpoint_id,
                  state, mac):
         self.hostname = hostname
@@ -277,6 +280,7 @@ class Endpoint(object):
         self.endpoint_id = endpoint_id
         self.state = state
         self.mac = mac
+        self.name = IF_PREFIX + endpoint_id[:11]
 
         self.ipv4_nets = set()
         self.ipv6_nets = set()
@@ -289,7 +293,7 @@ class Endpoint(object):
 
     def to_json(self):
         json_dict = {"state": self.state,
-                     "name": IF_PREFIX + self.endpoint_id[:11],
+                     "name": self.name,
                      "mac": self.mac,
                      "container:if_name": self.if_name,
                      "profile_ids": self.profile_ids,
@@ -389,6 +393,9 @@ class Endpoint(object):
     def copy(self):
         return copy.deepcopy(self)
 
+    def temp_interface_name(self):
+        return "tmp" + self.endpoint_id[:11]
+
 
 class Profile(object):
     """A Calico policy profile."""
@@ -449,10 +456,13 @@ class DatastoreClient(object):
         :return: nothing.
         """
         host_path = HOST_PATH % {"hostname": hostname}
+        bgp_ipv4 = BGP_NODE_IPV4 %  {"hostname": hostname}
+        bgp_ipv6 = BGP_NODE_IPV6 %  {"hostname": hostname}
+        bgp_as = BGP_NODE_AS %  {"hostname": hostname}
 
         # Set up the host
-        self.etcd_client.write(host_path + "bird_ip", bird_ip)
-        self.etcd_client.write(host_path + "bird6_ip", bird6_ip)
+        self.etcd_client.write(bgp_ipv4, bird_ip)
+        self.etcd_client.write(bgp_ipv6, bird6_ip)
         self.etcd_client.write(host_path + "config/marker", "created")
         workload_dir = host_path + "workload"
         try:
@@ -467,11 +477,11 @@ class DatastoreClient(object):
         # hardcoded default value).
         if as_num is None:
             try:
-                self.etcd_client.delete(host_path + "bgp_as")
+                self.etcd_client.delete(bgp_as)
             except EtcdKeyNotFound:
                 pass
         else:
-            self.etcd_client.write(host_path + "bgp_as", as_num)
+            self.etcd_client.write(bgp_as, as_num)
 
         return
 
@@ -591,6 +601,87 @@ class DatastoreClient(object):
         except (KeyError, EtcdKeyNotFound):
             # Re-raise with a better error message.
             raise KeyError("%s is not a configured IP pool." % pool)
+
+    @handle_errors
+    def get_hostnames(self):
+        """
+        Return a list of hostnames
+        :return:  A list of hostnames configured in etcd.
+        """
+        # Get a list of the hosts.
+        hosts = []
+        results = self.etcd_client.read(HOSTS_PATH)
+        for result in results.children:
+            packed = result.key.split("/")
+            # Handle no hosts being configured (etcd returns the parent).
+            if len(packed) != 5:
+                continue
+            hosts.append(packed[-1])
+        return hosts
+
+    @handle_errors
+    def get_node_as_peer(self, version, hostname):
+        """
+        Return the node BGP information as a BGPPeer object
+
+        :param version: "v4" for IPv4, "v6" for IPv6
+        :param hostname: The node hostname.
+        :return: A BGP Peer object, or None if there is no IP configuration of
+        the requested version.
+        """
+        assert version in ("v4", "v6")
+        if version == "v4":
+            bgp_ip = BGP_NODE_IPV4 %  {"hostname": hostname}
+        else:
+            bgp_ip = BGP_NODE_IPV6 %  {"hostname": hostname}
+        bgp_as = BGP_NODE_AS %  {"hostname": hostname}
+
+        # Get the BGP IP address.  If no key is present, return None.
+        try:
+            ip = self.etcd_client.read(bgp_ip).value
+        except EtcdKeyNotFound:
+            return None
+        if not ip:
+            return None
+
+        # Get the BGP AS number.  If not present, use the default.
+        try:
+            as_num = self.etcd_client.read(bgp_as).value
+        except EtcdKeyNotFound:
+            as_num = None
+        if not as_num:
+            as_num = self.get_default_node_as()
+
+        return BGPPeer(ip, as_num)
+
+    @handle_errors
+    def get_node_to_node_mesh_peers(self, version, hostname):
+        """
+        Get the node-to-node mesh peers for this host.
+
+        :param version: "v4" for IPv4, "v6" for IPv6
+        :param hostname: The node hostname.
+        :return: List of BGPPeer.
+        """
+        assert version in ("v4", "v6")
+        if not self.get_bgp_node_mesh():
+            return []
+
+        our_peer = self.get_node_as_peer(version, hostname)
+        if not our_peer:
+            # We have no BGP information for the requested version and so
+            # we will not peer with other nodes.
+            return []
+
+        peers = []
+        hostnames = self.get_hostnames()
+        for ohostname in hostnames:
+            if ohostname == hostname:
+                continue
+            peer = self.get_node_as_peer(version, ohostname)
+            if peer:
+                peers.append(peer)
+        return peers
 
     @handle_errors
     def get_bgp_peers(self, version, hostname=None):
@@ -1028,7 +1119,12 @@ class DatastoreClient(object):
                                  workload_id=workload_id,
                                  endpoint_id=endpoint_id)
         if not eps:
-            raise KeyError("No endpoint found matching specified criteria")
+            raise KeyError("No endpoint found matching specified criteria."
+                           "hostname=%s"
+                           "orchestrator_id=%s"
+                           "workload_id=%s"
+                           "endpoint_id=%s" % (hostname, orchestrator_id,
+                                               workload_id, endpoint_id))
         elif len(eps) > 1:
             raise MultipleEndpointsMatch()
         else:
