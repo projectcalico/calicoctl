@@ -22,6 +22,7 @@ import sys
 import uuid
 
 from netaddr import IPNetwork, IPAddress
+from calico_containers.pycalico.util import generate_cali_interface_name
 from datastore import Endpoint, IF_PREFIX, VETH_NAME
 
 _log = logging.getLogger(__name__)
@@ -134,8 +135,8 @@ def set_up_endpoint(ip, hostname, orchestrator_id, cpid, next_hop_ips,
     # Generate a new endpoint ID.
     ep_id = uuid.uuid1().hex
 
-    iface = IF_PREFIX + ep_id[:11]
-    iface_tmp = "tmp" + ep_id[:11]
+    iface = generate_cali_interface_name(IF_PREFIX, ep_id)
+    iface_tmp = generate_cali_interface_name("tmp", ep_id)
 
     # Provision the networking.  We create a temporary link from the proc
     # alias to the /var/run/netns to provide a named namespace.  If we don't
