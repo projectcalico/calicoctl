@@ -11,12 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from sh import ErrorReturnCode
 from functools import partial
+from subprocess import CalledProcessError
 
+from calico_containers.tests.st.utils.utils import retry_until_success
+from calico_containers.tests.st.utils.workload import NET_NONE
 from test_base import TestBase
-from docker_host import DockerHost
-from utils import retry_until_success
+from calico_containers.tests.st.utils.docker_host import DockerHost
 
 
 class TestAddContainer(TestBase):
@@ -24,17 +25,19 @@ class TestAddContainer(TestBase):
         """
         Test adding container to calico networking after it exists.
         """
-        host = DockerHost('host')
+        with DockerHost('host', dind=False) as host:
+            # Create a container with --net=none, add a calico interface to
+            # it then check felix programs a route.
+            node = host.create_workload("node", network=NET_NONE)
+            host.calicoctl("container add %s 192.168.1.1" % node)
 
-        node = host.create_workload("node")
+            # Create the profile, get the endpoint IDs for the containers and
+            # add the profile to the endpoint so felix will pick it up.
+            host.calicoctl("profile add TEST_GROUP")
+            ep = host.calicoctl("container %s endpoint-id show" % node)
+            host.calicoctl("endpoint %s profile set TEST_GROUP" % ep)
 
-        # Use the `container add` command instead of passing a CALICO_IP on
-        # container creation. Note this no longer needs DOCKER_HOST specified.
-        host.calicoctl("container add %s 192.168.1.1" % node.name)
-
-        host.calicoctl("profile add TEST_GROUP")
-        host.calicoctl("profile TEST_GROUP member add %s" % node.name)
-
-        # Wait for felix to program down the route.
-        check_route = partial(host.execute, "ip route | grep '192\.168\.1\.1'")
-        retry_until_success(check_route, ex_class=ErrorReturnCode)
+            # Wait for felix to program down the route.
+            check_route = partial(host.execute,
+                                  "ip route | grep '192\.168\.1\.1'")
+            retry_until_success(check_route, ex_class=CalledProcessError)

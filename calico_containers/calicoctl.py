@@ -20,7 +20,8 @@ Override the host:port of the ETCD server by setting the environment variable
 ETCD_AUTHORITY [default: 127.0.0.1:4001]
 
 Usage:
-  calicoctl node --ip=<IP> [--node-image=<DOCKER_IMAGE_NAME>] [--ip6=<IP6>] [--as=<AS_NUM>]
+  calicoctl node --ip=<IP> [--node-image=<DOCKER_IMAGE_NAME>] [--ip6=<IP6>]
+                           [--as=<AS_NUM>] [--log-dir=<LOG_DIR>]
   calicoctl node stop [--force]
   calicoctl node bgppeer add <PEER_IP> as <AS_NUM>
   calicoctl node bgppeer remove <PEER_IP>
@@ -51,10 +52,8 @@ Usage:
   calicoctl endpoint show [--host=<HOSTNAME>] [--orchestrator=<ORCHESTRATOR_ID>] [--workload=<WORKLOAD_ID>] [--endpoint=<ENDPOINT_ID>] [--detailed]
   calicoctl endpoint <ENDPOINT_ID> profile (append|remove|set) [--host=<HOSTNAME>] [--orchestrator=<ORCHESTRATOR_ID>] [--workload=<WORKLOAD_ID>]  [<PROFILES>...]
   calicoctl endpoint <ENDPOINT_ID> profile show [--host=<HOSTNAME>] [--orchestrator=<ORCHESTRATOR_ID>] [--workload=<WORKLOAD_ID>]
-  calicoctl diags [--upload]
+  calicoctl diags [--log-dir=<LOG_DIR>] [--upload]
   calicoctl checksystem [--fix]
-  calicoctl restart-docker-with-alternative-unix-socket
-  calicoctl restart-docker-without-alternative-unix-socket
 
 Options:
  --interface=<INTERFACE>  The name to give to the interface in the container
@@ -63,9 +62,10 @@ Options:
  --ip6=<IP6>              The local IPv6 management address to use.
  --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for
                           Calico's per-node container
-                          [default: calico/node:latest]
+                          [default: calico/node:libnetwork-release]
  --ipv4                   Show IPv4 information only.
  --ipv6                   Show IPv6 information only.
+ --log-dir=<LOG_DIR>      The directory for logs [default: /var/log/calico]
  --host=<HOSTNAME>        Filters endpoints on a specific host.
  --orchestrator=<ORCHESTRATOR_ID>    Filters endpoints created on a specific orchestrator.
  --workload=<WORKLOAD_ID> Filters endpoints on a specific workload.
@@ -88,7 +88,6 @@ import socket
 from subprocess import CalledProcessError
 import sys
 import textwrap
-import time
 import traceback
 
 import netaddr
@@ -100,8 +99,13 @@ import docker.errors
 from netaddr import IPNetwork, IPAddress
 from netaddr.core import AddrFormatError
 from prettytable import PrettyTable
+from requests.exceptions import ConnectionError
 
-from adapter.datastore import (ETCD_AUTHORITY_ENV,
+from urllib3.exceptions import MaxRetryError
+
+from pycalico import netns
+from pycalico import diags
+from pycalico.datastore import (ETCD_AUTHORITY_ENV,
                                ETCD_AUTHORITY_DEFAULT,
                                Rule,
                                Rules,
@@ -109,16 +113,9 @@ from adapter.datastore import (ETCD_AUTHORITY_ENV,
                                ProfileNotInEndpoint,
                                ProfileAlreadyInEndpoint,
                                MultipleEndpointsMatch,
-                               Vividict,
-                               BGPPeer)
-from adapter.docker_restart import REAL_SOCK, POWERSTRIP_SOCK
-from adapter.ipam import IPAMClient
-from adapter import netns, docker_restart
-from adapter import diags
-
-from requests.exceptions import ConnectionError
-from urllib3.exceptions import MaxRetryError
-
+                               BGPPeer,
+                               IPPool)
+from pycalico.ipam import IPAMClient
 
 hostname = socket.gethostname()
 client = IPAMClient()
@@ -126,7 +123,6 @@ DOCKER_VERSION = "1.16"
 docker_client = docker.Client(version=DOCKER_VERSION,
                               base_url=os.getenv("DOCKER_HOST",
                                                  "unix://var/run/docker.sock"))
-docker_restarter = docker_restart.create_restarter()
 
 ORCHESTRATOR_ID = "docker"
 
@@ -135,12 +131,18 @@ try:
 except sh.CommandNotFound as e:
     print "Missing command: %s" % e.message
 
-DEFAULT_IPV4_POOL = IPNetwork("192.168.0.0/16")
-DEFAULT_IPV6_POOL = IPNetwork("fd80:24e2:f998:72d6::/64")
-POWERSTRIP_PORT = "2377"
+DEFAULT_IPV4_POOL = IPPool("192.168.0.0/16")
+DEFAULT_IPV6_POOL = IPPool("fd80:24e2:f998:72d6::/64")
 
 class ConfigError(Exception):
     pass
+
+
+class Vividict(dict):
+    # From http://stackoverflow.com/a/19829714
+    def __missing__(self, key):
+        value = self[key] = type(self)()
+        return value
 
 
 def get_container_info_or_exit(container_name):
@@ -216,7 +218,9 @@ def container_add(container_name, ip, interface):
 
     # Check if the container already exists
     try:
-        _ = client.get_endpoint_id_from_cont(hostname, container_id)
+        _ = client.get_endpoint(hostname=hostname,
+                                orchestrator_id=ORCHESTRATOR_ID,
+                                workload_id=container_id)
     except KeyError:
         # Calico doesn't know about this container.  Continue.
         pass
@@ -264,9 +268,12 @@ def container_add(container_name, ip, interface):
                                      proc_alias="/proc")
 
     # Register the endpoint
-    client.set_endpoint(hostname, container_id, endpoint)
+    client.set_endpoint(hostname, ORCHESTRATOR_ID, container_id, endpoint)
 
     print "IP %s added to %s" % (ip, container_name)
+
+    # In case the caller needs to know what was created.
+    return endpoint
 
 
 def container_remove(container_name):
@@ -287,16 +294,14 @@ def container_remove(container_name):
 
     # Find the endpoint ID. We need this to find any ACL rules
     try:
-        endpoint_id = client.get_endpoint_id_from_cont(hostname, workload_id)
+        endpoint = client.get_endpoint(hostname=hostname,
+                                       orchestrator_id=ORCHESTRATOR_ID,
+                                       workload_id=workload_id)
     except KeyError:
         print "Container %s doesn't contain any endpoints" % container_name
         sys.exit(1)
 
     # Remove any IP address assignments that this endpoint has
-    endpoint = client.get_endpoint(hostname=hostname,
-                                   orchestrator_id=ORCHESTRATOR_ID,
-                                   workload_id=workload_id,
-                                   endpoint_id=endpoint_id)
     for net in endpoint.ipv4_nets | endpoint.ipv6_nets:
         assert(net.size == 1)
         ip = net.ip
@@ -308,10 +313,10 @@ def container_remove(container_name):
                 client.unassign_address(pool, ip)
 
     # Remove the endpoint
-    netns.remove_endpoint(endpoint_id)
+    netns.remove_endpoint(endpoint.endpoint_id)
 
     # Remove the container from the datastore.
-    client.remove_container(hostname, workload_id)
+    client.remove_container(hostname, ORCHESTRATOR_ID, workload_id)
 
     print "Removed Calico interface from %s" % container_name
 
@@ -335,7 +340,7 @@ def module_loaded(module):
     return any(s.startswith(module) for s in open("/proc/modules").readlines())
 
 
-def node(ip, node_image, ip6="", as_num=None):
+def node(ip, node_image, log_dir, ip6="", as_num=None):
     """
     Create the calico-node container and establish Calico networking on this
     host.
@@ -347,6 +352,10 @@ def node(ip, node_image, ip6="", as_num=None):
     the global default value will be used.
     :return:  None.
     """
+    # Ensure log directory exists
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
     # Print warnings for any known system issues before continuing
     checksystem(fix=False, quit_if_error=False)
 
@@ -363,19 +372,8 @@ def node(ip, node_image, ip6="", as_num=None):
     client.ensure_global_config()
     client.create_host(hostname, ip, ip6, as_num)
 
-    if docker_restarter.is_using_alternative_socket():
-        # At this point, docker is listening on a new port but powerstrip
-        # might not be running, so docker clients need to talk directly to
-        # docker.
-        node_docker_client = docker.Client(version=DOCKER_VERSION,
-                                           base_url="unix://%s" % REAL_SOCK)
-        enable_socket = "YES"
-    else:
-        node_docker_client = docker_client
-        enable_socket = "NO"
-
     try:
-        node_docker_client.remove_container("calico-node", force=True)
+        docker_client.remove_container("calico-node", force=True)
     except docker.errors.APIError as err:
         if err.response.status_code != 404:
             raise
@@ -384,7 +382,6 @@ def node(ip, node_image, ip6="", as_num=None):
 
     environment = [
         "HOSTNAME=%s" % hostname,
-        "POWERSTRIP_UNIX_SOCKET=%s" % enable_socket,
         "IP=%s" % ip,
         "IP6=%s" % (ip6 or ""),
         "ETCD_AUTHORITY=%s" % etcd_authority,  # etcd host:port
@@ -392,19 +389,21 @@ def node(ip, node_image, ip6="", as_num=None):
     ]
 
     binds = {
-        "/var/run":
-            {
-                "bind": "/host-var-run",
-                "ro": False
-            },
         "/proc":
             {
                 "bind": "/proc_host",
                 "ro": False
             },
-        "/var/log/calico":
+        log_dir:
             {
                 "bind": "/var/log/calico",
+                "ro": False
+            },
+        "/usr/share/docker/plugins/": #TODO make this an optional node
+        # parameter like log_dir
+        #"/run/docker/plugins/":
+            {
+                "bind": "/usr/share/docker/plugins",
                 "ro": False
             }
     }
@@ -415,30 +414,19 @@ def node(ip, node_image, ip6="", as_num=None):
         network_mode="host",
         binds=binds)
 
-    _find_or_pull_node_image(node_image, node_docker_client)
-    container = node_docker_client.create_container(
+    _find_or_pull_node_image(node_image, docker_client)
+    container = docker_client.create_container(
         node_image,
         name="calico-node",
         detach=True,
         environment=environment,
         host_config=host_config,
-        volumes=["/host-var-run",
-                 "/proc_host",
-                 "/var/log/calico"])
+        volumes=["/proc_host",
+                 "/var/log/calico",
+                 "/usr/share/docker/plugins"])
     cid = container["Id"]
 
-    node_docker_client.start(container)
-
-    if enable_socket == "YES":
-        while not os.path.exists(POWERSTRIP_SOCK):
-            time.sleep(0.1)
-        uid = os.stat(REAL_SOCK).st_uid
-        gid = os.stat(REAL_SOCK).st_gid
-        os.chown(POWERSTRIP_SOCK, uid, gid)
-    else:
-        print "Docker Remote API is on port %s.  Run \n" % POWERSTRIP_PORT
-        print "export DOCKER_HOST=localhost:%s\n" % POWERSTRIP_PORT
-        print "before using `docker run` for Calico networking.\n"
+    docker_client.start(container)
 
     print "Calico node is running with id: %s" % cid
 
@@ -621,7 +609,7 @@ def profile_show(detailed):
     profiles = client.get_profile_names()
 
     if detailed:
-        x = PrettyTable(["Name", "Host", "Workload Type", "Workload ID",
+        x = PrettyTable(["Name", "Host", "Orchestrator ID", "Workload ID",
                          "Endpoint ID", "State"])
         for name in profiles:
             members = client.get_profile_members(name)
@@ -629,17 +617,13 @@ def profile_show(detailed):
                 x.add_row([name, "None", "None", "None", "None", "None"])
                 continue
 
-            for host, ctypes in members.iteritems():
-                for ctype, workloads in ctypes.iteritems():
-                    for workload, endpoints in workloads.iteritems():
-                        for endpoint_id, endpoint in endpoints.iteritems():
-                            x.add_row([name,
-                                       host,
-                                       ctype,
-                                       # Truncate ID to 12 chars like Docker
-                                       workload[:12],
-                                       endpoint_id,
-                                       endpoint.state])
+            for endpoint in members:
+                x.add_row([name,
+                           endpoint.hostname,
+                           endpoint.orchestrator_id,
+                           endpoint.workload_id,
+                           endpoint.endpoint_id,
+                           endpoint.state])
     else:
         x = PrettyTable(["Name"])
         for name in profiles:
@@ -819,42 +803,7 @@ def profile_rule_add_remove(
     client.profile_update_rules(profile)
 
 
-def node_show(detailed):
-    hosts = client.get_hosts()
-
-    if detailed:
-        x = PrettyTable(["Host", "Workload Type", "Workload ID", "Endpoint ID",
-                         "Addresses", "MAC", "State"])
-        for host, container_types in hosts.iteritems():
-            if not container_types:
-                x.add_row([host, "None", "None", "None",
-                           "None", "None", "None"])
-                continue
-            for container_type, workloads in container_types.iteritems():
-                for workload, endpoints in workloads.iteritems():
-                    for ep_id, endpoint in endpoints.iteritems():
-                        x.add_row([host,
-                                   container_type,
-                                   # Truncate ID to 12 chars like Docker
-                                   workload[:12],
-                                   ep_id,
-                                   "\n".join([str(net) for net in
-                                             endpoint.ipv4_nets |
-                                             endpoint.ipv6_nets]),
-                                   endpoint.mac,
-                                   endpoint.state])
-    else:
-        x = PrettyTable(["Host", "Workload Type", "Number of workloads"])
-        for host, container_types in hosts.iteritems():
-            if not container_types:
-                x.add_row([host, "N/A", "0"])
-                continue
-            for container_type, workloads in container_types.iteritems():
-                x.add_row([host, container_type, len(workloads)])
-    print x.get_string(sortby="Host")
-
-
-def save_diags(upload):
+def save_diags(log_dir, upload):
     """
     Gather Calico diagnostics for bug reporting.
     :return: None
@@ -862,7 +811,7 @@ def save_diags(upload):
     # This needs to be run as root.
     enforce_root()
     print("Collecting diags")
-    diags.save_diags(upload)
+    diags.save_diags(log_dir, upload)
 
 def ip_pool_add(cidr_pool, version, ipip, masquerade):
     """
@@ -877,8 +826,9 @@ def ip_pool_add(cidr_pool, version, ipip, masquerade):
         print "IP in IP not supported for IPv6 pools"
         sys.exit(1)
 
-    pool = check_ip_version(cidr_pool, version, IPNetwork)
-    client.add_ip_pool(version, pool, ipip, masquerade)
+    cidr = check_ip_version(cidr_pool, version, IPNetwork)
+    pool = IPPool(cidr, ipip=ipip, masquerade=masquerade)
+    client.add_ip_pool(version, pool)
 
 
 def ip_pool_remove(cidr_pool, version):
@@ -889,9 +839,9 @@ def ip_pool_remove(cidr_pool, version):
     :param version: v4 or v6
     :return: None
     """
-    pool = check_ip_version(cidr_pool, version, IPNetwork)
+    cidr = check_ip_version(cidr_pool, version, IPNetwork)
     try:
-        client.remove_ip_pool(version, pool)
+        client.remove_ip_pool(version, cidr)
     except KeyError:
         print "%s is not a configured pool." % cidr_pool
 
@@ -908,37 +858,14 @@ def ip_pool_show(version):
     for pool in pools:
         enabled_options = []
         if version == "v4":
-            cfg = client.get_ip_pool_config(version, pool)
-            if "ipip" in cfg:
+            if pool.ipip:
                 enabled_options.append("ipip")
-            if "masquerade" in cfg:
+            if pool.masquerade:
                 enabled_options.append("nat-outgoing")
         # convert option array to string
-        row = [pool, ','.join(enabled_options)]
+        row = [str(pool.cidr), ','.join(enabled_options)]
         x.add_row(row)
     print x.get_string(sortby=headings[0])
-
-
-def restart_docker_with_alternative_unix_socket():
-    """
-    Update docker to use a different unix socket, so powerstrip can run
-    its proxy on the "normal" one. This provides simple access for
-    existing tools to the powerstrip proxy.
-
-    Set the docker daemon to listen on the docker.real.sock by updating
-    the config, clearing old sockets and restarting.
-    """
-    enforce_root()
-    docker_restarter.restart_docker_with_alternative_unix_socket()
-
-
-def restart_docker_without_alternative_unix_socket():
-    """
-    Remove any "alternative" unix socket config.
-    """
-    enforce_root()
-    docker_restarter.restart_docker_without_alternative_unix_socket()
-
 
 def set_bgp_node_mesh(enable):
     """
@@ -1137,11 +1064,9 @@ def container_ip_add(container_name, ip, version, interface):
 
     # Check that the container is already networked
     try:
-        endpoint_id = client.get_endpoint_id_from_cont(hostname, container_id)
         endpoint = client.get_endpoint(hostname=hostname,
                                        orchestrator_id=ORCHESTRATOR_ID,
-                                       workload_id=container_id,
-                                       endpoint_id=endpoint_id)
+                                       workload_id=container_id)
     except KeyError:
         print "Failed to add IP address to container.\n"
         print_container_not_in_calico_msg(container_name)
@@ -1211,11 +1136,9 @@ def container_ip_remove(container_name, ip, version, interface):
 
     # Check that the container is already networked
     try:
-        endpoint_id = client.get_endpoint_id_from_cont(hostname, container_id)
         endpoint = client.get_endpoint(hostname=hostname,
                                        orchestrator_id=ORCHESTRATOR_ID,
-                                       workload_id=container_id,
-                                       endpoint_id=endpoint_id)
+                                       workload_id=container_id)
         if address.version == 4:
             nets = endpoint.ipv4_nets
         else:
@@ -1298,7 +1221,7 @@ def endpoint_show(hostname, orchestrator_id, workload_id, endpoint_id,
                     "NumEndpoints"]
         x = PrettyTable(headings, sortby="Hostname")
 
-        """ To caluclate the number of unique endpoints, and unique workloads
+        """ To calculate the number of unique endpoints, and unique workloads
          on each host, we first create a dictionary in the following format:
         {
         host1: {
@@ -1344,13 +1267,13 @@ def endpoint_profile_append(hostname, orchestrator_id, workload_id,
     """
     Append a list of profiles to the container endpoint profile list.
 
-    The hostname, orchestrator_id, workload_id, and endpoint_id are all optional
-    parameters used to determine which endpoint is being targeted.
+    The hostname, orchestrator_id, workload_id, and endpoint_id are all
+    optional parameters used to determine which endpoint is being targeted.
     The more parameters used, the faster the endpoint query will be. The
     query must be specific enough to match a single endpoint or it will fail.
 
-    The profile list may not contain duplicate entries, invalid profile names, or
-    profiles that are already in the containers list.
+    The profile list may not contain duplicate entries, invalid profile names,
+    or profiles that are already in the containers list.
 
     :param hostname: The host that the targeted endpoint resides on.
     :param orchestrator_id: The orchestrator that created the targeted endpoint.
@@ -1528,6 +1451,10 @@ def validate_arguments():
     """
     Validate common argument values.
     """
+    #TODO - validate profiles.
+    # profile_ok = (arguments["<PROFILE>"] is None or
+    #               re.match("^%s{1,40}$" % valid_chars, arguments["<PROFILE>"]))
+    profile_ok = True
     # List of valid characters that Felix permits
     valid_chars = '[a-zA-Z0-9_\.\-]'
     profile_ok = True
@@ -1554,7 +1481,9 @@ def validate_arguments():
         if arguments[arg]:
             try:
                 arguments[arg] = str(IPNetwork(arguments[arg]))
-            except AddrFormatError:
+            except (AddrFormatError, ValueError):
+                # Some versions of Netaddr have a bug causing them to return a
+                # ValueError rather than an AddrFormatError, so catch both.
                 cidr_ok = False
     icmp_ok = True
     for arg in ["<ICMPCODE>", "<ICMPTYPE>"]:
@@ -1652,11 +1581,7 @@ def print_container_not_in_calico_msg(container_name):
     :param container_name: The container name.
     :return: None.
     """
-    print_paragraph("Container %s is unknown to Calico.  This can occur if "
-                    "the container was created without setting the powerstrip "
-                    "port (%s) either in the DOCKER_HOST environment variable "
-                    "or using the -H flag on the `docker` command." %
-                    (container_name, POWERSTRIP_PORT))
+    print_paragraph("Container %s is unknown to Calico." % container_name)
     print_paragraph("Use `calicoctl container add` to add the container "
                     "to the Calico network.")
 
@@ -1724,11 +1649,7 @@ if __name__ == '__main__':
     validate_arguments()
     ip_version = get_container_ipv_from_arguments()
     try:
-        if arguments["restart-docker-with-alternative-unix-socket"]:
-            restart_docker_with_alternative_unix_socket()
-        elif arguments["restart-docker-without-alternative-unix-socket"]:
-            restart_docker_without_alternative_unix_socket()
-        elif arguments["node"]:
+        if arguments["node"]:
             if arguments["bgppeer"]:
                 if arguments["add"]:
                     node_bgppeer_add(arguments["<PEER_IP>"], ip_version,
@@ -1745,7 +1666,8 @@ if __name__ == '__main__':
                 node_stop(arguments["--force"])
             else:
                 node(arguments["--ip"],
-                     arguments['--node-image'],
+                     node_image=arguments['--node-image'],
+                     log_dir=arguments["--log-dir"],
                      ip6=arguments["--ip6"],
                      as_num=arguments["<AS_NUM>"])
         elif arguments["status"]:
@@ -1847,7 +1769,7 @@ if __name__ == '__main__':
             elif arguments["show"]:
                 profile_show(arguments["--detailed"])
         elif arguments["diags"]:
-            save_diags(arguments["--upload"])
+            save_diags(arguments["--log-dir"], arguments["--upload"])
         elif arguments["pool"]:
             if arguments["add"]:
                 ip_pool_add(arguments["<CIDR>"],
