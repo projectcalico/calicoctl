@@ -1,5 +1,7 @@
 # Getting started with Calico on Docker
 
+>*Note that this demo shows an older version of Calico using Powerstrip for routing.  In more recent releases of Calico, Powerstrip has been replaced by Docker's new [libnetwork network driver](https://github.com/docker/libnetwork), released alongside Docker 1.7.  Please visit the master Calico [Getting Started page](https://github.com/Metaswitch/calico-docker/blob/master/docs/GettingStarted.md) to see the most recent demos of Calico.
+
 *In order to run this example you will need a 2-node Linux cluster with Docker and etcd installed and running.*  You can do one of the following.
 * Use Vagrant to set up a virtual cluster on your laptop or workstation, following these instructions: [Calico CoreOS Vagrant][calico-coreos-vagrant].
 * Set up a cluster manually yourself, following these instructions: [Manual Cluster Setup](./ManualClusterSetup.md).
@@ -41,8 +43,6 @@ You should see output like this on each node
     077ceae44fe3        calico/node:v0.4.8     "/sbin/my_init"     About a minute ago   Up About a minute                       calico-node
 
 ## Routing via Powerstrip
-
->*Note that Calico's use of powerstrip support will shortly be replaced by Docker's new [libnetwork network driver support](https://github.com/docker/libnetwork) available in the Docker [experimental channel](https://github.com/docker/docker/tree/master/experimental) alongside the Docker 1.7 release.  However, Docker's experimental channel is still moving fast and some of its features are not yet fully stable, so for now we are continuing to support powerstrip in parallel with libnetwork.*
 
 To allow Calico to set up networking automatically during container creation, Docker API calls need to be routed through the `Powerstrip` proxy which is running on port `2377` on each node. The easiest way to do this is to set the environment before running docker commands.  
 
