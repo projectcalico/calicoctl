@@ -11,7 +11,10 @@ import sh
 # Append to existing env, to avoid losing PATH etc.
 # Need to edit the path here since calicoctl loads client on import.
 # TODO-PAT: This shouldn't be hardcoded
-os.environ['ETCD_AUTHORITY'] = 'kubernetes-master:6666'
+if not os.environ.get('ETCD_AUTHORITY'):
+    os.environ['ETCD_AUTHORITY'] = 'kubernetes-master:6666'
+print("Using ETCD_AUTHORITY=%s" % os.environ['ETCD_AUTHORITY'])
+
 
 from calicoctl import container_add
 from pycalico.datastore import IF_PREFIX
@@ -23,6 +26,10 @@ ETCD_AUTHORITY_ENV = "ETCD_AUTHORITY"
 PROFILE_LABEL = 'CALICO_PROFILE'
 ETCD_PROFILE_PATH = '/calico/'
 AllowRule = namedtuple('AllowRule', ['port', 'proto', 'source'])
+
+# Get the location of the Kubernetes master node, defaulting to the hostname 'kubernetes-master'.
+kubernetes_master = os.environ.get('KUBERNETES_MASTER', "kubernetes-master")
+print("Using Kubernetes master at: '%s'" % kubernetes_master)
 
 
 class NetworkPlugin(object):
@@ -36,7 +43,7 @@ class NetworkPlugin(object):
         self.pod_name = args[3].replace('-', '_')
         self.docker_id = args[4]
 
-        print('Configuring docker container %s' % self.docker_id)
+        print('Create hook called for docker container %s' % self.docker_id)
 
         try:
             endpoint = self._configure_interface()
@@ -45,23 +52,33 @@ class NetworkPlugin(object):
             print('Error code %d creating pod networking: %s\n%s' % (
                 e.returncode, e.output, e))
             sys.exit(1)
+        print('Create hook complete for container %s' % self.docker_id)
 
     def delete(self, args):
         """Cleanup after a pod."""
         self.pod_name = args[3].replace('-', '_')
         self.docker_id = args[4]
 
+        print('Delete hook called for docker container %s' % self.docker_id)
+
         # Remove the profile for the workload.
         calicoctl('container', 'remove', self.docker_id)
         calicoctl('profile', 'remove', self.pod_name)
+        print('Delete hook complete for container %s' % self.docker_id)
 
     def _configure_interface(self):
         """Configure the Calico interface for a pod."""
+        print('Configuring Calico networking.')
         container_ip = self._read_docker_ip()
         self._delete_docker_interface()
-        print('Configuring Calico networking.')
+
+        print("Adding container %s to Calico with IP=%s" %
+              (self.docker_id, container_ip))
         ep = container_add(self.docker_id, container_ip, 'eth0')
+
         interface_name = generate_cali_interface_name(IF_PREFIX, ep.endpoint_id)
+        print("Container %s, interface %s" % (self.docker_id, interface_name))
+
         node_ip = self._get_node_ip()
         print('Adding IP %s to interface %s' % (node_ip, interface_name))
         check_call(['ip', 'addr', 'add', node_ip + '/32',
@@ -175,14 +192,20 @@ class NetworkPlugin(object):
         :return: A list of JSON API objects
         :rtype list
         """
-        bearer_token = self._get_api_token()
+        # Open a session and add authentication token if one exists.
         session = requests.Session()
-        session.headers.update({'Authorization': 'Bearer ' + bearer_token})
+        bearer_token = self._get_api_token()
+        if bearer_token is not None:
+            print("Including API server authentication")
+            session.headers.update({'Authorization': 'Bearer ' + bearer_token})
+
+        # GET the requested API path.
         response = session.get(
-            'https://kubernetes-master:6443/api/v1beta3/' + path,
+            'https://%s:6443/api/v1beta3/' % kubernetes_master + path,
             verify=False,
         )
         response_body = response.text
+
         # The response body contains some metadata, and the pods themselves
         # under the 'items' key.
         return json.loads(response_body)['items']
@@ -190,9 +213,16 @@ class NetworkPlugin(object):
     def _get_api_token(self):
         """
         Get the kubelet Bearer token for this node, used for HTTPS auth.
+
+        If no authentication token exists, returns None.
+
         :return: The token.
         :rtype: str
         """
+        if not os.path.exists('/var/lib/kubelet/kubernetes_auth'):
+            print("/var/lib/kubelet/kubernetes_auth does not exist")
+            return None
+
         with open('/var/lib/kubelet/kubernetes_auth') as f:
             json_string = f.read()
         print('Got kubernetes_auth: ' + json_string)
