@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-CALICOCTL STATUS HELP
-
-Print current status information on calico-node container
-and the BIRD routing daemon.
-
 Usage:
   calicoctl status
+
+Description:
+  Print current status information regarding calico-node container
+  and the BIRD routing daemon.
 """
 import re
 from utils import docker_client
