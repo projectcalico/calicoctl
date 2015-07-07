@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-calicoctl profile
-
 Usage:
   calicoctl profile show [--detailed]
   calicoctl profile (add|remove) <PROFILE>
@@ -42,6 +40,9 @@ Usage:
   calicoctl profile <PROFILE> rule show
   calicoctl profile <PROFILE> rule json
   calicoctl profile <PROFILE> rule update
+
+Description:
+  Modify available profiles and configure their correspondig rules.
 
 Options:
   --detailed        Show additional information.
