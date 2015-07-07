@@ -5,7 +5,6 @@ PYCALICO=$(wildcard $(SRCDIR)/pycalico/*.py) $(wildcard $(SRCDIR)/*.py)
 BUILD_DIR=build_calicoctl
 BUILD_FILES=$(BUILD_DIR)/Dockerfile $(BUILD_DIR)/requirements.txt
 # There are subdirectories so use shell rather than wildcard
-
 NODE_FILESYSTEM=$(shell find node_filesystem/ -type f)
 NODE_FILES=Dockerfile $(wildcard image/*) $(NODE_FILESYSTEM)
 
