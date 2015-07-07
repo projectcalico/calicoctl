@@ -5,6 +5,7 @@ PYCALICO=$(wildcard $(SRCDIR)/pycalico/*.py) $(wildcard $(SRCDIR)/*.py)
 BUILD_DIR=build_calicoctl
 BUILD_FILES=$(BUILD_DIR)/Dockerfile $(BUILD_DIR)/requirements.txt
 # There are subdirectories so use shell rather than wildcard
+
 NODE_FILESYSTEM=$(shell find node_filesystem/ -type f)
 NODE_FILES=Dockerfile $(wildcard image/*) $(NODE_FILESYSTEM)
 
@@ -12,15 +13,17 @@ NODE_FILES=Dockerfile $(wildcard image/*) $(NODE_FILESYSTEM)
 LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
 ST_TO_RUN?=calico_containers/tests/st/
 
+# Scale - add var for building binaries
+
 default: all
 all: test
-binary: dist/calicoctl
+binary: dist/calicoctl /dist/calico_kubernetes
 
 caliconode.created: $(PYCALICO) $(NODE_FILES)
 	docker build -t calico/node:libnetwork-release .
 	touch caliconode.created
 
-calicobuild.created: $(BUILD_FILES) kubernetes
+calicobuild.created: $(BUILD_FILES)
 	cd build_calicoctl; docker build -t calico/build .
 	touch calicobuild.created
 
