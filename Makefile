@@ -20,7 +20,7 @@ caliconode.created: $(PYCALICO) $(NODE_FILES)
 	docker build -t calico/node:libnetwork-release .
 	touch caliconode.created
 
-calicobuild.created: $(BUILD_FILES)
+calicobuild.created: $(BUILD_FILES) kubernetes
 	cd build_calicoctl; docker build -t calico/build .
 	touch calicobuild.created
 
