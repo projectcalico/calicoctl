@@ -1,13 +1,28 @@
+# Copyright 2015 Metaswitch Networks
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-Check for any incompatabilities between calico and the host system
-
 Usage:
   calicoctl checksystem [--fix]
 
+Description:
+  Check for incompatibilities between calico and the host system
+
 Options:
- --fix  Allow calicoctl to attempt to modify the host system to fix any encountered issues
+  --fix  Allow calicoctl to attempt to correct any issues detected on the host
 """
 import sys
+import re
 import sh
 import docker
 from utils import DOCKER_VERSION
@@ -17,6 +32,15 @@ from utils import docker_client
 
 
 def checksystem(arguments):
+    """
+    Main dispatcher for checksystem commands. Calls the corresponding helper
+    function. checksystem only has one main function, so we call that function
+    directly.
+
+    :param arguments: A dictionary of arguments already processed through
+    this file's docstring with docopt
+    :return: None
+    """
     check_system(arguments["--fix"], quit_if_error=True)
 
 def check_system(fix=False, quit_if_error=False):
@@ -108,6 +132,11 @@ def check_system(fix=False, quit_if_error=False):
 
 
 def module_loaded(module):
+    """
+    Checks if the specified kernel-module has been loaded.
+    :param module: Name of the module to check
+    :return: True if the module is loaded, False if not.
+    """
     return any(s.startswith(module) for s in open("/proc/modules").readlines())
 
 
@@ -119,4 +148,3 @@ def normalize_version(version):
     http://stackoverflow.com/questions/1714027/version-number-comparison
     """
     return [int(x) for x in re.sub(r'(\.0+)*$', '', version).split(".")]
-

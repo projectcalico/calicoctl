@@ -1,6 +1,17 @@
+# Copyright 2015 Metaswitch Networks
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-Configure BGP
-
 Usage:
   calicoctl bgp peer add <PEER_IP> as <AS_NUM>
   calicoctl bgp peer remove <PEER_IP>
@@ -8,9 +19,12 @@ Usage:
   calicoctl bgp node-mesh [on|off]
   calicoctl bgp default-node-as [<AS_NUM>]
 
+Description:
+  Configure default BGP settings.
+
 Options:
- --ipv4                   Show IPv4 information only.
- --ipv6                   Show IPv6 information only.
+ --ipv4    Show IPv4 information only.
+ --ipv6    Show IPv6 information only.
 """
 import sys
 from utils import client
@@ -22,8 +36,15 @@ from utils import get_container_ipv_from_arguments
 
 
 def bgp(arguments):
+    """
+    Main dispatcher for bgp commands. Calls the corresponding helper function.
+
+    :param arguments: A dictionary of arguments already processed through
+    this file's docstring with docopt
+    :return: None
+    """
     ip_version = get_container_ipv_from_arguments(arguments)
-    if arguments.get("bgp") and arguments.get("peer"):
+    if arguments.get("peer"):
         if arguments.get("add"):
             bgp_peer_add(arguments.get("<PEER_IP>"), ip_version,
                         arguments.get("<AS_NUM>"))

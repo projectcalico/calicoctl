@@ -1,33 +1,52 @@
+# Copyright 2015 Metaswitch Networks
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-calicoctl profile --help
-Configure profile members and networking
+calicoctl profile
 
 Usage:
   calicoctl profile show [--detailed]
   calicoctl profile (add|remove) <PROFILE>
   calicoctl profile <PROFILE> tag show
   calicoctl profile <PROFILE> tag (add|remove) <TAG>
-  calicoctl profile <PROFILE> rule add (inbound|outbound) [--at=<POSITION>] (allow|deny) <RULE...>
-  calicoctl profile <PROFILE> rule remove (inbound|outbound) (--at=<POSITION>|<RULE>)
+  calicoctl profile <PROFILE> rule add (inbound|outbound) [--at=<POSITION>]
+    (allow|deny) [(
+      (tcp|udp) [(from [(ports <SRCPORTS>)] [(tag <SRCTAG>)] [<SRCCIDR>])]
+                [(to   [(ports <DSTPORTS>)] [(tag <DSTTAG>)] [<DSTCIDR>])] |
+      icmp [(type <ICMPTYPE> [(code <ICMPCODE>)])]
+           [(from [(tag <SRCTAG>)] [<SRCCIDR>])]
+           [(to   [(tag <DSTTAG>)] [<DSTCIDR>])] |
+      [(from [(tag <SRCTAG>)] [<SRCCIDR>])]
+      [(to   [(tag <DSTTAG>)] [<DSTCIDR>])]
+    )]
+  calicoctl profile <PROFILE> rule remove (inbound|outbound) (--at=<POSITION>|
+    (allow|deny) [(
+      (tcp|udp) [(from [(ports <SRCPORTS>)] [(tag <SRCTAG>)] [<SRCCIDR>])]
+                [(to   [(ports <DSTPORTS>)] [(tag <DSTTAG>)] [<DSTCIDR>])] |
+      icmp [(type <ICMPTYPE> [(code <ICMPCODE>)])]
+           [(from [(tag <SRCTAG>)] [<SRCCIDR>])]
+           [(to   [(tag <DSTTAG>)] [<DSTCIDR>])] |
+      [(from [(tag <SRCTAG>)] [<SRCCIDR>])]
+      [(to   [(tag <DSTTAG>)] [<DSTCIDR>])]
+    )])
   calicoctl profile <PROFILE> rule show
   calicoctl profile <PROFILE> rule json
   calicoctl profile <PROFILE> rule update
 
-Rule:
-  A rule must be of one of the following formats:
- 
-  TCP/IP RULE:
-   (tcp|udp) [from [ports <SRCPORTS>] [tag <SRCTAG>] [<SRCCIDR>]]
-      [to   [ports <DSTPORTS>] [tag <DSTTAG>] [<DSTCIDR>]]
-
-  ICMP RULE:
-    icmp [type <ICMPTYPE> [code <ICMPCODE>]]
-         [from [tag <SRCTAG>] [<SRCCIDR>]]
-         [to   [tag <DSTTAG>] [<DSTCIDR>]]
-
-  GLOBAL:
-    [from [tag <SRCTAG>] [<SRCCIDR>]] 
-    [to   [tag <DSTTAG>] [<DSTCIDR>]]
+Options:
+  --detailed        Show additional information.
+  --at=<POSITION>   Specify the position in the chain where the rule should
+                    be placed. Default: append to end.
 
 Examples:
   Add and set up a rule to prevent all inbound traffic except pings from the 192.168/16 subnet
@@ -44,68 +63,75 @@ from utils import client
 from utils import print_paragraph
 
 def profile(arguments):
-    if arguments.get("profile"):
-        if arguments.get("tag") and not arguments.get("rule"):
-            if arguments.get("show"):
-                profile_tag_show(arguments.get("<PROFILE>"))
-            elif arguments.get("add"):
-                profile_tag_add(arguments.get("<PROFILE>"),
-                                arguments.get("<TAG>"))
-            elif arguments.get("remove"):
-                profile_tag_remove(arguments.get("<PROFILE>"),
-                                   arguments.get("<TAG>"))
-        elif arguments.get("rule"):
-            if arguments.get("show"):
-                profile_rule_show(arguments.get("<PROFILE>"),
-                                  human_readable=True)
-            elif arguments.get("json"):
-                profile_rule_show(arguments.get("<PROFILE>"),
-                                  human_readable=False)
-            elif arguments.get("update"):
-                profile_rule_update(arguments.get("<PROFILE>"))
-            elif arguments.get("add") or arguments.get("remove"):
-                operation = "add" if arguments.get("add") else "remove"
-                action = "allow" if arguments.get("allow") else "deny"
-                direction = ("inbound" if arguments.get("inbound")
-                             else "outbound")
-                if arguments.get("tcp"):
-                    protocol = "tcp"
-                elif arguments.get("udp"):
-                    protocol = "udp"
-                elif arguments.get("icmp"):
-                    protocol = "icmp"
-                else:
-                    protocol = None
-                src_ports = parse_ports(arguments.get("<SRCPORTS>"))
-                dst_ports = parse_ports(arguments.get("<DSTPORTS>"))
-                position = arguments.get("--at")
-                if position is not None:
-                    try:
-                        position = int(position)
-                    except ValueError:
-                        sys.exit(1)
-                profile_rule_add_remove(
-                    operation,
-                    arguments.get("<PROFILE>"),
-                    position,
-                    action,
-                    direction,
-                    protocol=protocol,
-                    icmp_type=arguments.get("<ICMPTYPE>"),
-                    icmp_code=arguments.get("<ICMPCODE>"),
-                    src_net=arguments.get("<SRCCIDR>"),
-                    src_tag=arguments.get("<SRCTAG>"),
-                    src_ports=src_ports,
-                    dst_net=arguments.get("<DSTCIDR>"),
-                    dst_tag=arguments.get("<DSTTAG>"),
-                    dst_ports=dst_ports,
-                )
+    """
+    Main dispatcher for profile commands. Calls the corresponding helper
+    function.
+
+    :param arguments: A dictionary of arguments already processed through
+    this file's docstring with docopt
+    :return: None
+    """
+    if arguments.get("tag") and not arguments.get("rule"):
+        if arguments.get("show"):
+            profile_tag_show(arguments.get("<PROFILE>"))
         elif arguments.get("add"):
-            profile_add(arguments.get("<PROFILE>"))
+            profile_tag_add(arguments.get("<PROFILE>"),
+                            arguments.get("<TAG>"))
         elif arguments.get("remove"):
-            profile_remove(arguments.get("<PROFILE>"))
-        elif arguments.get("show"):
-            profile_show(arguments.get("--detailed"))
+            profile_tag_remove(arguments.get("<PROFILE>"),
+                               arguments.get("<TAG>"))
+    elif arguments.get("rule"):
+        if arguments.get("show"):
+            profile_rule_show(arguments.get("<PROFILE>"),
+                              human_readable=True)
+        elif arguments.get("json"):
+            profile_rule_show(arguments.get("<PROFILE>"),
+                              human_readable=False)
+        elif arguments.get("update"):
+            profile_rule_update(arguments.get("<PROFILE>"))
+        elif arguments.get("add") or arguments.get("remove"):
+            operation = "add" if arguments.get("add") else "remove"
+            action = "allow" if arguments.get("allow") else "deny"
+            direction = ("inbound" if arguments.get("inbound")
+                         else "outbound")
+            if arguments.get("tcp"):
+                protocol = "tcp"
+            elif arguments.get("udp"):
+                protocol = "udp"
+            elif arguments.get("icmp"):
+                protocol = "icmp"
+            else:
+                protocol = None
+            src_ports = parse_ports(arguments.get("<SRCPORTS>"))
+            dst_ports = parse_ports(arguments.get("<DSTPORTS>"))
+            position = arguments.get("--at")
+            if position is not None:
+                try:
+                    position = int(position)
+                except ValueError:
+                    sys.exit(1)
+            profile_rule_add_remove(
+                operation,
+                arguments.get("<PROFILE>"),
+                position,
+                action,
+                direction,
+                protocol=protocol,
+                icmp_type=arguments.get("<ICMPTYPE>"),
+                icmp_code=arguments.get("<ICMPCODE>"),
+                src_net=arguments.get("<SRCCIDR>"),
+                src_tag=arguments.get("<SRCTAG>"),
+                src_ports=src_ports,
+                dst_net=arguments.get("<DSTCIDR>"),
+                dst_tag=arguments.get("<DSTTAG>"),
+                dst_ports=dst_ports,
+            )
+    elif arguments.get("add"):
+        profile_add(arguments.get("<PROFILE>"))
+    elif arguments.get("remove"):
+        profile_remove(arguments.get("<PROFILE>"))
+    elif arguments.get("show"):
+        profile_show(arguments.get("--detailed"))
 
 
 def profile_add(profile_name):
@@ -329,7 +355,6 @@ def profile_rule_add_remove(
     client.profile_update_rules(profile)
 
 
-
 def parse_ports(ports_str):
     """
     Parse a string representing a port list into a list of ports and
@@ -376,4 +401,3 @@ def parse_ports(ports_str):
                 sys.exit(1)
             parsed_ports.append(port)
     return parsed_ports
-

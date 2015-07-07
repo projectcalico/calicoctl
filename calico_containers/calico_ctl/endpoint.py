@@ -1,22 +1,32 @@
+# Copyright 2015 Metaswitch Networks
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-calicoctl endpoint --help
+calicoctl endpoint
 Configure the endpoints assigned to existing containers
 
 Usage:
-  calicoctl endpoint show [filters...] [--detailed]
-  calicoctl endpoint <ENDPOINT_ID> profile (append|remove|set) [filters...]  [<PROFILES>...]
-  calicoctl endpoint <ENDPOINT_ID> profile show [filters...]
+  calicoctl endpoint show [--host=<HOSTNAME>] [--orchestrator=<ORCHESTRATOR_ID>] [--workload=<WORKLOAD_ID>] [--endpoint=<ENDPOINT_ID>] [--detailed]
+  calicoctl endpoint <ENDPOINT_ID> profile (append|remove|set) [--host=<HOSTNAME>] [--orchestrator=<ORCHESTRATOR_ID>] [--workload=<WORKLOAD_ID>]  [<PROFILES>...]
+  calicoctl endpoint <ENDPOINT_ID> profile show [--host=<HOSTNAME>] [--orchestrator=<ORCHESTRATOR_ID>] [--workload=<WORKLOAD_ID>]
+
 
 Options:
- --detailed  Show additional information
-filters     Optional flags which, when used, will speed up the endpoint append/remove/set operatons used by calico,
-             or filter endpoints returned by `endpoint show`. See Filters below for valid options.
-
-Filters:
- --host=<HOSTNAME>                   Filters endpoints on a specific host.
- --orchestrator=<ORCHESTRATOR_ID>    Filters endpoints created on a specific orchestrator.
- --workload=<WORKLOAD_ID>            Filters endpoints on a specific workload.
- --endpoint=<ENDPOINT_ID>            Filters endpoints with a specific endpoint ID.
+ --detailed                         Show additional information
+ --host=<HOSTNAME>                  Filters endpoints on a specific host
+ --orchestrator=<ORCHESTRATOR_ID>   Filters endpoints created on a specific orchestrator
+ --workload=<WORKLOAD_ID>           Filters endpoints on a specific workload
+ --endpoint=<ENDPOINT_ID>           Filters endpoints with a specific endpoint ID
 
 Examples:
     Show all endpoints belonging to 'host1':
@@ -25,8 +35,8 @@ Examples:
     Add a profile called 'profile-A' to the endpoint a1b2c3d4:
         $ calicoctl endpoint a1b2c3d4 profile append profile-A
 
-    Add a profile called 'profile-A' to the endpoint a1b2c3d4, but faster!
-    by providing additional options:
+    Add a profile called 'profile-A' to the endpoint a1b2c3d4, but faster,
+    by providing more specific filters:
         $ calicoctl endpoint a1b2c3d4 profile append profile-A --host=host1 --orchestrator=docker --workload=f9e8d7e6
 """
 import sys
@@ -35,47 +45,50 @@ from calico_ctl.utils import Vividict
 from pycalico.datastore_errors import ProfileAlreadyInEndpoint
 from pycalico.datastore_errors import MultipleEndpointsMatch
 from pycalico.datastore_errors import ProfileNotInEndpoint
-from pycalico.datastore_datatypes import IPPool
 from utils import client
 from utils import print_paragraph
 
 
-DEFAULT_IPV4_POOL = IPPool("192.168.0.0/16")
-DEFAULT_IPV6_POOL = IPPool("fd80:24e2:f998:72d6::/64")
-
 def endpoint(arguments):
-    if arguments.get("endpoint"):
-        if arguments.get("profile"):
-            if arguments.get("append"):
-                endpoint_profile_append(arguments.get("--host"),
-                                        arguments.get("--orchestrator"),
-                                        arguments.get("--workload"),
-                                        arguments.get("<ENDPOINT_ID>"),
-                                        arguments['<PROFILES>'])
-            elif arguments.get("remove"):
-                endpoint_profile_remove(arguments.get("--host"),
-                                        arguments.get("--orchestrator"),
-                                        arguments.get("--workload"),
-                                        arguments.get("<ENDPOINT_ID>"),
-                                        arguments['<PROFILES>'])
-            elif arguments.get("set"):
-                endpoint_profile_set(arguments.get("--host"),
-                                     arguments.get("--orchestrator"),
-                                     arguments.get("--workload"),
-                                     arguments.get("<ENDPOINT_ID>"),
-                                     arguments['<PROFILES>'])
-            elif arguments.get("show"):
-                endpoint_profile_show(arguments.get("--host"),
-                                      arguments.get("--orchestrator"),
-                                      arguments.get("--workload"),
-                                      arguments.get("<ENDPOINT_ID>"))
-        else:
-            # calicoctl endpoint show
-            endpoint_show(arguments.get("--host"),
-                          arguments.get("--orchestrator"),
-                          arguments.get("--workload"),
-                          arguments.get("--endpoint"),
-                          arguments.get("--detailed"))
+    """
+    Main dispatcher for endpoint commands. Calls the corresponding helper
+    function.
+
+    :param arguments: A dictionary of arguments already processed through
+    this file's docstring with docopt.
+    :return: None
+    """
+    if arguments.get("profile"):
+        if arguments.get("append"):
+            endpoint_profile_append(arguments.get("--host"),
+                                    arguments.get("--orchestrator"),
+                                    arguments.get("--workload"),
+                                    arguments.get("<ENDPOINT_ID>"),
+                                    arguments['<PROFILES>'])
+        elif arguments.get("remove"):
+            endpoint_profile_remove(arguments.get("--host"),
+                                    arguments.get("--orchestrator"),
+                                    arguments.get("--workload"),
+                                    arguments.get("<ENDPOINT_ID>"),
+                                    arguments['<PROFILES>'])
+        elif arguments.get("set"):
+            endpoint_profile_set(arguments.get("--host"),
+                                 arguments.get("--orchestrator"),
+                                 arguments.get("--workload"),
+                                 arguments.get("<ENDPOINT_ID>"),
+                                 arguments['<PROFILES>'])
+        elif arguments.get("show"):
+            endpoint_profile_show(arguments.get("--host"),
+                                  arguments.get("--orchestrator"),
+                                  arguments.get("--workload"),
+                                  arguments.get("<ENDPOINT_ID>"))
+    else:
+        # calicoctl endpoint show
+        endpoint_show(arguments.get("--host"),
+                      arguments.get("--orchestrator"),
+                      arguments.get("--workload"),
+                      arguments.get("--endpoint"),
+                      arguments.get("--detailed"))
 
 
 def endpoint_show(hostname, orchestrator_id, workload_id, endpoint_id,

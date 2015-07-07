@@ -1,5 +1,17 @@
-"""Configure the main calico/node container and establish Calico networking
-
+# Copyright 2015 Metaswitch Networks
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
 Usage:
   calicoctl node [--ip=<IP>] [--ip6=<IP6>] [--node-image=<DOCKER_IMAGE_NAME>] [--as=<AS_NUM>] [--log-dir=<LOG_DIR>]
   calicoctl node stop [--force]
@@ -7,17 +19,21 @@ Usage:
   calicoctl node bgp peer remove <PEER_IP>
   calicoctl node bgp peer show [--ipv4 | --ipv6]
 
+Description:
+  Configure the main calico/node container as well as default BGP information
+  for containers started on this host.
+
 Options:
- --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for
-                          Calico's per-node container
-                          [default: calico/node:libnetwork-release]
+ --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
+                                     container [default: calico/node:latest]
  --log-dir=<LOG_DIR>      The directory for logs [default: /var/log/calico]
  --ip=<IP>                The local management address to use.
  --ip6=<IP6>              The local IPv6 management address to use.
- --as=<AS_NUM>            The AS number to assign to the node.
+ --as=<AS_NUM>            The default AS number for this node.
  --ipv4                   Show IPv4 information only.
  --ipv6                   Show IPv6 information only.
 """
+import sys
 import os
 import sh
 import docker
@@ -36,14 +52,44 @@ from utils import check_ip_version
 from netaddr import IPAddress
 from prettytable import PrettyTable
 from utils import get_container_ipv_from_arguments
-import sys
-
 
 DEFAULT_IPV4_POOL = IPPool("192.168.0.0/16")
 DEFAULT_IPV6_POOL = IPPool("fd80:24e2:f998:72d6::/64")
 
 
-def node(node_image, log_dir, ip="", ip6="", as_num=None):
+def node(arguments):
+    """
+    Main dispatcher for node commands. Calls the corresponding helper function.
+
+    :param arguments: A dictionary of arguments already processed through
+    this file's docstring with docopt
+    :return: None
+    """
+    if arguments.get("bgp"):
+        if arguments.get("peer"):
+            ip_version = get_container_ipv_from_arguments(arguments)
+            if arguments.get("add"):
+                node_bgppeer_add(arguments.get("<PEER_IP>"), ip_version,
+                                 arguments.get("<AS_NUM>"))
+            elif arguments.get("remove"):
+                node_bgppeer_remove(arguments.get("<PEER_IP>"), ip_version)
+            elif arguments.get("show"):
+                if not ip_version:
+                    node_bgppeer_show("v4")
+                    node_bgppeer_show("v6")
+                else:
+                    node_bgppeer_show(ip_version)
+    elif arguments.get("stop"):
+        node_stop(arguments.get("--force"))
+    else:
+        node_start(ip=arguments.get("--ip"),
+                   node_image=arguments['--node-image'],
+                   log_dir=arguments.get("--log-dir"),
+                   ip6=arguments.get("--ip6"),
+                   as_num=arguments.get("--as"))
+
+
+def node_start(node_image, log_dir, ip="", ip6="", as_num=None):
     """
     Create the calico-node container and establish Calico networking on this
     host.
@@ -150,32 +196,6 @@ def node(node_image, log_dir, ip="", ip6="", as_num=None):
     docker_client.start(container)
 
     print "Calico node is running with id: %s" % cid
-
-
-def node_start(arguments):
-    if arguments.get("node"):
-        if arguments.get("bgp"):
-            if arguments.get("peer"):
-                ip_version = get_container_ipv_from_arguments(arguments)
-                if arguments.get("add"):
-                    node_bgppeer_add(arguments.get("<PEER_IP>"), ip_version,
-                                     arguments.get("<AS_NUM>"))
-                elif arguments.get("remove"):
-                    node_bgppeer_remove(arguments.get("<PEER_IP>"), ip_version)
-                elif arguments.get("show"):
-                    if not ip_version:
-                        node_bgppeer_show("v4")
-                        node_bgppeer_show("v6")
-                    else:
-                        node_bgppeer_show(ip_version)
-        elif arguments.get("stop"):
-            node_stop(arguments.get("--force"))
-        else:
-            node(ip=arguments.get("--ip"),
-                 node_image=arguments['--node-image'],
-                 log_dir=arguments.get("--log-dir"),
-                 ip6=arguments.get("--ip6"),
-                 as_num=arguments.get("--as"))
 
 
 def node_stop(force):

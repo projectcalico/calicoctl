@@ -1,50 +1,56 @@
 """
-Configure containers and their addresses
-
 Usage:
   calicoctl container <CONTAINER> ip (add|remove) <IP> [--interface=<INTERFACE>]
   calicoctl container <CONTAINER> endpoint-id show
   calicoctl container add <CONTAINER> <IP> [--interface=<INTERFACE>]
-  calicoctl container remove <CONTAINER> [--force]
+  calicoctl container remove <CONTAINER>
+
+Description:
+  Add or remove containers to calico networking and manage their assigned IP addresses.
 
 Options:
- --interface=<INTERFACE>  The name to give to the interface in the container
-                          [default: eth1]
+  --interface=<INTERFACE>  The name to give to the interface in the container
+                           [default: eth1]
 """
 import sys
+import docker.errors
 from subprocess import CalledProcessError
 from netaddr import IPAddress, IPNetwork
+
 from pycalico import netns
 from utils import hostname, ORCHESTRATOR_ID
 from utils import client
 from utils import enforce_root
 from utils import check_ip_version
 from utils import get_container_ipv_from_arguments
+from utils import docker_client
+from utils import print_paragraph
 
 
 def container(arguments):
+    """
+    Main dispatcher for container commands. Calls the corresponding helper
+    function.
+
+    :param arguments: A dictionary of arguments already processed through
+    this file's docstring with docopt
+    :return: None
+    """
     ip_version = get_container_ipv_from_arguments(arguments)
-    if arguments.get("container"):
-        if arguments.get("endpoint-id"):
-            container_endpoint_id_show(arguments.get("<CONTAINER>"))
-        elif arguments.get("ip"):
-            if arguments.get("add"):
-                container_ip_add(arguments.get("<CONTAINER>"),
-                                 arguments.get("<IP>"),
-                                 ip_version,
-                                 arguments.get("--interface"))
-            elif arguments.get("remove"):
-                container_ip_remove(arguments.get("<CONTAINER>"),
-                                    arguments.get("<IP>"),
-                                    ip_version,
-                                    arguments.get("--interface"))
-            else:
-                if arguments.get("add"):
-                    container_add(arguments.get("<CONTAINER>"),
-                                  arguments.get("<IP>"),
-                                  arguments.get("--interface"))
-                if arguments.get("remove"):
-                    container_remove(arguments.get("<CONTAINER>"))
+
+    if arguments.get("endpoint-id"):
+        container_endpoint_id_show(arguments.get("<CONTAINER>"))
+    elif arguments.get("ip"):
+        if arguments.get("add"):
+            container_ip_add(arguments.get("<CONTAINER>"),
+                             arguments.get("<IP>"),
+                             ip_version,
+                             arguments.get("--interface"))
+        elif arguments.get("remove"):
+            container_ip_remove(arguments.get("<CONTAINER>"),
+                                arguments.get("<IP>"),
+                                ip_version,
+                                arguments.get("--interface"))
         else:
             if arguments.get("add"):
                 container_add(arguments.get("<CONTAINER>"),
@@ -52,6 +58,13 @@ def container(arguments):
                               arguments.get("--interface"))
             if arguments.get("remove"):
                 container_remove(arguments.get("<CONTAINER>"))
+    else:
+        if arguments.get("add"):
+            container_add(arguments.get("<CONTAINER>"),
+                          arguments.get("<IP>"),
+                          arguments.get("--interface"))
+        if arguments.get("remove"):
+            container_remove(arguments.get("<CONTAINER>"))
 
 
 def container_add(container_name, ip, interface):
@@ -329,6 +342,14 @@ def get_pool_or_exit(ip):
 
 
 def container_endpoint_id_show(container_name):
+    """
+    Prints the endpoint-id of the endpoint attached to the specified
+    container, or an appropriate Not-found error message.
+
+    :param container_name: Name of the container the target endpoint
+    is attached to.
+    :return: None
+    """
     workload_id = get_container_id(container_name)
     try:
         endpoint = client.get_endpoint(hostname=hostname,
@@ -360,7 +381,6 @@ def get_container_id(container_name):
     """
     info = get_container_info_or_exit(container_name)
     return info["Id"]
-
 
 
 def get_container_info_or_exit(container_name):

@@ -19,16 +19,16 @@
 Override the host:port of the ETCD server by setting the environment variable
 ETCD_AUTHORITY [default: 127.0.0.1:4001]
 
-usage: calicoctl <command> [<args>...]
+Usage: calicoctl <command> [<args>...]
 
     status            Print current status information
     node              Configure the main calico/node container and establish Calico networking
     container         Configure containers and their addresses
-    profile           Configure profiles
+    profile           Configure endpoint profiles
     endpoint          Configure the endpoints assigned to existing containers
     pool              Configure ip-pools
-    bgp               Configure bgp
-    checksystem       Check if the host system is configured properly to run calico
+    bgp               Configure global bgp
+    checksystem       Check for incompatabilities on the host system
     diags             Save diagnostic information
 
 See 'calicoctl <command> --help' to read about a specific subcommand.
@@ -87,6 +87,8 @@ def permission_denied_error(conn_error):
 def validate_arguments(arguments):
         """
         Validate common argument values.
+
+        :param arguments: Docopt processed arguments.
         """
         # List of valid characters that Felix permits
         valid_chars = '[a-zA-Z0-9_\.\-]'
@@ -181,9 +183,12 @@ if __name__ == '__main__':
     try:
         command = command_args['<command>']
         if command == 'node':
+            # Run the program's argvs through the submodules docopt
             arguments = docopt(calico_ctl.node.__doc__, argv=argv)
+            # Validate the arguments
             validate_arguments(arguments)
-            calico_ctl.node.node_start(arguments)
+            # Call the function dispatcher
+            calico_ctl.node.node(arguments)
         elif command == 'container':
             arguments = docopt(calico_ctl.container.__doc__, argv=argv)
             validate_arguments(arguments)

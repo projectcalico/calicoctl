@@ -1,13 +1,29 @@
+# Copyright 2015 Metaswitch Networks
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-Configure IP Pools
-
 Usage:
   calicoctl pool (add|remove) <CIDR> [--ipip] [--nat-outgoing]
   calicoctl pool show [--ipv4 | --ipv6]
 
+Description:
+  Configure IP Pools
+
 Options:
- --ipv4                   Show IPv4 information only.
- --ipv6                   Show IPv6 information only.
+  --ipv4          Show IPv4 information only.
+  --ipv6          Show IPv6 information only.
+  --nat-outgoing  TODO
+  --ipip          Use IP-over-IP encapsulation
  """
 import sys
 from pycalico.datastore_datatypes import IPPool
@@ -19,21 +35,27 @@ from prettytable import PrettyTable
 
 
 def pool(arguments):
+    """
+    Main dispatcher for pool commands. Calls the corresponding helper function.
+
+    :param arguments: A dictionary of arguments already processed through
+    this file's docstring with docopt
+    :return: None
+    """
     ip_version = get_container_ipv_from_arguments(arguments)
-    if arguments.get("pool"):
-        if arguments.get("add"):
-            ip_pool_add(arguments.get("<CIDR>"),
-                        ip_version,
-                        arguments.get("--ipip"),
-                        arguments.get("--nat-outgoing"))
-        elif arguments.get("remove"):
-            ip_pool_remove(arguments.get("<CIDR>"), ip_version)
-        elif arguments.get("show"):
-            if not ip_version:
-                ip_pool_show("v4")
-                ip_pool_show("v6")
-            else:
-                ip_pool_show(ip_version)
+    if arguments.get("add"):
+        ip_pool_add(arguments.get("<CIDR>"),
+                    ip_version,
+                    arguments.get("--ipip"),
+                    arguments.get("--nat-outgoing"))
+    elif arguments.get("remove"):
+        ip_pool_remove(arguments.get("<CIDR>"), ip_version)
+    elif arguments.get("show"):
+        if not ip_version:
+            ip_pool_show("v4")
+            ip_pool_show("v6")
+        else:
+            ip_pool_show(ip_version)
 
 
 def ip_pool_add(cidr_pool, version, ipip, masquerade):
