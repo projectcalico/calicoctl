@@ -17,7 +17,7 @@ all: test
 binary: dist/calicoctl
 
 caliconode.created: $(PYCALICO) $(NODE_FILES)
-	docker build -t calico/node:libnetwork-release .
+	docker build -t calico/node .
 	touch caliconode.created
 
 calicobuild.created: $(BUILD_FILES)
@@ -43,6 +43,7 @@ dist/calicoctl: $(PYCALICO) calicobuild.created
 	# as the mountpoint directly since the host permissions may not allow the
 	# `user` account in the container to write to it.
 	-docker run -v `pwd`/dist:/code/dist --rm -w /code/dist calico/build \
+	docopt-completion --manual-bash ./calicoctl
 
 test: ut st
 
@@ -52,7 +53,8 @@ ut: calicobuild.created
 	'/tmp/etcd -data-dir=/tmp/default.etcd/ >/dev/null 2>&1 & \
 	nosetests tests/unit -c nose.cfg'
 
-ut-circle: calicobuild.created
+# UT runs on Cicle need to create the calicoctl binary
+ut-circle: calicobuild.created dist/calicoctl
 	# Can't use --rm on circle
 	# Circle also requires extra options for reporting.
 	docker run \
