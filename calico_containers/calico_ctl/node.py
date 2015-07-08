@@ -26,7 +26,7 @@ Description:
 Options:
   --force                  Stop the node process even if it has active endpoints.
   --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
-                                      container [default: calico/node:latest]
+                                      container [default: calico/node:v0.5.0]
   --log-dir=<LOG_DIR>      The directory for logs [default: /var/log/calico]
   --ip=<IP>                The local management address to use.
   --ip6=<IP6>              The local IPv6 management address to use.
