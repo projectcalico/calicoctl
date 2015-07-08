@@ -42,12 +42,12 @@ Usage:
   calicoctl profile <PROFILE> rule update
 
 Description:
-  Modify available profiles and configure their correspondig rules.
+  Modify available profiles and configure rules or tags.
 
 Options:
   --detailed        Show additional information.
   --at=<POSITION>   Specify the position in the chain where the rule should
-                    be placed. Default: append to end.
+                    be placed. Default: append at end.
 
 Examples:
   Add and set up a rule to prevent all inbound traffic except pings from the 192.168/16 subnet

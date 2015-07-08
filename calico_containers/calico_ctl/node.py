@@ -21,17 +21,18 @@ Usage:
 
 Description:
   Configure the main calico/node container as well as default BGP information
-  for containers started on this host.
+  for this node.
 
 Options:
- --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
-                                     container [default: calico/node:latest]
- --log-dir=<LOG_DIR>      The directory for logs [default: /var/log/calico]
- --ip=<IP>                The local management address to use.
- --ip6=<IP6>              The local IPv6 management address to use.
- --as=<AS_NUM>            The default AS number for this node.
- --ipv4                   Show IPv4 information only.
- --ipv6                   Show IPv6 information only.
+  --force                  Stop the node process even if it has active endpoints.
+  --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
+                                      container [default: calico/node:latest]
+  --log-dir=<LOG_DIR>      The directory for logs [default: /var/log/calico]
+  --ip=<IP>                The local management address to use.
+  --ip6=<IP6>              The local IPv6 management address to use.
+  --as=<AS_NUM>            The default AS number for this node.
+  --ipv4                   Show IPv4 information only.
+  --ipv6                   Show IPv6 information only.
 """
 import sys
 import os

@@ -17,10 +17,12 @@ Usage:
   calicoctl bgp peer remove <PEER_IP>
   calicoctl bgp peer show [--ipv4 | --ipv6]
   calicoctl bgp node-mesh [on|off]
-  calicoctl bgp default-node-as [<AS_NUM>]
+  calicoctl bgp default-node-as [--as=<AS_NUM>]
+
 
 Description:
-  Configure default BGP settings.
+  Configure default global BGP settings for all nodes. Note: per-node settings
+  will override these globals for that node.
 
 Options:
  --ipv4    Show IPv4 information only.

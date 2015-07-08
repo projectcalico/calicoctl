@@ -20,18 +20,18 @@ Description:
   Configure IP Pools
 
 Options:
-  --ipv4          Show IPv4 information only.
-  --ipv6          Show IPv6 information only.
-  --nat-outgoing  TODO
-  --ipip          Use IP-over-IP encapsulation
+  --ipv4          Show IPv4 information only
+  --ipv6          Show IPv6 information only
+  --nat-outgoing  Apply NAT to outgoing traffic
+  --ipip          Use IP-over-IP encapsulation across hosts
  """
 import sys
+from netaddr import IPNetwork
+from prettytable import PrettyTable
 from pycalico.datastore_datatypes import IPPool
 from utils import get_container_ipv_from_arguments
 from utils import client
 from utils import check_ip_version
-from netaddr import IPNetwork
-from prettytable import PrettyTable
 
 
 def pool(arguments):

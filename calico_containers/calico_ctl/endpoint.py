@@ -18,7 +18,7 @@ Usage:
   calicoctl endpoint <ENDPOINT_ID> profile show [--host=<HOSTNAME>] [--orchestrator=<ORCHESTRATOR_ID>] [--workload=<WORKLOAD_ID>]
 
 Description:
-  Configure and show endpoints assigned to existing containers
+  Configure or show endpoints assigned to existing containers
 
 Options:
  --detailed                         Show additional information

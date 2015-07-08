@@ -16,7 +16,7 @@ Usage:
   calicoctl diags [--log-dir=<LOG_DIR>] [--upload]
 
 Description:
-  Saves diagnostic information
+  Save diagnostic information
 
 Options:
   --log-dir=<LOG_DIR>  The directory for logs [default: /var/log/calico]
