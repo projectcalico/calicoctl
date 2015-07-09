@@ -15,7 +15,7 @@
 # This image is based on the "main" calico/node image. It shares many of the
 # dependencies which makes it a good base for an image used for building and
 # unit testing
-FROM calico/node
+FROM calico/node:v0.4.8
 
 WORKDIR /code/
 
