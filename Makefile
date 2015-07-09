@@ -1,12 +1,13 @@
 .PHONEY: all binary test ut ut-circle st clean setup-env run-etcd install-completion fast-st
 
 SRCDIR=calico_containers
-PYCALICO=$(wildcard $(SRCDIR)/pycalico/*.py) $(wildcard $(SRCDIR)/*.py)
+PYCALICO=$(wildcard $(SRCDIR)/pycalico/*.py) $(wildcard $(SRCDIR)/calico_ctl/*.py) $(wildcard $(SRCDIR)/*.py)
 BUILD_DIR=build_calicoctl
 BUILD_FILES=$(BUILD_DIR)/Dockerfile $(BUILD_DIR)/requirements.txt
 # There are subdirectories so use shell rather than wildcard
 NODE_FILESYSTEM=$(shell find node_filesystem/ -type f)
 NODE_FILES=Dockerfile $(wildcard image/*) $(NODE_FILESYSTEM)
+WHEEL_VERSION=0.0.0
 
 # These variables can be overridden by setting an environment variable.
 LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
@@ -15,9 +16,10 @@ ST_TO_RUN?=calico_containers/tests/st/
 default: all
 all: test
 binary: dist/calicoctl
+wheel: dist/pycalico-$(WHEEL_VERSION)-py2-none-any.whl
 
 caliconode.created: $(PYCALICO) $(NODE_FILES)
-	docker build -t calico/node:libnetwork-release .
+	docker build -t calico/node .
 	touch caliconode.created
 
 calicobuild.created: $(BUILD_FILES)
@@ -43,16 +45,26 @@ dist/calicoctl: $(PYCALICO) calicobuild.created
 	# as the mountpoint directly since the host permissions may not allow the
 	# `user` account in the container to write to it.
 	-docker run -v `pwd`/dist:/code/dist --rm -w /code/dist calico/build \
+	docopt-completion --manual-bash ./calicoctl
+
+dist/pycalico-$(WHEEL_VERSION)-py2-none-any.whl: $(PYCALICO)
+	mkdir -p dist
+	chmod 777 dist
+	python setup.py bdist_wheel
 
 test: ut st
 
 ut: calicobuild.created
-	docker run --rm -v `pwd`/calico_containers:/code \
+	# Use the `root` user, since code coverage requires the /code directory to
+	# be writable.  It may not be writable for the `user` account inside the
+	# container.
+	docker run --rm -v `pwd`/calico_containers:/code -u root \
 	calico/build bash -c \
 	'/tmp/etcd -data-dir=/tmp/default.etcd/ >/dev/null 2>&1 & \
 	nosetests tests/unit -c nose.cfg'
 
-ut-circle: calicobuild.created
+# UT runs on Cicle need to create the calicoctl binary
+ut-circle: calicobuild.created dist/calicoctl
 	# Can't use --rm on circle
 	# Circle also requires extra options for reporting.
 	docker run \
@@ -104,10 +116,12 @@ create-dind:
 	docker rm -f $$ID
 
 clean:
-	-rm *.created
+	-rm -f *.created
 	find . -name '*.pyc' -exec rm -f {} +
-	-rm -r dist
-	-rm calico_containers/busybox.tar
+	-rm -rf dist
+	-rm -rf build
+	-rm -rf calico_containers/pycalico.egg-info/
+	-rm -f calico_containers/busybox.tar
 	-docker rm -f calico-build
 	-docker rm -f calico-node
 	-docker rmi calico/node
@@ -122,4 +136,18 @@ setup-env:
 install-completion: /etc/bash_completion.d/calicoctl.sh
 /etc/bash_completion.d/calicoctl.sh: dist/calicoctl
 	cp dist/calicoctl.sh /etc/bash_completion.d
-	
+
+.PHONY: kubernetes	
+kubernetes: /dist/calico_kubernetes
+
+/dist/calico_kubernetes:
+	# Build docker container
+	cd build_calicoctl; docker build -t calico-build .
+	mkdir -p dist
+	chmod 777 `pwd`/dist
+	# Build the rkt plugin
+	docker run -u user -v `pwd`/calico_containers:/code/calico_containers \
+	-v `pwd`/dist:/code/dist \
+	-e PYTHONPATH=/code/calico_containers \
+	calico-build pyinstaller calico_containers/integrations/kubernetes/calico_kubernetes.py -a -F -s --clean
+
