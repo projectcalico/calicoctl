@@ -56,6 +56,13 @@ ut: calicobuild.created
 	'/tmp/etcd -data-dir=/tmp/default.etcd/ >/dev/null 2>&1 & \
 	nosetests calico_containers/tests/unit -c nose.cfg'
 
+ut_kubernetes: calicobuild.created
+	docker run --rm -v `pwd`/calico_containers:/code/calico_containers \
+	-v `pwd`/nose.cfg:/code/nose.cfg \
+	calico/build bash -c \
+	'/tmp/etcd -data-dir=/tmp/default.etcd/ >/dev/null 2>&1 & \
+	PYTHONPATH=calico_containers nosetests calico_containers/integrations/kubernetes/tests -c nose.cfg'
+
 ut-circle: calicobuild.created
 	# Can't use --rm on circle
 	# Circle also requires extra options for reporting.

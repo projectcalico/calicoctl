@@ -15,22 +15,23 @@ if ETCD_AUTHORITY_ENV not in os.environ:
     os.environ[ETCD_AUTHORITY_ENV] = 'kubernetes-master:6666'
 print("Using ETCD_AUTHORITY=%s" % os.environ[ETCD_AUTHORITY_ENV])
 
+KUBE_API_ROOT = os.environ.get('KUBE_API_ROOT',
+      'https://kubernetes-master:6443/api/v1beta3/')
+print("Using KUBE_API_ROOT=%s" % KUBE_API_ROOT)
+
+CALICOCTL_PATH = os.environ.get('CALICOCTL_PATH', '/home/vagrant/calicoctl')
+print("Using CALICOCTL_PATH=%s" % CALICOCTL_PATH)
+
 from calicoctl import container_add
 from pycalico.datastore import IF_PREFIX
 from pycalico.util import generate_cali_interface_name
 
-CALICOCTL_PATH = os.environ.get('CALICOCTL_PATH', '/home/vagrant/calicoctl')
-print("Using CALICOCTL_PATH=%s" % CALICOCTL_PATH)
-calicoctl = sh.Command(CALICOCTL_PATH).bake(_env=os.environ)
-
-KUBE_API_ROOT = os.environ.get('KUBE_API_ROOT',
-                               'https://kubernetes-master:6443/api/v1beta3/')
-print("Using KUBE_API_ROOT=%s" % KUBE_API_ROOT)
 
 class NetworkPlugin(object):
     def __init__(self):
         self.pod_name = None
         self.docker_id = None
+        self.calicoctl = sh.Command(CALICOCTL_PATH).bake(_env=os.environ)
 
     def create(self, args):
         """"Create a pod."""
@@ -55,8 +56,8 @@ class NetworkPlugin(object):
         self.docker_id = args[4]
 
         # Remove the profile for the workload.
-        calicoctl('container', 'remove', self.docker_id)
-        calicoctl('profile', 'remove', self.pod_name)
+        self.calicoctl('container', 'remove', self.docker_id)
+        self.calicoctl('profile', 'remove', self.pod_name)
 
     def _configure_interface(self):
         """Configure the Calico interface for a pod.
@@ -150,7 +151,7 @@ class NetworkPlugin(object):
         Currently assumes one pod with each name.
         """
         profile_name = self.pod_name
-        calicoctl('profile', 'add', profile_name)
+        self.calicoctl('profile', 'add', profile_name)
         pod = self._get_pod_config()
 
         self._apply_rules(profile_name, pod)
@@ -158,7 +159,7 @@ class NetworkPlugin(object):
         self._apply_tags(profile_name, pod)
 
         # Also add the workload to the profile.
-        calicoctl('endpoint', endpoint.endpoint_id,
+        self.calicoctl('endpoint', endpoint.endpoint_id,
                   'profile', 'set', profile_name)
         print('Finished configuring profile.')
 
@@ -282,7 +283,7 @@ class NetworkPlugin(object):
         profile_json = self._generate_profile_json(profile_name, rules)
 
         # Pipe the Profile JSON into the calicoctl command to update the rule.
-        calicoctl('profile', profile_name, 'rule', 'update', _in=profile_json)
+        self.calicoctl('profile', profile_name, 'rule', 'update', _in=profile_json)
         print('Finished applying rules.')
 
     def _apply_tags(self, profile_name, pod):
@@ -308,7 +309,7 @@ class NetworkPlugin(object):
             tag = tag.replace('-', '_')
             print('Adding tag ' + tag)
             try:
-                calicoctl('profile', profile_name, 'tag', 'add', tag)
+                self.calicoctl('profile', profile_name, 'tag', 'add', tag)
             except sh.ErrorReturnCode as e:
                 print('Could not create tag %s.\n%s' % (tag, e))
         print('Finished applying tags.')
