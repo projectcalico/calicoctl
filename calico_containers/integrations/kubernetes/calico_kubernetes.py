@@ -144,6 +144,7 @@ class NetworkPlugin(object):
         print('PID: %s' % pid)
 
         # Set up a link to the container's netns.
+        print('Linking to container\'s netns')
         print(check_output(['mkdir', '-p', '/var/run/netns']))
         netns_file = '/var/run/netns/' + pid
         if not os.path.isfile(netns_file):
@@ -163,6 +164,7 @@ class NetworkPlugin(object):
 
         Currently assumes one pod with each name.
         """
+        print('Configuring Pof Profile')
         profile_name = self.pod_name
         calicoctl('profile', 'add', profile_name)
         pod = self._get_pod_config()
@@ -219,6 +221,7 @@ class NetworkPlugin(object):
         :return: A list of JSON API objects
         :rtype list
         """
+        print('Getting API Resources')
         bearer_token = self._get_api_token()
         session = requests.Session()
         session.headers.update({'Authorization': 'Bearer ' + bearer_token})
@@ -234,6 +237,7 @@ class NetworkPlugin(object):
         :return: The token.
         :rtype: str
         """
+        print('Getting Kubernetes Authorization')
         with open('/var/lib/kubelet/kubernetes_auth') as f:
             json_string = f.read()
         print('Got kubernetes_auth: ' + json_string)
@@ -312,6 +316,7 @@ class NetworkPlugin(object):
         :type pod: dict
         :return:
         """
+        print('Applying tags')
         try:
             labels = pod['metadata']['labels']
         except KeyError:
@@ -345,3 +350,6 @@ if __name__ == '__main__':
         elif mode == 'teardown':
             print('Executing Calico pod-deletion hook')
             NetworkPlugin().delete(pod_name, docker_id)
+
+def DebugLog(msg):
+    print(msg)
