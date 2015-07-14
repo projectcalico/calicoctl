@@ -351,5 +351,3 @@ if __name__ == '__main__':
             print('Executing Calico pod-deletion hook')
             NetworkPlugin().delete(pod_name, docker_id)
 
-def DebugLog(msg):
-    print(msg)
