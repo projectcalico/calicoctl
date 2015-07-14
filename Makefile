@@ -12,9 +12,11 @@ NODE_FILES=Dockerfile $(wildcard image/*) $(NODE_FILESYSTEM)
 LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
 ST_TO_RUN?=calico_containers/tests/st/
 
+# Scale - add var for building binaries
+
 default: all
 all: test
-binary: dist/calicoctl
+binary: dist/calicoctl dist/calico_kubernetes
 
 caliconode.created: $(PYCALICO) $(NODE_FILES)
 	docker build -t calico/node:libnetwork-release .
@@ -117,9 +119,9 @@ install-completion: /etc/bash_completion.d/calicoctl.sh
 	cp dist/calicoctl.sh /etc/bash_completion.d
 
 .PHONY: kubernetes	
-kubernetes: /dist/calico_kubernetes
+kubernetes: dist/calico_kubernetes
 
-/dist/calico_kubernetes:
+dist/calico_kubernetes:
 	# Build docker container
 	cd build_calicoctl; docker build -t calico-build .
 	mkdir -p dist
