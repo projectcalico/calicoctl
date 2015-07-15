@@ -9,6 +9,7 @@ import sh
 
 # Append to existing env, to avoid losing PATH etc.
 # Need to edit the path here since calicoctl loads client on import.
+print('Setting up Env')
 ETCD_AUTHORITY_ENV = "ETCD_AUTHORITY"
 if ETCD_AUTHORITY_ENV not in os.environ:
     os.environ[ETCD_AUTHORITY_ENV] = 'kubernetes-master:6666'
@@ -25,6 +26,8 @@ calicoctl = sh.Command(CALICOCTL_PATH).bake(_env=os.environ)
 KUBE_API_ROOT = os.environ.get('KUBE_API_ROOT',
                                'https://kubernetes-master:443/api/v1/')
 print("Using KUBE_API_ROOT=%s" % KUBE_API_ROOT)
+print('Env Done')
+
 
 
 class NetworkPlugin(object):
@@ -58,6 +61,9 @@ class NetworkPlugin(object):
         calicoctl('container', 'remove', self.docker_id)
         calicoctl('profile', 'remove', self.pod_name)
 
+        print('Deleting container %s with profile %s' % 
+            (self.pod_name, self.docker_id))
+
     def _configure_interface(self):
         """Configure the Calico interface for a pod.
 
@@ -73,7 +79,7 @@ class NetworkPlugin(object):
         """
         container_ip = self._read_docker_ip()
         self._delete_docker_interface()
-        print('Configuring Calico networking.')
+        print('Configuring Calico network interface')
         ep = container_add(self.docker_id, container_ip, 'eth0')
         interface_name = generate_cali_interface_name(IF_PREFIX, ep.endpoint_id)
         node_ip = self._get_node_ip()
@@ -104,8 +110,10 @@ class NetworkPlugin(object):
         # getting from hostname=>IP).
         # TODO: do this more reliably by parsing 'ip
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        print('Fetching IP for socket %s' % s)
         s.connect(('8.8.8.8', 80))
         ip = s.getsockname()[0]
+        print('Node IP: %s' % ip)
         s.close()
         return ip
 
@@ -123,17 +131,20 @@ class NetworkPlugin(object):
 
     def _delete_docker_interface(self):
         """Delete the existing veth connecting to the docker bridge."""
-        print('Deleting eth0')
+        print('Deleting docker interface eth0')
 
         # Get the PID of the container.
+        print('Getting constainer PID')
         pid = check_output([
             'docker', 'inspect', '-format', '{{ .State.Pid }}',
             self.docker_id
         ])
         # Clean trailing whitespace (expect a '\n' at least).
         pid = pid.strip()
+        print('PID: %s' % pid)
 
         # Set up a link to the container's netns.
+        print('Linking to container\'s netns')
         print(check_output(['mkdir', '-p', '/var/run/netns']))
         netns_file = '/var/run/netns/' + pid
         if not os.path.isfile(netns_file):
@@ -153,6 +164,7 @@ class NetworkPlugin(object):
 
         Currently assumes one pod with each name.
         """
+        print('Configuring Pof Profile')
         profile_name = self.pod_name
         calicoctl('profile', 'add', profile_name)
         pod = self._get_pod_config()
@@ -209,6 +221,7 @@ class NetworkPlugin(object):
         :return: A list of JSON API objects
         :rtype list
         """
+        print('Getting API Resources')
         bearer_token = self._get_api_token()
         session = requests.Session()
         session.headers.update({'Authorization': 'Bearer ' + bearer_token})
@@ -224,6 +237,7 @@ class NetworkPlugin(object):
         :return: The token.
         :rtype: str
         """
+        print('Getting Kubernetes Authorization')
         with open('/var/lib/kubelet/kubernetes_auth') as f:
             json_string = f.read()
         print('Got kubernetes_auth: ' + json_string)
@@ -302,6 +316,7 @@ class NetworkPlugin(object):
         :type pod: dict
         :return:
         """
+        print('Applying tags')
         try:
             labels = pod['metadata']['labels']
         except KeyError:
@@ -335,3 +350,4 @@ if __name__ == '__main__':
         elif mode == 'teardown':
             print('Executing Calico pod-deletion hook')
             NetworkPlugin().delete(pod_name, docker_id)
+
