@@ -26,7 +26,7 @@ Description:
 Options:
   --force                   Stop the node process even if it has active endpoints.
   --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
-                                      container [default: calico/node:latest]
+                                      container [default: calico/node:v0.5.1]
   --detach=<DETACH>         Set "true" to run Calico service as detached,
                             "false" to run in the foreground. [default: true]
   --log-dir=<LOG_DIR>       The directory for logs [default: /var/log/calico]
