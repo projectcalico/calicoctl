@@ -58,7 +58,7 @@ class NetworkPlugin(object):
 
         print('Deleting container %s with profile %s' % 
             (self.pod_name, self.docker_id))
-        
+
         # Remove the profile for the workload.
         calicoctl('container', 'remove', self.docker_id)
         calicoctl('profile', 'remove', self.pod_name)
@@ -133,7 +133,7 @@ class NetworkPlugin(object):
         print('Deleting docker interface eth0')
 
         # Get the PID of the container.
-        print('Getting constainer PID')
+        print('Getting Container PID')
         pid = check_output([
             'docker', 'inspect', '-format', '{{ .State.Pid }}',
             self.docker_id
