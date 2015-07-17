@@ -25,7 +25,6 @@ calicoctl = sh.Command(CALICOCTL_PATH).bake(_env=os.environ)
 KUBE_API_ROOT = os.environ.get('KUBE_API_ROOT',
                                'https://kubernetes-master:443/api/v1/')
 print("Using KUBE_API_ROOT=%s" % KUBE_API_ROOT)
-print('Env Done')
 
 
 class NetworkPlugin(object):
@@ -131,14 +130,13 @@ class NetworkPlugin(object):
         print('Deleting docker interface eth0')
 
         # Get the PID of the container.
-        print('Getting Container PID')
         pid = check_output([
             'docker', 'inspect', '-format', '{{ .State.Pid }}',
             self.docker_id
         ])
         # Clean trailing whitespace (expect a '\n' at least).
         pid = pid.strip()
-        print('PID: %s' % pid)
+        print('Container %s running with PID %s' % (self.docker_id, pid))
 
         # Set up a link to the container's netns.
         print("Linking to container's netns")
