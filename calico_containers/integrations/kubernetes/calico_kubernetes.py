@@ -62,7 +62,6 @@ class NetworkPlugin(object):
         calicoctl('container', 'remove', self.docker_id)
         calicoctl('profile', 'remove', self.pod_name)
 
-
     def _configure_interface(self):
         """Configure the Calico interface for a pod.
 
