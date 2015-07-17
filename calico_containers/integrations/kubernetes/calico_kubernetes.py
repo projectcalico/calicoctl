@@ -28,7 +28,6 @@ print("Using KUBE_API_ROOT=%s" % KUBE_API_ROOT)
 print('Env Done')
 
 
-
 class NetworkPlugin(object):
     def __init__(self):
         self.pod_name = None
