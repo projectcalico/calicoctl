@@ -214,13 +214,9 @@ class NetworkPluginTest(unittest.TestCase):
             m_apply_tags.assert_called_once_with('podname', 'pod')
 
     def test_get_pod_ports(self):
-        # Initialize pod dictionary
+        # Initialize pod dictionary and expected outcome
         pod = {'spec': {'containers': [{'ports': [1, 2, 3]},{'ports': [4, 5]}]}}
-        ports = []
-
-        # Append port numbers to a list for comparison
-        for container in pod['spec']['containers']:
-            ports.extend(container['ports'])
+        ports = [1, 2, 3, 4, 5]
 
         # Call method under test
         return_val = self.plugin._get_pod_ports(pod)
@@ -229,7 +225,7 @@ class NetworkPluginTest(unittest.TestCase):
         self.assertEqual(return_val, ports)
 
     def test_get_pod_ports_fail(self):
-        # Initialize pod dictionary
+        # Initialize pod dictionary and expected outcome
         pod = {'spec': {'containers': [{'':[1, 2, 3]}, {'': [4, 5]}]}}
         ports = []
 
