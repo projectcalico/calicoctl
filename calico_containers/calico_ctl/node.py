@@ -501,12 +501,15 @@ def install_kubernetes(kubernetes_plugin_dir):
     kubernetes_binary_path = kubernetes_plugin_dir + 'calico'
     try:
         urllib.urlretrieve(KUBERNETES_BINARY_URL, kubernetes_binary_path)
-        st = os.stat(kubernetes_binary_path)
-        executable_permissions = st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
-        os.chmod(kubernetes_binary_path, executable_permissions)
     except IOError:
         print "ERROR: Couldn't download the Kubernetes plugin"
         sys.exit(1)
-    except OSError:
-        print "ERROR: Unable to set permissions on Kubernetes plugin"
-        sys.exit(1)
+    else:
+        # Download successful - change permissions to allow execution.
+        try:
+            st = os.stat(kubernetes_binary_path)
+            executable_permissions = st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
+            os.chmod(kubernetes_binary_path, executable_permissions)
+        except OSError:
+            print "ERROR: Unable to set permissions on Kubernetes plugin"
+            sys.exit(1)
