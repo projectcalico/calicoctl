@@ -15,3 +15,4 @@ netaddr==0.7.15
 flask
 gunicorn
 subprocess32
+git+https://github.com/Metaswitch/python-etcd.git

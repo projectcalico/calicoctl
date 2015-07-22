@@ -18,6 +18,7 @@ all: test
 binary: dist/calicoctl
 node: caliconode.created
 wheel: dist/pycalico-$(WHEEL_VERSION)-py2-none-any.whl
+deps: local_dependencies.created
 
 caliconode.created: $(PYCALICO) $(NODE_FILES)
 	docker build -t calico/node .
@@ -85,15 +86,20 @@ calico_containers/busybox.tar:
 calico_containers/calico-node.tar: caliconode.created
 	docker save --output calico_containers/calico-node.tar calico/node
 
-st: binary calico_containers/busybox.tar calico_containers/calico-node.tar run-etcd run-consul
+st: binary calico_containers/busybox.tar calico_containers/calico-node.tar run-etcd run-consul deps
 	dist/calicoctl checksystem --fix
 	nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer
 
-fast-st: calico_containers/busybox.tar calico_containers/calico-node.tar run-etcd run-consul
+fast-st: calico_containers/busybox.tar calico_containers/calico-node.tar run-etcd run-consul deps
 	# This runs the tests by calling python directory without using the
 	# calicoctl binary
 	CALICOCTL=$(CURDIR)/calico_containers/calicoctl.py nosetests $(ST_TO_RUN) \
 	-sv --nologcapture --with-timer -a '!slow'
+
+local_dependencies.created:
+	chmod +x build_calicoctl/install.sh
+	cd build_calicoctl; ./install.sh
+	touch local_dependencies.created
 
 run-etcd:
 	@-docker rm -f calico-etcd

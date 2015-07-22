@@ -11,4 +11,5 @@ busybox.tar
 calico-node.tar
 calicobuild.created
 caliconode.created
+local_dependencies.created
 calico_containers/pycalico.egg-info/
