@@ -47,7 +47,7 @@ dist/calicoctl: $(PYCALICO) calicobuild.created
 	 -v `pwd`/dist:/code/dist --rm -w /code/dist calico/build \
 	 docopt-completion --manual-bash ./calicoctl
 
-test: ut st
+test: st ut ut-kubernetes
 
 ut: calicobuild.created
 	docker run --rm -v `pwd`/calico_containers:/code/calico_containers \
@@ -56,7 +56,7 @@ ut: calicobuild.created
 	'/tmp/etcd -data-dir=/tmp/default.etcd/ >/dev/null 2>&1 & \
 	nosetests calico_containers/tests/unit -c nose.cfg'
 
-ut_kubernetes: calicobuild.created
+ut-kubernetes: calicobuild.created
 	docker run --rm -v `pwd`/calico_containers:/code/calico_containers \
 	-v `pwd`/nose.cfg:/code/nose.cfg \
 	calico/build bash -c \
