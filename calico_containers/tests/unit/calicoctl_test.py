@@ -14,18 +14,23 @@
 
 import unittest
 from StringIO import StringIO
-from mock import patch, Mock
+from mock import patch, Mock, MagicMock, call
 from nose_parameterized import parameterized
 from netaddr import IPAddress, IPNetwork
+from subprocess import CalledProcessError
 from calico_ctl.bgp import *
 from calico_ctl.bgp import validate_arguments as bgp_validate_arguments
 from calico_ctl.endpoint import validate_arguments as ep_validate_arguments
+from calico_ctl import node
 from calico_ctl.node import validate_arguments as node_validate_arguments
 from calico_ctl.pool import validate_arguments as pool_validate_arguments
 from calico_ctl.profile import validate_arguments as profile_validate_arguments
+from calico_ctl import container
 from calico_ctl.container import validate_arguments as container_validate_arguments
+from calico_ctl import utils
 from calico_ctl.utils import validate_cidr, validate_ip, validate_characters
-from pycalico.datastore_datatypes import BGPPeer
+from pycalico.datastore_datatypes import BGPPeer, Endpoint, IPPool
+from pycalico.datastore_errors import MultipleEndpointsMatch
 
 
 class TestBgp(unittest.TestCase):
@@ -175,6 +180,708 @@ class TestContainer(unittest.TestCase):
 
             # Assert method exits if bad input
             self.assertEqual(m_sys_exit.called, sys_exit_called)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_add(self, m_netns, m_get_pool_or_exit, m_client,
+                           m_get_container_info_or_exit, m_enforce_root):
+        # Set up mock objects
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        m_client.get_endpoint.side_effect = KeyError
+        m_client.get_default_next_hops.return_value = 'next_hops'
+        m_netns.set_up_endpoint.return_value = 'endpoint'
+
+        # Call method under test
+        test_return = container.container_add('container1', '1.1.1.1', 'interface')
+
+        # Assert
+        m_enforce_root.assert_called_once_with()
+        m_get_container_info_or_exit.assert_called_once_with('container1')
+        m_client.get_endpoint.assert_called_once_with(
+            hostname=node.hostname,
+            orchestrator_id=utils.ORCHESTRATOR_ID,
+            workload_id=666
+        )
+        m_get_pool_or_exit.assert_called_once_with(IPAddress('1.1.1.1'))
+        m_client.get_default_next_hops(node.hostname)
+        m_netns.set_up_endpoint(
+            ip='1.1.1.1',
+            hostname=node.hostname,
+            orchestrator_id=utils.ORCHESTRATOR_ID,
+            workload_id=666,
+            cpid='Pid_info',
+            next_hop_ips='next_hops',
+            veth_name='interface',
+            proc_alias='/proc/'
+        )
+        m_client.set_endpoint.assert_called_once_with('endpoint')
+        self.assertEqual(test_return, 'endpoint')
+
+    @patch('sys.exit', autospec=True)
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_add_existing_container(
+            self, m_netns, m_get_pool_or_exit, m_client,
+            m_get_container_info_or_exit, m_enforce_root, m_sys_exit):
+        """
+        Assert that the system exits when a container already exists
+        """
+        # Call method under test
+        container.container_add('container1', '1.1.1.1', 'interface')
+
+        # Assert
+        m_sys_exit.assert_called_once_with(1)
+
+    @patch('sys.exit', autospec=True)
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_add_container_not_running(
+            self, m_netns, m_get_pool_or_exit, m_client,
+            m_get_container_info_or_exit, m_enforce_root, m_sys_exit):
+        """
+        Assert that system exits when a container is not running
+        """
+        # Set up mock object
+        m_client.get_endpoint.side_effect = KeyError
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 0, 'Pid': 'Pid_info'}
+        }
+
+        # Call method under test
+        container.container_add('container1', '1.1.1.1', 'interface')
+
+        # Assert
+        m_sys_exit.assert_called_once_with(1)
+
+    @patch('sys.exit', autospec=True)
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_add_not_ipv4_configured(
+            self, m_netns, m_get_pool_or_exit, m_client,
+            m_get_container_info_or_exit, m_enforce_root, m_sys_exit):
+        """
+        Assert that system exits when client cannot obtain next hop IPs
+        """
+        # Set up mock objects
+        m_client.get_endpoint.side_effect = KeyError
+        m_client.get_default_next_hops.return_value = {}
+
+        # Call method under test
+        container.container_add('container1', '1.1.1.1', 'interface')
+
+        # Assert
+        m_sys_exit.assert_called_once_with(1)
+
+    @patch('sys.exit', autospec=True)
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_add_ip_previously_assigned(
+            self, m_netns, m_get_pool_or_exit, m_client,
+            m_get_container_info_or_exit, m_enforce_root, m_sys_exit):
+        """
+        Assert that system exits when an ip address is already assigned in pool
+        """
+        # Set up mock object
+        m_client.get_endpoint.side_effect = KeyError
+        m_client.assign_address.return_value = []
+
+        # Call method under test
+        container.container_add('container1', '1.1.1.1', 'interface')
+
+        # Assert
+        m_sys_exit.assert_called_once_with(1)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_container_id', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_remove(self, m_netns, m_client,  m_get_container_id,
+                              m_enforce_root):
+        # Set up mock objects
+        m_get_container_id.return_value = 666
+
+        ipv4_nets = set()
+        ipv4_nets.add(IPNetwork(IPAddress('1.1.1.1')))
+        ipv6_nets = set()
+        m_endpoint = MagicMock(spec=Endpoint)
+        m_endpoint.ipv4_nets = ipv4_nets
+        m_endpoint.ipv6_nets = ipv6_nets
+        m_endpoint.endpoint_id = 12
+        ippool = IPPool('1.1.1.1/24')
+        m_client.get_endpoint.return_value = m_endpoint
+        m_client.get_ip_pools.return_value = [ippool]
+
+        # Call method under test
+        container.container_remove('container1')
+
+        # Assert
+        m_enforce_root.assert_called_once_with()
+        m_get_container_id.assert_called_once_with('container1')
+        m_client.get_endpoint.assert_called_once_with(
+            hostname=node.hostname,
+            orchestrator_id=utils.ORCHESTRATOR_ID,
+            workload_id=666
+        )
+        self.assertEqual(m_client.unassign_address.call_count, 1)
+        m_netns.remove_endpoint.assert_called_once_with(12)
+        m_client.remove_workload(node.hostname, utils.ORCHESTRATOR_ID, 666)
+
+    @patch('sys.exit', autospec=True)
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_container_id', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_remove_no_endpoint(self, m_netns, m_client,
+                                          m_get_container_id, m_enforce_root,
+                                          m_sys_exit):
+        """
+        Test that system exits when the client cannot obtain an endpoint
+        """
+        # Set up mock objects
+        m_client.get_endpoint.side_effect = KeyError
+
+        # Call function under test
+        self.assertRaises(UnboundLocalError, container.container_remove, 'container1')
+
+        # Assert sys.exit(1) was called
+        m_sys_exit.assert_called_once_with(1)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_add_ipv4(self, m_netns, m_client, m_get_container_info_or_exit,
+                              m_get_pool_or_exit, m_enforce_root):
+        # Set up mock objects
+        pool_return = 'pool'
+        m_get_pool_or_exit.return_value = pool_return
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        m_endpoint = Mock()
+        m_client.get_endpoint.return_value = m_endpoint
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1.1.1.1'
+        interface = 'interface'
+
+        # Call method under test
+        container.container_ip_add(container_name, ip, interface)
+
+        # Assert
+        m_enforce_root.assert_called_once_with()
+        m_get_pool_or_exit.assert_called_once_with(IPAddress(ip))
+        m_get_container_info_or_exit.assert_called_once_with(container_name)
+        m_client.get_endpoint.assert_called_once_with(
+            hostname=node.hostname,
+            orchestrator_id=utils.ORCHESTRATOR_ID,
+            workload_id=666
+        )
+        m_client.assign_address.assert_called_once_with(pool_return, ip)
+        m_endpoint.ipv4_nets.add.assert_called_once_with(IPNetwork(IPAddress(ip)))
+        m_client.update_endpoint.assert_called_once_with(m_endpoint)
+        m_netns.add_ip_to_interface.assert_called_once_with(
+            'Pid_info', IPAddress(ip), interface, proc_alias="/proc"
+        )
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_add_ipv6(self, m_netns, m_client, m_get_container_info_or_exit,
+                              m_get_pool_or_exit, m_enforce_root):
+        # Set up mock objects
+        pool_return = 'pool'
+        m_get_pool_or_exit.return_value = pool_return
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        m_endpoint = Mock()
+        m_client.get_endpoint.return_value = m_endpoint
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1::1'
+        interface = 'interface'
+
+        # Call method under test
+        container.container_ip_add(container_name, ip, interface)
+
+        # Assert
+        m_enforce_root.assert_called_once_with()
+        m_get_pool_or_exit.assert_called_once_with(IPAddress(ip))
+        m_get_container_info_or_exit.assert_called_once_with(container_name)
+        m_client.get_endpoint.assert_called_once_with(
+            hostname=node.hostname,
+            orchestrator_id=utils.ORCHESTRATOR_ID,
+            workload_id=666
+        )
+        m_client.assign_address.assert_called_once_with(pool_return, ip)
+        m_endpoint.ipv6_nets.add.assert_called_once_with(IPNetwork(IPAddress(ip)))
+        m_client.update_endpoint.assert_called_once_with(m_endpoint)
+        m_netns.add_ip_to_interface.assert_called_once_with(
+            'Pid_info', IPAddress(ip), interface, proc_alias="/proc"
+        )
+
+    @patch('sys.exit', autospec=True)
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_add_container_not_running(
+            self, m_netns, m_client, m_get_container_info_or_exit,
+            m_get_pool_or_exit, m_enforce_root, m_sys_exit):
+        """
+        Test that the system exits is the container is not running
+        """
+        # Set up mock objects
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 0, 'Pid': 'Pid_info'}
+        }
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1.1.1.1'
+        interface = 'interface'
+
+        # Call method under test
+        container.container_ip_add(container_name, ip, interface)
+
+        # Assert
+        m_sys_exit.assert_called_once_with(1)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.print_container_not_in_calico_msg', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_add_container_not_in_calico(
+            self, m_netns, m_print_container_not_in_calico_msg, m_client,
+            m_get_container_info_or_exit,  m_get_pool_or_exit, m_enforce_root):
+        """
+        Test case when the container is not networked into calico
+        """
+        # Set up mock objects
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        m_client.get_endpoint.return_value = Mock()
+        m_client.get_endpoint.side_effect = KeyError
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1.1.1.1'
+        interface = 'interface'
+
+        # Call method under test
+        self.assertRaises(SystemExit, container.container_ip_add,
+                          container_name, ip, interface)
+        m_print_container_not_in_calico_msg.assert_called_once_with(container_name)
+        self.assertFalse(m_client.assign_address.called)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.print_container_not_in_calico_msg', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_add_fail_assign_address(
+            self, m_netns, m_print_container_not_in_calico_msg, m_client,
+            m_get_container_info_or_exit,  m_get_pool_or_exit, m_enforce_root):
+        """
+        Test case when the client tries to assign IP when address is already
+        in the pool
+        """
+        # Set up mock objects
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        m_client.assign_address.return_value = []
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1.1.1.1'
+        interface = 'interface'
+
+        # Call method under test
+        self.assertRaises(SystemExit, container.container_ip_add,
+                          container_name, ip, interface)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.print_container_not_in_calico_msg', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_add_error_updating_datastore(
+            self, m_netns, m_print_container_not_in_calico_msg, m_client,
+            m_get_container_info_or_exit,  m_get_pool_or_exit, m_enforce_root):
+        """
+        Test case when the client fails to update endpoint
+        """
+        # Set up mock objects
+        m_get_pool_or_exit.return_value = 'pool'
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        m_client.update_endpoint.side_effect = KeyError
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1.1.1.1'
+        interface = 'interface'
+
+        # Call method under test
+        self.assertRaises(SystemExit, container.container_ip_add,
+                          container_name, ip, interface)
+        m_client.unassign_address.assert_called_once_with('pool', ip)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.print_container_not_in_calico_msg', autospec=True)
+    @patch('calico_ctl.container.netns.add_ip_to_interface', autospec=True)
+    def test_container_ip_add_netns_error_ipv4(
+            self, m_netns, m_print_container_not_in_calico_msg, m_client,
+            m_get_container_info_or_exit,  m_get_pool_or_exit, m_enforce_root):
+        """
+        Test case when netns throws a CalledProcessError when trying to add ipv4
+        to interface
+        """
+        # Set up mock objects
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        m_get_pool_or_exit.return_value = 'pool'
+        m_endpoint = Mock()
+        m_client.get_endpoint.return_value = m_endpoint
+        err = CalledProcessError(1, m_netns, "Error updating container")
+        m_netns.side_effect = err
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1.1.1.1'
+        interface = 'interface'
+
+        # Call method under test
+        self.assertRaises(SystemExit, container.container_ip_add,
+                          container_name, ip, interface)
+        m_endpoint.ipv4_nets.remove.assert_called_once_with(
+            IPNetwork(IPAddress(ip))
+        )
+        m_client.update_endpoint.assert_has_calls([
+            call(m_endpoint), call(m_endpoint)])
+        m_client.unassign_address('pool', ip)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.print_container_not_in_calico_msg', autospec=True)
+    @patch('calico_ctl.container.netns.add_ip_to_interface', autospec=True)
+    def test_container_ip_add_netns_error_ipv6(
+            self, m_netns, m_print_container_not_in_calico_msg, m_client,
+            m_get_container_info_or_exit,  m_get_pool_or_exit, m_enforce_root):
+        """
+        Test case when netns throws a CalledProcessError when trying to add ipv6
+        to interface
+        """
+        # Set up mock objects
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        m_get_pool_or_exit.return_value = 'pool'
+        m_endpoint = Mock()
+        m_client.get_endpoint.return_value = m_endpoint
+        err = CalledProcessError(1, m_netns, "Error updating container")
+        m_netns.side_effect = err
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1::1'
+        interface = 'interface'
+
+        # Call method under test
+        self.assertRaises(SystemExit, container.container_ip_add,
+                          container_name, ip, interface)
+        m_endpoint.ipv6_nets.remove.assert_called_once_with(
+            IPNetwork(IPAddress(ip))
+        )
+        m_client.update_endpoint.assert_has_calls([
+            call(m_endpoint), call(m_endpoint)])
+        m_client.unassign_address('pool', ip)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_remove_ipv4(self, m_netns, m_client,
+            m_get_container_info_or_exit, m_get_pool_or_exit, m_enforce_root):
+        # Set up mock objects
+        m_get_pool_or_exit.return_value = 'pool'
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        ipv4_nets = set()
+        ipv4_nets.add(IPNetwork(IPAddress('1.1.1.1')))
+        m_endpoint = Mock(spec=Endpoint)
+        m_endpoint.ipv4_nets = ipv4_nets
+        m_client.get_endpoint.return_value = m_endpoint
+        print "m_endpoint is %s" % m_endpoint.ipv4_nets.__class__
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1.1.1.1'
+        interface = 'interface'
+
+        # Call method under test
+        container.container_ip_remove(container_name, ip, interface)
+
+        # Assert
+        m_enforce_root.assert_called_once_with()
+        m_get_pool_or_exit.assert_called_once_with(IPAddress(ip))
+        m_get_container_info_or_exit.assert_called_once_with(container_name)
+        m_client.get_endpoint.assert_called_once_with(
+            hostname=node.hostname,
+            orchestrator_id=utils.ORCHESTRATOR_ID,
+            workload_id=666
+        )
+        m_client.update_endpoint.assert_called_once_with(m_endpoint)
+        m_netns.remove_ip_from_interface(
+            'Pid_info',
+            IPAddress(ip),
+            interface,
+            proc_alias="/proc"
+        )
+        m_client.unassign_address('pool', ip)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_remove_ipv6(self, m_netns, m_client,
+            m_get_container_info_or_exit, m_get_pool_or_exit, m_enforce_root):
+        # Set up mock objects
+        m_get_pool_or_exit.return_value = 'pool'
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        ipv6_nets = set()
+        ipv6_nets.add(IPNetwork(IPAddress('1::1')))
+        m_endpoint = Mock(spec=Endpoint)
+        m_endpoint.ipv6_nets = ipv6_nets
+        m_client.get_endpoint.return_value = m_endpoint
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1::1'
+        interface = 'interface'
+
+        # Call method under test
+        container.container_ip_remove(container_name, ip, interface)
+
+        # Assert
+        m_enforce_root.assert_called_once_with()
+        m_get_pool_or_exit.assert_called_once_with(IPAddress(ip))
+        m_get_container_info_or_exit.assert_called_once_with(container_name)
+        m_client.get_endpoint.assert_called_once_with(
+            hostname=node.hostname,
+            orchestrator_id=utils.ORCHESTRATOR_ID,
+            workload_id=666
+        )
+        m_client.update_endpoint.assert_called_once_with(m_endpoint)
+        m_netns.remove_ip_from_interface(
+            'Pid_info',
+            IPAddress(ip),
+            interface,
+            proc_alias="/proc"
+        )
+        m_client.unassign_address('pool', ip)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_remove_not_running(
+            self, m_netns, m_client, m_get_container_info_or_exit,
+            m_get_pool_or_exit, m_enforce_root):
+        """
+        Test that the system exits is the container is not running
+        """
+        # Set up mock objects
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 0, 'Pid': 'Pid_info'}
+        }
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1::1'
+        interface = 'interface'
+
+        # Call method under test
+        self.assertRaises(SystemExit, container.container_ip_remove,
+                          container_name, ip, interface)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_remove_ip_not_assigned(
+            self, m_netns, m_client, m_get_container_info_or_exit,
+            m_get_pool_or_exit, m_enforce_root):
+        """
+        Test case when Ip address is not assigned to container
+        """
+        # Set up mock objects
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        ipv6_nets = set()
+        m_endpoint = Mock(spec=Endpoint)
+        m_endpoint.ipv6_nets = ipv6_nets
+        m_client.get_endpoint.return_value = m_endpoint
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1::1'
+        interface = 'interface'
+
+        # Call method under test
+        self.assertRaises(SystemExit, container.container_ip_remove,
+                          container_name, ip, interface)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_remove_container_not_on_calico(
+            self, m_netns, m_client, m_get_container_info_or_exit,
+            m_get_pool_or_exit, m_enforce_root):
+        """
+        Test case when container is not networked into Calico
+        """
+        # Set up mock objects
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        m_client.get_endpoint.side_effect = KeyError
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1::1'
+        interface = 'interface'
+
+        # Call method under test
+        self.assertRaises(SystemExit, container.container_ip_remove,
+                          container_name, ip, interface)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_remove_fail_updating_datastore(
+            self, m_netns, m_client, m_get_container_info_or_exit,
+            m_get_pool_or_exit, m_enforce_root):
+        """
+        Test case when client fails on updating endpoint in datastore
+        """
+        # Set up mock objects
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        ipv6_nets = set()
+        ipv6_nets.add(IPNetwork(IPAddress('1::1')))
+        m_endpoint = Mock(spec=Endpoint)
+        m_endpoint.ipv6_nets = ipv6_nets
+        m_client.get_endpoint.return_value = m_endpoint
+        m_client.update_endpoint.side_effect = KeyError
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1::1'
+        interface = 'interface'
+
+        # Call method under test
+        self.assertRaises(SystemExit, container.container_ip_remove,
+                          container_name, ip, interface)
+
+    @patch('calico_ctl.container.enforce_root', autospec=True)
+    @patch('calico_ctl.container.get_pool_or_exit', autospec=True)
+    @patch('calico_ctl.container.get_container_info_or_exit', autospec=True)
+    @patch('calico_ctl.container.client', autospec=True)
+    @patch('calico_ctl.container.netns', autospec=True)
+    def test_container_ip_remove_netns_error(
+            self, m_netns, m_client, m_get_container_info_or_exit,
+            m_get_pool_or_exit, m_enforce_root):
+        """
+        Test case when client fails on removing ip from interface through netns
+        """
+        # Set up mock objects
+        m_get_container_info_or_exit.return_value = {
+            'Id': 666,
+            'State': {'Running': 1, 'Pid': 'Pid_info'}
+        }
+        ipv6_nets = set()
+        ipv6_nets.add(IPNetwork(IPAddress('1::1')))
+        m_endpoint = Mock(spec=Endpoint)
+        m_endpoint.ipv6_nets = ipv6_nets
+        m_client.get_endpoint.return_value = m_endpoint
+        err = CalledProcessError(1, m_netns, "Error removing ip")
+        m_netns.remove_ip_from_interface.side_effect = err
+
+        # Set up arguments to pass to method under test
+        container_name = 'container1'
+        ip = '1::1'
+        interface = 'interface'
+
+        # Call method under test
+        self.assertRaises(SystemExit, container.container_ip_remove,
+                          container_name, ip, interface)
 
 
 class TestEndpoint(unittest.TestCase):
