@@ -31,10 +31,6 @@ class NetworkPluginTest(unittest.TestCase):
             self.plugin = calico_kubernetes.NetworkPlugin()
 
     def test_create(self):
-        """
-        Test for create function for calico_kuberentes plugin
-        :return:
-        """
         with patch.object(self.plugin, '_configure_interface',
                     autospec=True) as m_configure_interface, \
                 patch.object(self.plugin, '_configure_profile',
@@ -57,11 +53,6 @@ class NetworkPluginTest(unittest.TestCase):
             m_configure_profile.assert_called_once_with('endpt_id')
 
     def test_create_error(self):
-        """
-        Test for create method for calico_kubernetes plugin,
-        but raises a CalledProcessError
-        :return:
-        """
         with patch.object(self.plugin, '_configure_interface',
                     autospec=True) as m_configure_interface, \
                 patch('calico_containers.integrations.'
@@ -82,10 +73,6 @@ class NetworkPluginTest(unittest.TestCase):
             m_sys_exit.assert_called_once_with(1)
 
     def test_delete(self):
-        """
-        Test for delete method for calico_kubernetes plugin.
-        :return:
-        """
         with patch.object(self.plugin, 'calicoctl',
                     autospec=True) as m_calicoctl:
             # Set up args
@@ -106,10 +93,6 @@ class NetworkPluginTest(unittest.TestCase):
             self.assertEqual(self.plugin.docker_id, 'dockerId')
 
     def test_configure_interface(self):
-        """"
-        Test for _configure_interface method for calico_kubernetes plugin
-        :return:
-        """
         with patch.object(self.plugin, '_read_docker_ip',
                     autospec=True) as m_read_docker, \
                 patch.object(self.plugin, '_delete_docker_interface',
@@ -146,10 +129,6 @@ class NetworkPluginTest(unittest.TestCase):
             self.assertEqual(return_val.endpoint_id, 'ep_id')
 
     def test_get_node_ip(self):
-        """
-        Test for _get_node_ip method for calico_kubernetes plugin
-        :return:
-        """
         with patch('calico_containers.integrations.kubernetes.'
                 'calico_kubernetes.socket.socket', autospec=True) as m_socket:
             # Set up mock objects
@@ -168,10 +147,6 @@ class NetworkPluginTest(unittest.TestCase):
             self.assertEqual(return_val, '1.2.3.4')
 
     def test_read_docker_ip(self):
-        """
-        Test for _read_docker_ip method for calico_kibernetes plugin
-        :return:
-        """
         with patch.object(calico_kubernetes, 'check_output',
                     autospec=True) as m_check_output:
             # Set up mock objects
@@ -187,10 +162,6 @@ class NetworkPluginTest(unittest.TestCase):
             self.assertEqual(return_val, '1.2.3.4')
 
     def test_delete_docker_interface(self):
-        """
-        Test for _delete_docker_interface method for calico_kubernetes plugin
-        :return:
-        """
         with patch.object(calico_kubernetes, 'check_output',
                     autospec=True) as m_check_output:
             # Set up mock objects
@@ -213,10 +184,6 @@ class NetworkPluginTest(unittest.TestCase):
             m_check_output.assert_has_calls(calls)
 
     def test_configure_profile(self):
-        """
-        Test for _configure_profile method for calico_kubernetes plugin
-        :return:
-        """
         with patch.object(self.plugin, 'calicoctl',
                     autospec=True) as m_calicoctl, \
                 patch.object(self.plugin, '_get_pod_config',
@@ -247,10 +214,6 @@ class NetworkPluginTest(unittest.TestCase):
             m_apply_tags.assert_called_once_with('podname', 'pod')
 
     def test_get_pod_ports(self):
-        """
-        Test for _get_pod_ports method for calico_kubernetes plugin
-        :return:
-        """
         # Initialize pod dictionary and expected outcome
         pod = {'spec': {'containers': [{'ports': [1, 2, 3]},{'ports': [4, 5]}]}}
         ports = [1, 2, 3, 4, 5]
@@ -261,11 +224,12 @@ class NetworkPluginTest(unittest.TestCase):
         # Assert
         self.assertEqual(return_val, ports)
 
-    def test_get_pod_ports_error(self):
+    def test_get_pod_ports_no_ports(self):
         """
-        Test for _get_pod_ports method for calico_kubernetes plugin
-        but raises a KeyError
-        :return:
+        Tests for getting ports for a pod, which has no ports.
+        Mocks the pod spec reponse from the apiserver such that it
+        does not inclue the 'ports' key for each of its containers.
+        Asserts not ports are returned and no error is thrown.
         """
         # Initialize pod dictionary and expected outcome
         pod = {'spec': {'containers': [{'':[1, 2, 3]}, {'': [4, 5]}]}}
@@ -278,10 +242,6 @@ class NetworkPluginTest(unittest.TestCase):
         self.assertListEqual(return_val, ports)
 
     def test_get_pod_config(self):
-        """
-        Test for _get_pod_config method for calico_kubernetes plugin
-        :return:
-        """
         with patch.object(self.plugin, '_get_api_path',
                     autospec=True) as m_get_api_path:
             # Set up mock object
@@ -301,11 +261,6 @@ class NetworkPluginTest(unittest.TestCase):
             self.assertEqual(return_val, pod2)
 
     def test_get_pod_config_error(self):
-        """
-        Test for _get_pod_config method for calico_kubernetes plugin
-        but raises a KeyError
-        :return:
-        """
         with patch.object(self.plugin, '_get_api_path',
                     autospec=True) as m_get_api_path:
             # Set up mock object and class members
@@ -323,10 +278,6 @@ class NetworkPluginTest(unittest.TestCase):
                 self.plugin._get_pod_config()
 
     def test_get_api_path(self):
-        """
-        Test for _get_api_path method for calico_kubernetes plugin
-        :return:
-        """
         with patch.object(self.plugin, '_get_api_token',
                     autospec=True) as m_api_token, \
                 patch('calico_containers.integrations.kubernetes.'
@@ -359,10 +310,6 @@ class NetworkPluginTest(unittest.TestCase):
             m_json_load.assert_called_once_with('response_body')
 
     def test_get_api_token(self):
-        """
-        Test for _get_api_token method for calico_kubernetes plugin
-        :return:
-        """
         with patch('__builtin__.open', autospec=True) as m_open, \
                 patch.object(json, 'loads', autospec=True) as m_json:
             # Set up mock objects
@@ -379,10 +326,6 @@ class NetworkPluginTest(unittest.TestCase):
             self.assertEqual(return_val, 'correct_return')
 
     def test_generate_rules(self):
-        """
-        Test for _generate_rules method for calico_kubernetes plugin
-        :return:
-        """
         # Call method under test
         return_val = self.plugin._generate_rules()
 
@@ -390,10 +333,6 @@ class NetworkPluginTest(unittest.TestCase):
         self.assertEqual(return_val, ([{'action': 'allow'}], [{'action': 'allow'}]))
 
     def test_generate_profile_json(self):
-        """
-        Test for _generate_profile_json method for calico_kubernetes plugin
-        :return:
-        """
         with patch('calico_containers.integrations.kubernetes.'
                    'calico_kubernetes.json.dumps', autospec=True) as m_json:
             # Set up mock objects
@@ -416,10 +355,6 @@ class NetworkPluginTest(unittest.TestCase):
             self.assertEqual(return_val, 'correct_return')
 
     def test_apply_rules(self):
-        """
-        Test for _apply_rules method for calico_kubernetes plugin
-        :return:
-        """
         with patch.object(self.plugin, '_generate_rules',
                     autospec=True) as m_generate_rules, \
                 patch.object(self.plugin, '_generate_profile_json',
@@ -441,10 +376,6 @@ class NetworkPluginTest(unittest.TestCase):
                                                 'update', _in='json_profile')
 
     def test_apply_tags(self):
-        """
-        Test for _apply_tags method for calico_kubernetes plugin
-        :return:
-        """
         with patch.object(self.plugin, 'calicoctl',autospec=True) as m_calicoctl:
             # Intialize args
             pod = {'metadata': {'labels': {1: 1, 2: 2}}}
@@ -460,11 +391,6 @@ class NetworkPluginTest(unittest.TestCase):
             m_calicoctl.assert_has_calls(calls)
 
     def test_apply_tags_error(self):
-        """
-        Test for _apply_tags method for calico_kubernetes plugin
-        but raises a KeyError
-        :return:
-        """
         with patch.object(self.plugin, 'calicoctl',autospec=True) as m_calicoctl:
             # Intialize args
             pod = {}
@@ -474,4 +400,4 @@ class NetworkPluginTest(unittest.TestCase):
             self.plugin._apply_tags(profile_name, pod)
 
             # Assert
-            assert not m_calicoctl.called
+            self.assertFalse(m_calicoctl.called)
