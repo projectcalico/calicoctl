@@ -16,11 +16,12 @@ from time import sleep
 import os
 
 LOCAL_IP_ENV = "MY_IP"
+LOCAL_IPV6_ENV = "MY_IPV6"
 
 
 def get_ip():
     """
-    Return a string of the IP of the hosts interface.
+    Return a string of the IP of the host's interface.
     Try to get the local IP from the environment variables.  This allows
     testers to specify the IP address in cases where there is more than one
     configured IP address for the test system.
@@ -34,6 +35,24 @@ def get_ip():
         ip = s.getsockname()[0]
         s.close()
     return ip
+
+
+def get_ip6():
+    """
+    Return a string of the IPv6 of the host's interface.
+    Try to get the local IPv6 from the environment variables.  This allows
+    testers to specify the IPv6 address in cases where there is more than one
+    configured IPv6 address for the test system.
+    """
+    try:
+        ip6 = os.environ[LOCAL_IPV6_ENV]
+    except KeyError:
+        # No env variable set; try to auto detect.
+        s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        s.connect(('ipv6.google.com', 80))
+        ip6 = s.getsockname()[0]
+        s.close()
+    return ip6
 
 
 def retry_until_success(function, retries=10, ex_class=Exception):
