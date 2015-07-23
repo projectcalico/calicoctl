@@ -20,6 +20,7 @@ import logging
 import logging.handlers
 import sys
 import socket
+import os
 
 from docker import Client
 from netaddr import IPAddress, AddrFormatError
@@ -64,8 +65,23 @@ class AdapterResource(resource.Resource):
         resource.Resource.__init__(self)
 
         # Init a Docker client, to save having to do so every time a request
-        # comes in.
-        self.docker = Client(base_url='unix://host-var-run/docker.sock',
+        # comes in.  We need to get the correct Docker socket to use.  If
+        # POWERSTRIP_UNIX_SOCKET is YES, that means Powerstrip has bound to
+        # the default docker.socket and we should bind to the "real" Docker
+        # socket to bypass Powerstrip and avoid request loops.
+        docker_host = os.environ.get('DOCKER_HOST')
+        enable_unix_socket = os.environ.get('POWERSTRIP_UNIX_SOCKET', "")
+
+        if docker_host is None:
+            # Default to assuming we've got a Docker socket bind-mounted into a
+            # container we're running in.
+            if "YES" in enable_unix_socket:
+                docker_host = "unix:///host-var-run/docker.real.sock"
+            else:
+                docker_host = "unix:///host-var-run/docker.sock"
+        if "://" not in docker_host:
+            docker_host = "tcp://" + docker_host
+        self.docker = Client(base_url=docker_host,
                              version="1.16")
 
         # Init an etcd client.

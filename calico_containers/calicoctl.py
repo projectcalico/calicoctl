@@ -123,10 +123,23 @@ from urllib3.exceptions import MaxRetryError
 hostname = socket.gethostname()
 client = IPAMClient()
 DOCKER_VERSION = "1.16"
-docker_client = docker.Client(version=DOCKER_VERSION,
-                              base_url=os.getenv("DOCKER_HOST",
-                                                 "unix://var/run/docker.sock"))
+
+# Initialize the right Docker client, based on the Docker restarter.  calicoctl
+# should always bind to the "real" Docker socket, rather than a Powerstrip
+# socket if the alternative socket is in use.
 docker_restarter = docker_restart.create_restarter()
+if docker_restarter.is_using_alternative_socket():
+    # At this point, docker is listening on a new port but powerstrip
+    # might not be running, so docker clients need to talk directly to
+    # docker.
+    docker_client = docker.Client(version=DOCKER_VERSION,
+                                  base_url="unix://%s" % REAL_SOCK)
+    enable_socket = "YES"
+else:
+    docker_client = docker_client = docker.Client(
+        version=DOCKER_VERSION,
+        base_url=os.getenv("DOCKER_HOST", "unix://var/run/docker.sock"))
+    enable_socket = "NO"
 
 ORCHESTRATOR_ID = "docker"
 
@@ -347,6 +360,7 @@ def node(ip, node_image, ip6="", as_num=None):
     the global default value will be used.
     :return:  None.
     """
+
     # Print warnings for any known system issues before continuing
     checksystem(fix=False, quit_if_error=False)
 
@@ -363,19 +377,8 @@ def node(ip, node_image, ip6="", as_num=None):
     client.ensure_global_config()
     client.create_host(hostname, ip, ip6, as_num)
 
-    if docker_restarter.is_using_alternative_socket():
-        # At this point, docker is listening on a new port but powerstrip
-        # might not be running, so docker clients need to talk directly to
-        # docker.
-        node_docker_client = docker.Client(version=DOCKER_VERSION,
-                                           base_url="unix://%s" % REAL_SOCK)
-        enable_socket = "YES"
-    else:
-        node_docker_client = docker_client
-        enable_socket = "NO"
-
     try:
-        node_docker_client.remove_container("calico-node", force=True)
+        docker_client.remove_container("calico-node", force=True)
     except docker.errors.APIError as err:
         if err.response.status_code != 404:
             raise
@@ -415,8 +418,8 @@ def node(ip, node_image, ip6="", as_num=None):
         network_mode="host",
         binds=binds)
 
-    _find_or_pull_node_image(node_image, node_docker_client)
-    container = node_docker_client.create_container(
+    _find_or_pull_node_image(node_image)
+    container = docker_client.create_container(
         node_image,
         name="calico-node",
         detach=True,
@@ -427,7 +430,7 @@ def node(ip, node_image, ip6="", as_num=None):
                  "/var/log/calico"])
     cid = container["Id"]
 
-    node_docker_client.start(container)
+    docker_client.start(container)
 
     if enable_socket == "YES":
         while not os.path.exists(POWERSTRIP_SOCK):
@@ -452,7 +455,7 @@ def normalize_version(version):
     """
     return [int(x) for x in re.sub(r'(\.0+)*$','', version).split(".")]
 
-def checksystem(fix=False, quit_if_error=False):
+def checksystem(fix, quit_if_error):
     """
     Checks that the system is setup correctly. fix==True, this command will
     attempt to fix any issues it encounters. If any fixes fail, it will
@@ -540,7 +543,7 @@ def checksystem(fix=False, quit_if_error=False):
     return system_ok
 
 
-def _find_or_pull_node_image(image_name, client):
+def _find_or_pull_node_image(image_name):
     """
     Check if Docker has a cached copy of an image, and if not, attempt to pull
     it.
@@ -549,12 +552,12 @@ def _find_or_pull_node_image(image_name, client):
     :return: None.
     """
     try:
-        _ = client.inspect_image(image_name)
+        _ = docker_client.inspect_image(image_name)
     except docker.errors.APIError as err:
         if err.response.status_code == 404:
             # TODO: Display proper status bar
             print "Pulling Docker image %s" % image_name
-            client.pull(image_name)
+            docker_client.pull(image_name)
 
 
 def grep(text, pattern):
