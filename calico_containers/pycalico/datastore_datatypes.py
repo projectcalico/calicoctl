@@ -31,10 +31,13 @@ class Rules(namedtuple("Rules", ["id", "inbound_rules", "outbound_rules"])):
     policy.
     """
 
-    def to_json(self):
+    def to_json(self, indent=None):
         """
         Convert the Rules object to a JSON string.
 
+        :param indent: Integer representing the level of indent from the
+        returned json string. None = no indent, 0 = only newlines. Recommend
+        using 1 for human-readable strings.
         :return:  A JSON string representation of this object.
         """
         json_dict = self._asdict()
@@ -42,7 +45,7 @@ class Rules(namedtuple("Rules", ["id", "inbound_rules", "outbound_rules"])):
         json_dict["inbound_rules"] = [rule.to_json_dict() for rule in rules]
         rules = json_dict["outbound_rules"]
         json_dict["outbound_rules"] = [rule.to_json_dict() for rule in rules]
-        return json.dumps(json_dict)
+        return json.dumps(json_dict, indent=indent)
 
     @classmethod
     def from_json(cls, json_str):
@@ -307,6 +310,12 @@ class Endpoint(object):
     def temp_interface_name(self):
         return "tmp" + self.endpoint_id[:11]
 
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        return "Endpoint(%s)" % self.to_json()
+
 
 class Profile(object):
     """A Calico policy profile."""
@@ -392,7 +401,7 @@ class Rule(dict):
         if "src_tag" in self:
             out.extend(["tag", self["src_tag"]])
         if "src_net" in self:
-            out.append(str(self["src_net"]))
+            out.extend(["cidr", str(self["src_net"])])
 
         if "dst_tag" in self or "dst_ports" in self or "dst_net" in self:
             out.append("to")
@@ -402,6 +411,6 @@ class Rule(dict):
         if "dst_tag" in self:
             out.extend(["tag", self["dst_tag"]])
         if "dst_net" in self:
-            out.append(str(self["dst_net"]))
+            out.extend(["cidr", str(self["dst_net"])])
 
         return " ".join(out)

@@ -22,11 +22,11 @@ from netaddr import IPNetwork, IPAddress
 from nose.tools import *
 from mock import patch, Mock, call
 
-from calico_containers.pycalico.datastore import (DatastoreClient,
+from pycalico.datastore import (DatastoreClient,
                                                   CALICO_V_PATH)
-from calico_containers.pycalico.datastore_errors import DataStoreError, ProfileNotInEndpoint, ProfileAlreadyInEndpoint, \
+from pycalico.datastore_errors import DataStoreError, ProfileNotInEndpoint, ProfileAlreadyInEndpoint, \
     MultipleEndpointsMatch
-from calico_containers.pycalico.datastore_datatypes import Rules, BGPPeer, IPPool, \
+from pycalico.datastore_datatypes import Rules, BGPPeer, IPPool, \
     Endpoint, Profile, Rule
 
 TEST_HOST = "TEST_HOST"
@@ -38,12 +38,10 @@ TEST_ENDPOINT_ID2 = "90abcdef1234"
 TEST_HOST_PATH = CALICO_V_PATH + "/host/TEST_HOST"
 IPV4_POOLS_PATH = CALICO_V_PATH + "/ipam/v4/pool/"
 IPV6_POOLS_PATH = CALICO_V_PATH + "/ipam/v6/pool/"
-BGP_PEERS_PATH = CALICO_V_PATH + "/config/bgp_peer_v4/"
 TEST_PROFILE_PATH = CALICO_V_PATH + "/policy/profile/TEST/"
 ALL_PROFILES_PATH = CALICO_V_PATH + "/policy/profile/"
 ALL_ENDPOINTS_PATH = CALICO_V_PATH + "/host/"
 ALL_HOSTS_PATH = CALICO_V_PATH + "/host/"
-TEST_NODE_BGP_PEERS_PATH = TEST_HOST_PATH + "/bgp_peer_v4/"
 TEST_ORCHESTRATORS_PATH = CALICO_V_PATH + "/host/TEST_HOST/"
 TEST_WORKLOADS_PATH = CALICO_V_PATH + "/host/TEST_HOST/workload/docker/"
 TEST_ENDPOINT_PATH = CALICO_V_PATH + "/host/TEST_HOST/workload/docker/1234/" \
@@ -52,8 +50,18 @@ TEST_CONT_ENDPOINTS_PATH = CALICO_V_PATH + "/host/TEST_HOST/workload/docker/" \
                                           "1234/"
 TEST_CONT_PATH = CALICO_V_PATH + "/host/TEST_HOST/workload/docker/1234/"
 CONFIG_PATH = CALICO_V_PATH + "/config/"
-BGP_NODE_DEF_AS_PATH = CALICO_V_PATH + "/config/bgp_as"
-BGP_NODE_MESH_PATH = CALICO_V_PATH + "/config/bgp_node_mesh"
+
+BGP_V_PATH = "/calico/bgp/v1"
+BGP_GLOBAL_PATH = BGP_V_PATH + "/global"
+TEST_BGP_HOST_PATH = BGP_V_PATH + "/host/TEST_HOST"
+BGP_PEERS_PATH = BGP_GLOBAL_PATH + "/peer_v4/"
+TEST_NODE_BGP_PEERS_PATH = TEST_BGP_HOST_PATH + "/peer_v4/"
+BGP_NODE_DEF_AS_PATH = BGP_GLOBAL_PATH + "/as_num"
+BGP_NODE_MESH_PATH = BGP_GLOBAL_PATH + "/node_mesh"
+TEST_HOST_IPV4_PATH = TEST_HOST_PATH + "/bird_ip"
+TEST_BGP_HOST_IPV4_PATH = TEST_BGP_HOST_PATH + "/ip_addr_v4"
+TEST_BGP_HOST_IPV6_PATH = TEST_BGP_HOST_PATH + "/ip_addr_v6"
+TEST_BGP_HOST_AS_PATH = TEST_BGP_HOST_PATH + "/as_num"
 
 # 4 endpoints, with 2 TEST profile and 2 UNIT profile.
 EP_56 = Endpoint(TEST_HOST, "docker", TEST_CONT_ID, "567890abcdef",
@@ -177,7 +185,7 @@ class TestRule(unittest.TestCase):
                      dst_ports=[80],
                      dst_net=IPNetwork("fd80::23:0/112"))
         assert_equal(
-            "deny from fd80::4:0/112 to ports 80 fd80::23:0/112",
+            "deny from cidr fd80::4:0/112 to ports 80 cidr fd80::23:0/112",
             rule3.pprint())
 
         rule4 = Rule(action="allow",
@@ -185,7 +193,7 @@ class TestRule(unittest.TestCase):
                      icmp_code=100,
                      icmp_type=8,
                      src_net=IPNetwork("10/8"))
-        assert_equal("allow icmp type 8 code 100 from 10.0.0.0/8",
+        assert_equal("allow icmp type 8 code 100 from cidr 10.0.0.0/8",
                      rule4.pprint())
 
 
@@ -328,6 +336,26 @@ class TestEndpoint(unittest.TestCase):
                                        workload_id=TEST_CONT_ID,
                                        endpoint_id="INVALID"))
 
+    def test_repr(self):
+        """
+        Test __repr__ returns the correct string value.
+        """
+        jsondata = {"state": "active",
+                    "name": "caliaabbccddeef",
+                    "mac": "11-22-33-44-55-66",
+                    "profile_id": "TEST23",
+                    "ipv4_nets": ["192.168.3.2/32", "10.3.4.23/32"],
+                    "ipv6_nets": ["fd20::4:2:1/128"],
+                    "ipv4_gateway": "10.3.4.2",
+                    "ipv6_gateway": "2001:2:4a::1"}
+        endpoint = Endpoint.from_json(TEST_ENDPOINT_PATH, json.dumps(jsondata))
+
+        # Not the best test since this repeats the underlying implementation,
+        # but checks that it isn't changed unexpectedly.
+        assert_equal(endpoint.__repr__(),
+                     "Endpoint(%s)" % endpoint.to_json())
+
+
 class TestBGPPeer(unittest.TestCase):
     def test_operator(self):
         """
@@ -376,8 +404,8 @@ class TestIPPool(unittest.TestCase):
 
 class TestDatastoreClient(unittest.TestCase):
 
-    @patch("calico_containers.pycalico.datastore.os.getenv", autospec=True)
-    @patch("calico_containers.pycalico.datastore.etcd.Client", autospec=True)
+    @patch("pycalico.datastore.os.getenv", autospec=True)
+    @patch("pycalico.datastore.etcd.Client", autospec=True)
     def setUp(self, m_etcd_client, m_getenv):
         m_getenv.return_value = "127.0.0.2:4002"
         self.etcd_client = Mock(spec=EtcdClient)
@@ -398,8 +426,13 @@ class TestDatastoreClient(unittest.TestCase):
         # the interface prefix since the config directory may contain other
         # global configuration.
         self.datastore.ensure_global_config()
-        self.etcd_client.read.assert_called_once_with(int_prefix_path)
+        expected_reads = [call(int_prefix_path),
+                          call(BGP_NODE_DEF_AS_PATH),
+                          call(BGP_NODE_MESH_PATH)]
+        self.etcd_client.read.assert_has_calls(expected_reads)
         expected_writes = [call(int_prefix_path, "cali"),
+                           call(BGP_NODE_DEF_AS_PATH, 64511),
+                           call(BGP_NODE_MESH_PATH, json.dumps({"enabled": True})),
                            call(CALICO_V_PATH + "/Ready", "true")]
         self.etcd_client.write.assert_has_calls(expected_writes)
 
@@ -408,8 +441,10 @@ class TestDatastoreClient(unittest.TestCase):
         Test ensure_global_config() when it already exists.
         """
         self.datastore.ensure_global_config()
-        self.etcd_client.read.assert_called_once_with(
-                                               CONFIG_PATH + "InterfacePrefix")
+        expected_reads = [call(CONFIG_PATH + "InterfacePrefix"),
+                          call(BGP_NODE_DEF_AS_PATH),
+                          call(BGP_NODE_MESH_PATH)]
+        self.etcd_client.read.assert_has_calls(expected_reads)
 
     def test_ensure_global_config_exists_etcd_exc(self):
         """
@@ -540,8 +575,8 @@ class TestDatastoreClient(unittest.TestCase):
             TEST_PROFILE_PATH + "rules",
             profile.rules.to_json())
 
-    @patch("calico_containers.pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
-    @patch("calico_containers.pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
+    @patch("pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
+    @patch("pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
     def test_append_profiles_to_endpoint(self, m_update, m_get):
         """
         Test append_profiles_to_endpoint() to check profile_ids are updated.
@@ -567,8 +602,8 @@ class TestDatastoreClient(unittest.TestCase):
         self.datastore.append_profiles_to_endpoint(["PROFZ", "PROF5"])
         assert_true(m_update.called)
 
-    @patch("calico_containers.pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
-    @patch("calico_containers.pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
+    @patch("pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
+    @patch("pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
     def test_append_profiles_to_endpoint_duplicate(self, m_update, m_get):
         """
         Test append_profiles_to_endpoint() with a duplicate profile.
@@ -587,8 +622,8 @@ class TestDatastoreClient(unittest.TestCase):
                           ["PROFZ", "PROFA"])
         assert_false(m_update.called)
 
-    @patch("calico_containers.pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
-    @patch("calico_containers.pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
+    @patch("pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
+    @patch("pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
     def test_set_profiles_on_endpoint(self, m_update, m_get):
         """
         Test set_profiles_on_endpoint() to check profile_ids are updated.
@@ -612,8 +647,8 @@ class TestDatastoreClient(unittest.TestCase):
         self.datastore.set_profiles_on_endpoint(["PROFZ", "PROF5"])
         assert_true(m_update.called)
 
-    @patch("calico_containers.pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
-    @patch("calico_containers.pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
+    @patch("pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
+    @patch("pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
     def test_remove_profiles_from_endpoint(self, m_update, m_get):
         """
         Test remove_profiles_from_endpoint() to check profile_ids are updated.
@@ -637,8 +672,8 @@ class TestDatastoreClient(unittest.TestCase):
         self.datastore.remove_profiles_from_endpoint(["PROF1", "PROF2"])
         assert_true(m_update.called)
 
-    @patch("calico_containers.pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
-    @patch("calico_containers.pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
+    @patch("pycalico.datastore.DatastoreClient.get_endpoint", autospec=True)
+    @patch("pycalico.datastore.DatastoreClient.update_endpoint", autospec=True)
     def test_remove_profiles_to_endpoint_missing(self, m_update, m_get):
         """
         Test remove_profiles_from_endpoint() with an invalid profile.
@@ -671,18 +706,22 @@ class TestDatastoreClient(unittest.TestCase):
 
         self.etcd_client.read.side_effect = mock_read_success
 
-        bird_ip = "192.168.2.4"
-        bird6_ip = "fd80::4"
+        ipv4 = "192.168.2.4"
+        ipv6 = "fd80::4"
         bgp_as = 65531
-        self.datastore.create_host(TEST_HOST, bird_ip, bird6_ip, bgp_as)
-        expected_writes = [call(TEST_HOST_PATH + "/bird_ip", bird_ip),
-                           call(TEST_HOST_PATH + "/bird6_ip", bird6_ip),
-                           call(TEST_HOST_PATH + "/bgp_as", bgp_as),
+        self.datastore.create_host(TEST_HOST, ipv4, ipv6, bgp_as)
+        expected_writes = [call(TEST_HOST_IPV4_PATH, ipv4),
+                           call(TEST_BGP_HOST_IPV4_PATH, ipv4),
+                           call(TEST_BGP_HOST_IPV6_PATH, ipv6),
+                           call(TEST_BGP_HOST_AS_PATH, bgp_as),
+                           call(TEST_HOST_PATH +
+                                "/config/DefaultEndpointToHostAction",
+                                "RETURN"),
                            call(TEST_HOST_PATH + "/config/marker",
                                 "created")]
         self.etcd_client.write.assert_has_calls(expected_writes,
                                                 any_order=True)
-        assert_equal(self.etcd_client.write.call_count, 4)
+        assert_equal(self.etcd_client.write.call_count, 6)
 
     def test_create_host_mainline(self):
         """
@@ -699,19 +738,23 @@ class TestDatastoreClient(unittest.TestCase):
         self.etcd_client.read.side_effect = mock_read
         self.etcd_client.delete.side_effect = EtcdKeyNotFound()
 
-        bird_ip = "192.168.2.4"
-        bird6_ip = "fd80::4"
+        ipv4 = "192.168.2.4"
+        ipv6 = "fd80::4"
         bgp_as = None
-        self.datastore.create_host(TEST_HOST, bird_ip, bird6_ip, bgp_as)
-        expected_writes = [call(TEST_HOST_PATH + "/bird_ip", bird_ip),
-                           call(TEST_HOST_PATH + "/bird6_ip", bird6_ip),
+        self.datastore.create_host(TEST_HOST, ipv4, ipv6, bgp_as)
+        expected_writes = [call(TEST_HOST_IPV4_PATH, ipv4),
+                           call(TEST_BGP_HOST_IPV4_PATH, ipv4),
+                           call(TEST_BGP_HOST_IPV6_PATH, ipv6),
+                           call(TEST_HOST_PATH +
+                                "/config/DefaultEndpointToHostAction",
+                                "RETURN"),
                            call(TEST_HOST_PATH + "/config/marker",
                                 "created"),
                            call(TEST_HOST_PATH + "/workload",
                                 None, dir=True)]
         self.etcd_client.write.assert_has_calls(expected_writes,
                                                 any_order=True)
-        assert_equal(self.etcd_client.write.call_count, 4)
+        assert_equal(self.etcd_client.write.call_count, 6)
 
     def test_remove_host_mainline(self):
         """
@@ -719,9 +762,13 @@ class TestDatastoreClient(unittest.TestCase):
         :return:
         """
         self.datastore.remove_host(TEST_HOST)
-        self.etcd_client.delete.assert_called_once_with(TEST_HOST_PATH + "/",
-                                                        dir=True,
-                                                        recursive=True)
+        expected_deletes = [call(TEST_BGP_HOST_PATH + "/",
+                                 dir=True,
+                                 recursive=True),
+                            call(TEST_HOST_PATH + "/",
+                                 dir=True,
+                                 recursive=True)]
+        self.etcd_client.delete.assert_has_calls(expected_deletes)
 
     def test_remove_host_doesnt_exist(self):
         """
@@ -738,7 +785,7 @@ class TestDatastoreClient(unittest.TestCase):
         :return: None
         """
         self.etcd_client.read.side_effect = mock_read_2_pools
-        pools = self.datastore.get_ip_pools("v4")
+        pools = self.datastore.get_ip_pools(4)
         assert_list_equal([IPPool("192.168.3.0/24"), IPPool("192.168.5.0/24")],
                           pools)
 
@@ -753,7 +800,7 @@ class TestDatastoreClient(unittest.TestCase):
             raise EtcdKeyNotFound()
 
         self.etcd_client.read.side_effect = mock_read
-        pools = self.datastore.get_ip_pools("v4")
+        pools = self.datastore.get_ip_pools(4)
         assert_list_equal([], pools)
 
     def test_get_ip_pools_no_pools(self):
@@ -763,7 +810,7 @@ class TestDatastoreClient(unittest.TestCase):
         :return: None
         """
         self.etcd_client.read.side_effect = mock_read_no_pools
-        pools = self.datastore.get_ip_pools("v4")
+        pools = self.datastore.get_ip_pools(4)
         assert_list_equal([], pools)
 
     def test_get_ip_pool_config(self):
@@ -780,7 +827,7 @@ class TestDatastoreClient(unittest.TestCase):
             return result
 
         self.etcd_client.read.side_effect = mock_read
-        config = self.datastore.get_ip_pool_config("v4",
+        config = self.datastore.get_ip_pool_config(4,
                                                    IPNetwork("1.2.3.4/16"))
         assert_equal(config,
                      IPPool("1.2.0.0/16", ipip=True, masquerade=True))
@@ -792,7 +839,7 @@ class TestDatastoreClient(unittest.TestCase):
         self.etcd_client.read.side_effect = EtcdKeyNotFound
         self.assertRaises(KeyError,
                           self.datastore.get_ip_pool_config,
-                          "v4", IPNetwork("1.2.3.4/1"))
+                          4, IPNetwork("1.2.3.4/1"))
 
     def test_add_ip_pool(self):
         """
@@ -800,7 +847,7 @@ class TestDatastoreClient(unittest.TestCase):
         :return: None
         """
         pool = IPPool("192.168.100.5/24", ipip=True, masquerade=True)
-        self.datastore.add_ip_pool("v4", pool)
+        self.datastore.add_ip_pool(4, pool)
         self.etcd_client.write.assert_called_once_with(IPV4_POOLS_PATH + "192.168.100.0-24",
                                                        ANY)
         raw_data = self.etcd_client.write.call_args[0][1]
@@ -812,7 +859,7 @@ class TestDatastoreClient(unittest.TestCase):
 
         self.etcd_client.write.reset_mock()
         pool = IPPool("192.168.100.5/24")
-        self.datastore.add_ip_pool("v4", pool)
+        self.datastore.add_ip_pool(4, pool)
         self.etcd_client.write.assert_called_once_with(IPV4_POOLS_PATH + "192.168.100.0-24",
                                                        ANY)
         raw_data = self.etcd_client.write.call_args[0][1]
@@ -826,7 +873,7 @@ class TestDatastoreClient(unittest.TestCase):
         :return: None
         """
         cidr = IPNetwork("192.168.3.1/24")
-        self.datastore.remove_ip_pool("v4", cidr)
+        self.datastore.remove_ip_pool(4, cidr)
         self.etcd_client.delete.assert_called_once_with(IPV4_POOLS_PATH + "192.168.3.0-24")
 
     def test_del_ip_pool_doesnt_exist(self):
@@ -837,7 +884,7 @@ class TestDatastoreClient(unittest.TestCase):
         self.etcd_client.delete.side_effect = EtcdKeyNotFound
         cidr = IPNetwork("192.168.100.1/24")
         self.assertRaises(KeyError,
-                          self.datastore.remove_ip_pool, "v4", cidr)
+                          self.datastore.remove_ip_pool, 4, cidr)
 
     def test_profile_exists_true(self):
         """
@@ -1082,10 +1129,10 @@ class TestDatastoreClient(unittest.TestCase):
         """
         def mock_read(path):
             result = Mock(spec=EtcdResult)
-            if path == TEST_HOST_PATH + "/bird_ip":
+            if path == TEST_BGP_HOST_IPV4_PATH:
                 result.value = "192.168.24.1"
                 return result
-            if path == TEST_HOST_PATH + "/bird6_ip":
+            if path == TEST_BGP_HOST_IPV6_PATH:
                 result.value = "fd30:4500::1"
                 return result
             assert False
@@ -1100,10 +1147,10 @@ class TestDatastoreClient(unittest.TestCase):
         """
         def mock_read(path):
             result = Mock(spec=EtcdResult)
-            if path == TEST_HOST_PATH + "/bird_ip":
+            if path == TEST_BGP_HOST_IPV4_PATH:
                 result.value = ""
                 return result
-            if path == TEST_HOST_PATH + "/bird6_ip":
+            if path == TEST_BGP_HOST_IPV6_PATH:
                 result.value = ""
                 return result
             assert False
@@ -1160,7 +1207,7 @@ class TestDatastoreClient(unittest.TestCase):
         :return: None
         """
         self.etcd_client.read.side_effect = mock_read_2_peers
-        peers = self.datastore.get_bgp_peers("v4")
+        peers = self.datastore.get_bgp_peers(4)
         assert_equal(peers, [BGPPeer("192.168.3.1", 32245),
                              BGPPeer("192.168.5.1", 32245)])
 
@@ -1174,7 +1221,7 @@ class TestDatastoreClient(unittest.TestCase):
             raise EtcdKeyNotFound()
 
         self.etcd_client.read.side_effect = mock_read
-        peers = self.datastore.get_bgp_peers("v4")
+        peers = self.datastore.get_bgp_peers(4)
         assert_list_equal([], peers)
 
     def test_get_bgp_peers_no_peers(self):
@@ -1184,7 +1231,7 @@ class TestDatastoreClient(unittest.TestCase):
         :return: None
         """
         self.etcd_client.read.side_effect = mock_read_no_bgppeers
-        peers = self.datastore.get_bgp_peers("v4")
+        peers = self.datastore.get_bgp_peers(4)
         assert_list_equal([], peers)
 
     def test_add_bgp_peer(self):
@@ -1202,7 +1249,7 @@ class TestDatastoreClient(unittest.TestCase):
 
         self.etcd_client.write.side_effect = mock_write
         peer = BGPPeer("192.168.100.5", 32245)
-        self.datastore.add_bgp_peer("v4", peer)
+        self.datastore.add_bgp_peer(4, peer)
         assert_true(data["write"])
 
     def test_remove_bgp_peer_exists(self):
@@ -1212,7 +1259,7 @@ class TestDatastoreClient(unittest.TestCase):
         """
         self.etcd_client.delete = Mock()
         peer = IPAddress("192.168.3.1")
-        self.datastore.remove_bgp_peer("v4", peer)
+        self.datastore.remove_bgp_peer(4, peer)
         # 192.168.3.1 has a key ...v4/0 in the ordered list.
         self.etcd_client.delete.assert_called_once_with(
                                                 BGP_PEERS_PATH + "192.168.3.1")
@@ -1224,7 +1271,7 @@ class TestDatastoreClient(unittest.TestCase):
         """
         self.etcd_client.delete.side_effect = EtcdKeyNotFound()
         peer = IPAddress("192.168.100.1")
-        assert_raises(KeyError, self.datastore.remove_bgp_peer, "v4", peer)
+        assert_raises(KeyError, self.datastore.remove_bgp_peer, 4, peer)
 
     def test_get_node_bgp_peer(self):
         """
@@ -1232,7 +1279,7 @@ class TestDatastoreClient(unittest.TestCase):
         :return: None
         """
         self.etcd_client.read.side_effect = mock_read_2_node_peers
-        peers = self.datastore.get_bgp_peers("v4", hostname="TEST_HOST")
+        peers = self.datastore.get_bgp_peers(4, hostname="TEST_HOST")
         assert_equal(peers, [BGPPeer("192.169.3.1", 32245),
                              BGPPeer("192.169.5.1", 32245)])
 
@@ -1242,7 +1289,7 @@ class TestDatastoreClient(unittest.TestCase):
         :return: None
         """
         self.etcd_client.read.side_effect = mock_read_2_node_peers
-        peers = self.datastore.get_bgp_peers("v4", hostname="BLAH")
+        peers = self.datastore.get_bgp_peers(4, hostname="BLAH")
         assert_list_equal([], peers)
 
     def test_get_node_bgp_peer_no_peers(self):
@@ -1252,7 +1299,7 @@ class TestDatastoreClient(unittest.TestCase):
         :return: None
         """
         self.etcd_client.read.side_effect = mock_read_no_node_bgppeers
-        peers = self.datastore.get_bgp_peers("v4", hostname="TEST_HOST")
+        peers = self.datastore.get_bgp_peers(4, hostname="TEST_HOST")
         assert_list_equal([], peers)
 
     def test_add_node_bgp_peer(self):
@@ -1271,7 +1318,7 @@ class TestDatastoreClient(unittest.TestCase):
         self.etcd_client.write.side_effect = mock_write
 
         peer = BGPPeer(IPAddress("192.169.100.5"), 32245)
-        self.datastore.add_bgp_peer("v4", peer, hostname="TEST_HOST")
+        self.datastore.add_bgp_peer(4, peer, hostname="TEST_HOST")
         assert_true(data["write"])
 
     def test_remove_node_bgp_peer_exists(self):
@@ -1281,7 +1328,7 @@ class TestDatastoreClient(unittest.TestCase):
         """
         self.etcd_client.delete = Mock()
         peer = IPAddress("192.168.3.1")
-        self.datastore.remove_bgp_peer("v4", peer, "TEST_HOST")
+        self.datastore.remove_bgp_peer(4, peer, "TEST_HOST")
         # 192.168.3.1 has a key ...v4/0 in the ordered list.
         self.etcd_client.delete.assert_called_once_with(
                                       TEST_NODE_BGP_PEERS_PATH + "192.168.3.1")
@@ -1294,7 +1341,7 @@ class TestDatastoreClient(unittest.TestCase):
         self.etcd_client.delete.side_effect = EtcdKeyNotFound()
         peer = IPAddress("192.168.100.1")
         assert_raises(KeyError, self.datastore.remove_bgp_peer,
-                      "v4", peer, hostname="BLAH")
+                      4, peer, hostname="BLAH")
 
     def test_set_bgp_node_mesh(self):
         """
@@ -1331,7 +1378,6 @@ class TestDatastoreClient(unittest.TestCase):
         :return: None.
         """
         self.etcd_client.read.side_effect = EtcdKeyNotFound()
-
         assert_true(self.datastore.get_bgp_node_mesh())
 
     def test_set_default_node_as(self):
@@ -1365,8 +1411,44 @@ class TestDatastoreClient(unittest.TestCase):
         :return: None.
         """
         self.etcd_client.read.side_effect = EtcdKeyNotFound()
-
         assert_equal(self.datastore.get_default_node_as(), 64511)
+
+    def test_get_host_bgp_ips(self):
+        """
+        Check etcd for the configured IPv4 and IPv6 addresses for the specified
+        host BGP binding. If it hasn't been configured yet, raise an
+        EtcdKeyNotFound.
+
+        :param hostname: The hostname.
+        :return: A tuple containing the IPv4 and IPv6 address.
+        """
+        def mock_read(path):
+            if path == TEST_BGP_HOST_IPV4_PATH:
+                result = Mock(spec=EtcdResult)
+                result.value = "1.2.3.4"
+                return result
+            if path == TEST_BGP_HOST_IPV6_PATH:
+                result = Mock(spec=EtcdResult)
+                result.value = "aa:bb::ee"
+                return result
+            raise AssertionError("Unexpected path %s" % path)
+        self.etcd_client.read = mock_read
+
+        assert_equal(self.datastore.get_host_bgp_ips(TEST_HOST),
+                     ("1.2.3.4", "aa:bb::ee"))
+
+    def test_get_host_bgp_ips_not_found(self):
+        """
+        Check etcd for the configured IPv4 and IPv6 addresses for the specified
+        host BGP binding. If it hasn't been configured yet, raise an
+        EtcdKeyNotFound.
+
+        :param hostname: The hostname.
+        :return: A tuple containing the IPv4 and IPv6 address.
+        """
+        self.etcd_client.read.side_effect = EtcdKeyNotFound
+
+        assert_raises(KeyError, self.datastore.get_host_bgp_ips, TEST_HOST)
 
 
 def mock_read_2_peers(path):
@@ -1501,15 +1583,11 @@ def mock_read_4_endpoints(path, recursive):
     leaves = []
 
     specs = [
-        (CALICO_V_PATH + "/host/TEST_HOST/bird_ip", "192.168.1.1"),
-        (CALICO_V_PATH + "/host/TEST_HOST/bird6_ip", "fd80::4"),
         (CALICO_V_PATH + "/host/TEST_HOST/config/marker", "created"),
         (CALICO_V_PATH + "/host/TEST_HOST/workload/docker/1234/endpoint/567890abcdef",
          EP_56.to_json()),
         (CALICO_V_PATH + "/host/TEST_HOST/workload/docker/5678/endpoint/90abcdef1234",
          EP_90.to_json()),
-        (CALICO_V_PATH + "/host/TEST_HOST2/bird_ip", "192.168.1.2"),
-        (CALICO_V_PATH + "/host/TEST_HOST2/bird6_ip", "fd80::3"),
         (CALICO_V_PATH + "/host/TEST_HOST2/config/marker", "created"),
         (CALICO_V_PATH + "/host/TEST_HOST2/workload/docker/1234/endpoint/7890abcdef12",
          EP_78.to_json()),

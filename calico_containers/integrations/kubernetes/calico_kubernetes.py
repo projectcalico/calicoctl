@@ -1,5 +1,4 @@
 #!/bin/python
-from collections import namedtuple
 import json
 import os
 import socket
@@ -15,16 +14,16 @@ if ETCD_AUTHORITY_ENV not in os.environ:
     os.environ[ETCD_AUTHORITY_ENV] = 'kubernetes-master:6666'
 print("Using ETCD_AUTHORITY=%s" % os.environ[ETCD_AUTHORITY_ENV])
 
-KUBE_API_ROOT = os.environ.get('KUBE_API_ROOT',
-      'https://kubernetes-master:6443/api/v1beta3/')
-print("Using KUBE_API_ROOT=%s" % KUBE_API_ROOT)
-
-CALICOCTL_PATH = os.environ.get('CALICOCTL_PATH', '/home/vagrant/calicoctl')
-print("Using CALICOCTL_PATH=%s" % CALICOCTL_PATH)
-
-from calicoctl import container_add
+from calico_ctl.container import container_add
 from pycalico.datastore import IF_PREFIX
 from pycalico.util import generate_cali_interface_name
+
+CALICOCTL_PATH = os.environ.get('CALICOCTL_PATH', '/usr/bin/calicoctl')
+print("Using CALICOCTL_PATH=%s" % CALICOCTL_PATH)
+
+KUBE_API_ROOT = os.environ.get('KUBE_API_ROOT',
+                               'http://kubernetes-master:8080/api/v1/')
+print("Using KUBE_API_ROOT=%s" % KUBE_API_ROOT)
 
 
 class NetworkPlugin(object):
@@ -33,12 +32,12 @@ class NetworkPlugin(object):
         self.docker_id = None
         self.calicoctl = sh.Command(CALICOCTL_PATH).bake(_env=os.environ)
 
-    def create(self, args):
+    def create(self, pod_name, docker_id):
         """"Create a pod."""
         # Calicoctl does not support the '-' character in iptables rule names.
         # TODO: fix Felix to support '-' characters.
-        self.pod_name = args[3].replace('-', '_')
-        self.docker_id = args[4]
+        self.pod_name = pod_name
+        self.docker_id = docker_id
 
         print('Configuring docker container %s' % self.docker_id)
 
@@ -50,10 +49,10 @@ class NetworkPlugin(object):
                 e.returncode, e.output, e))
             sys.exit(1)
 
-    def delete(self, args):
+    def delete(self, pod_name, docker_id):
         """Cleanup after a pod."""
-        self.pod_name = args[3].replace('-', '_')
-        self.docker_id = args[4]
+        self.pod_name = pod_name
+        self.docker_id = docker_id
 
         # Remove the profile for the workload.
         self.calicoctl('container', 'remove', self.docker_id)
@@ -100,6 +99,10 @@ class NetworkPlugin(object):
 
         This hits a well-known IP (the Google public DNS).
         """
+        # We'd like to use the k8s API here, but it doesn't work in the Vagrant
+        # case since the node's name is set to its IP (so we have no way of
+        # getting from hostname=>IP).
+        # TODO: do this more reliably by parsing 'ip
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('8.8.8.8', 80))
         ip = s.getsockname()[0]
@@ -158,9 +161,11 @@ class NetworkPlugin(object):
 
         self._apply_tags(profile_name, pod)
 
-        # Also add the workload to the profile.
+        # Also set the profile for the workload.
+        print('Setting profile %s on endpoint %s' %
+              (profile_name, endpoint.endpoint_id))
         self.calicoctl('endpoint', endpoint.endpoint_id,
-                  'profile', 'set', profile_name)
+                       'profile', 'set', profile_name)
         print('Finished configuring profile.')
 
     def _get_pod_ports(self, pod):
@@ -180,6 +185,7 @@ class NetworkPlugin(object):
         return ports
 
     def _get_pod_config(self):
+        """Get the list of pods from the Kube API server."""
         pods = self._get_api_path('pods')
         print('Got pods %s' % pods)
 
@@ -194,8 +200,7 @@ class NetworkPlugin(object):
         return this_pod
 
     def _get_api_path(self, path):
-        """
-        Get the list of pods from the Kube API server.
+        """Get a resource from the API specified API path.
 
         e.g.
         _get_api_path('pods')
@@ -209,6 +214,7 @@ class NetworkPlugin(object):
         session.headers.update({'Authorization': 'Bearer ' + bearer_token})
         response = session.get(KUBE_API_ROOT + path, verify=False)
         response_body = response.text
+
         # The response body contains some metadata, and the pods themselves
         # under the 'items' key.
         return json.loads(response_body)['items']
@@ -216,12 +222,18 @@ class NetworkPlugin(object):
     def _get_api_token(self):
         """
         Get the kubelet Bearer token for this node, used for HTTPS auth.
+        If no token exists, this method will return an empty string.
         :return: The token.
         :rtype: str
         """
-        with open('/var/lib/kubelet/kubernetes_auth') as f:
-            json_string = f.read()
-        print('Got kubernetes_auth: ' + json_string)
+        try:
+            with open('/var/lib/kubelet/kubernetes_auth') as f:
+                json_string = f.read()
+        except IOError, e:
+            print("Failed to open auth_file (%s), assuming insecure mode" % e)
+            return ""
+
+        print('Using kubernetes_auth: ' + json_string)
 
         auth_data = json.loads(json_string)
         return auth_data['BearerToken']
@@ -320,9 +332,13 @@ if __name__ == '__main__':
 
     if mode == 'init':
         print('No initialization work to perform')
-    elif mode == 'setup':
-        print('Executing Calico pod-creation hook')
-        NetworkPlugin().create(sys.argv)
-    elif mode == 'teardown':
-        print('Executing Calico pod-deletion hook')
-        NetworkPlugin().delete(sys.argv)
+    else:
+        # These args only present for setup/teardown.
+        pod_name = sys.argv[3].replace('-', '_')
+        docker_id = sys.argv[4]
+        if mode == 'setup':
+            print('Executing Calico pod-creation hook')
+            NetworkPlugin().create(pod_name, docker_id)
+        elif mode == 'teardown':
+            print('Executing Calico pod-deletion hook')
+            NetworkPlugin().delete(pod_name, docker_id)

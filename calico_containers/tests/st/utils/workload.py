@@ -17,10 +17,11 @@ import uuid
 from netaddr import IPAddress
 
 from utils import retry_until_success
-from calico_containers.tests.st.utils.network import DockerNetwork
-from calico_containers.tests.st.utils.exceptions import CommandExecError
+from tests.st.utils.network import DockerNetwork
+from tests.st.utils.exceptions import CommandExecError
 
 NET_NONE = "none"
+
 
 class Workload(object):
     """
@@ -29,7 +30,8 @@ class Workload(object):
     These are the end-users containers that will run application-level
     software.
     """
-    def __init__(self, host, name, ip=None, image="busybox", network=None):
+    def __init__(self, host, name, image="busybox", network=None,
+                 service=None):
         """
         Create the workload and detect its IPs.
 
@@ -38,15 +40,13 @@ class Workload(object):
         via docker exec.
         :param name: The name given to the workload container. This name is
         passed to docker and can be used inside docker commands.
-        :param ip: The IP to be assigned to this workload via calico. May be
-        either IPv4 or IPv6. May also be None or 'auto' in which case it will
-        be assigned one by IPAM. Calico supports multiple IPs per workload, but
-        this testing framework does not yet.
         :param image: The docker image to be used to instantiate this
         container. busybox used by default because it is extremely small and
         has ping.
         :param network: The DockerNetwork to connect to.  Set to None to use
         default Docker networking.
+        :param service: The name of the service to use. Set to None to have
+        a random one generated.
         """
         self.host = host
         self.name = name
@@ -58,42 +58,26 @@ class Workload(object):
             "--detach",
             "--name", name,
         ]
-        assert ip is None, "Static IP assignment not supported by libnetwork."
         if network:
             if network is not NET_NONE:
                 assert isinstance(network, DockerNetwork)
-            # We don't yet care about service names and they are buggy.
-            # Currently they aren't deleted properly, so to ensure no
-            # clashes between tests, just use a uuid
-            args.append("--publish-service=%s.%s" % (str(uuid.uuid4()),
-                                                     network))
+            if service is None:
+                service = str(uuid.uuid4())
+            args.append("--publish-service=%s.%s" % (service, network))
         args.append(image)
         command = ' '.join(args)
 
         host.execute(command)
 
-        # There is an unofficial ip=auto option in addition to ip=None.
-        if ip is None:
-            version = None
-        else:
-            version = IPAddress(ip).version
-
-        if version == 6:
-            version_key = "GlobalIPv6Address"
-        else:
-            version_key = "IPAddress"
+        version_key = "IPAddress"
+        # TODO Use version_key = "GlobalIPv6Address" for IPv6
 
         self.ip = host.execute("docker inspect --format "
                                "'{{ .NetworkSettings.%s }}' %s" % (version_key,
                                                                    name),
                                ).rstrip()
 
-        if ip:
-            # Currently unhittable until libnetwork lets us configure IPs.
-            assert ip == self.ip, "IP param = %s, configured IP = %s." % \
-                                  (ip, self.ip)
-
-    def execute(self, command, **kwargs):
+    def execute(self, command):
         """
         Execute arbitrary commands on this workload.
         """
@@ -162,6 +146,7 @@ class Workload(object):
         :return: None.
         """
         ping = self._get_ping_function(ip)
+
         def cant_ping():
             try:
                 ping()
@@ -181,5 +166,5 @@ class Workload(object):
         return self.name
 
 
-def _PingError(Exception):
+class _PingError(Exception):
     pass

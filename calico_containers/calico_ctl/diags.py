@@ -11,7 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+Usage:
+  calicoctl diags [--log-dir=<LOG_DIR>] [--upload]
 
+Description:
+  Save diagnostic information
+
+Options:
+  --log-dir=<LOG_DIR>  The directory for logs [default: /var/log/calico]
+  --upload             Flag, when set, will upload logs to http://transfer.sh
+"""
+import sys
+from utils import enforce_root
+import sh
 import os
 from datetime import datetime
 import tarfile
@@ -19,11 +32,21 @@ import socket
 import tempfile
 import subprocess
 from etcd import EtcdException
-from shutil import copytree
+from shutil import copytree, ignore_patterns
+from pycalico.datastore import DatastoreClient
 
-import sh
 
-from datastore import DatastoreClient
+def diags(arguments):
+    """
+    Main dispatcher for diags commands. Calls the corresponding helper function.
+
+    :param arguments: A dictionary of arguments already processed through
+    this file's docstring with docopt
+    :return: None
+    """
+    print("Collecting diags")
+    save_diags(arguments["--log-dir"], arguments["--upload"])
+    sys.exit(0)
 
 
 def save_diags(log_dir, upload=False):
@@ -61,7 +84,7 @@ def save_diags(log_dir, upload=False):
     with open(os.path.join(temp_diags_dir, 'route'), 'w') as f:
         try:
             route = sh.Command._create("route")
-            f.write("route --numeric")
+            f.write("route --numeric\n")
             f.writelines(route(numeric=True))
             f.write('\n')
         except sh.CommandNotFound as e:
@@ -69,11 +92,11 @@ def save_diags(log_dir, upload=False):
 
         try:
             ip = sh.Command._create("ip")
-            f.write("ip route")
+            f.write("ip route\n")
             f.writelines(ip("route"))
             f.write('\n')
 
-            f.write("ip -6 route")
+            f.write("ip -6 route\n")
             f.writelines(ip("-6", "route"))
             f.write('\n')
         except sh.CommandNotFound as e:
@@ -98,10 +121,19 @@ def save_diags(log_dir, upload=False):
             f.writelines(ipset("list"))
         except sh.CommandNotFound as e:
             print "Missing command: %s" % e.message
+        except sh.ErrorReturnCode_1 as e:
+            print "Error running ipset. Maybe you need to run as root."
+
+    # Ask Felix to dump stats to its log file - ignore errors as the
+    # calico-node might not be running
+    subprocess.call(["docker", "exec", "calico-node",
+                     "pkill", "-SIGUSR1", "felix"])
 
     if os.path.isdir(log_dir):
         print("Copying Calico logs")
-        copytree(log_dir, os.path.join(temp_diags_dir, "logs"))
+        # Skip the lock files as they can only be copied by root.
+        copytree(log_dir, os.path.join(temp_diags_dir, "logs"),
+                 ignore=ignore_patterns('lock'))
     else:
         print('No logs found in %s; skipping log copying' % log_dir)
 
@@ -111,7 +143,13 @@ def save_diags(log_dir, upload=False):
         datastore_client = DatastoreClient()
         datastore_data = datastore_client.etcd_client.read("/calico", recursive=True)
         with open(os.path.join(temp_diags_dir, 'etcd_calico'), 'w') as f:
-            f.write(str(datastore_data))
+            f.write("dir?, key, value\n")
+            # TODO: python-etcd bug: Leaves show up twice in get_subtree().
+            for child in datastore_data.get_subtree():
+                if child.dir:
+                    f.write("DIR,  %s,\n" % child.key)
+                else:
+                    f.write("FILE, %s, %s\n" % (child.key, child.value))
     except EtcdException:
         print "Unable to dump etcd datastore"
 
@@ -136,4 +174,3 @@ def upload_temp_diags(diags_path):
     curl_process.communicate()
     curl_process.wait()
     print("Done")
-

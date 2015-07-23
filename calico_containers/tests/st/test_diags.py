@@ -11,19 +11,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from nose.plugins.attrib import attr
 
 from test_base import TestBase
-from calico_containers.tests.st.utils.docker_host import DockerHost
+from tests.st.utils.docker_host import DockerHost
+
+"""
+Test calicoctl diags.
+
+It's worth testing that the command can be executed. It's debatable whether
+it's worth testing the upload.
+
+We're not trying to assert on the contents of the diags package.
+
+TODO We could check that the file is actually written (and doesn't just appear
+in the output) and is a decent size.
+TODO We could check collecting diags when calico-node is actually running.
+"""
 
 
 class TestDiags(TestBase):
-    @attr('slow')
     def test_diags(self):
         """
-        Test that the diags command successfully uploads the diags file.
+        Test that the diags command successfully creates a tar.gz file.
         """
-        with DockerHost('host', start_calico=False) as host:
+        with DockerHost('host', dind=False, start_calico=False) as host:
             results = host.calicoctl("diags")
             self.assertIn(".tar.gz", results)
-

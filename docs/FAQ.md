@@ -4,6 +4,26 @@ This page contains answers to some frequently-asked questions about Calico on Do
 ## Can a guest container have multiple networked IP addresses?
 Yes. You can add IP addresses using the `calicoctl container <CONTAINER> ip (add|remove) <IP>` command.
 
+## Why isn't the `-p` flag on `docker run` working as expected?
+Simply put, you don't need this flag with Calico and so Calico doesn't support it.
+
+The `-p` flag tells Docker to set up port mapping to connect a port on the Docker host
+to a port on your container.  This is useful because with Docker bridge networking, the
+container's IP address isn't reachable outside the host.  But with Calico, the 
+container's IP address is reachable not only within your cluster, but outside as well
+(see later questions for more detail).
+
+If you're used to running your containers like this
+
+    docker run -d -p 8080:80 myhttpserver
+  
+and then accessing them via `<docker-host-ip>:8080`, you can instead run
+
+    docker run -d --publish-service myhttpserver.mynetwork.calico myhttpserver
+  
+and then access via `<container-ip>:80`.  No more ephemeral ports, or port conflicts over
+which container gets to bind to port 80 (or any other port)!
+
 ## How do I get network traffic into and out of my Calico cluster?
 The recommended way to get traffic to/from your Calico network is by peering to 
 your existing data center L3 routers using BGP and by assigning globally 
@@ -12,8 +32,17 @@ This allows incoming traffic to be routed directly to your containers without th
 need for NAT.  This flat L3 approach delivers exceptional network scalability
 and performance.
 
-Detailed datacenter networking recommendations are given in the main 
+A common scenario is for your container hosts to be on their own 
+isolated layer 2 network, like a rack in your server room or an entire data 
+center.  Access to that network is via a router, which also is the default 
+router for all the container hosts.
+
+If this describes your infrastructure, [this guide](ExternalConnectivity.md) 
+explains in more detail what to do. Otherwise, detailed datacenter networking 
+recommendations are given in the main 
 [Project Calico documentation](http://docs.projectcalico.org/en/latest/index.html).
+We'd also encourage you to [get in touch](http://www.projectcalico.org/contact/) 
+to discuss your environment.
 
 ### How can I enable NAT for outgoing traffic from containers with private IP addresses?
 If you want to allow containers with private IP addresses to be able to access the 
@@ -31,7 +60,7 @@ Where `<CIDR>` is the CIDR of your IP pool, for example `192.168.0.0/16`.
 Remember: the security profile for the container will need to allow traffic to the internet as well. You can read about how to configure security profiles in the [Advanced Network Policy](AdvancedNetworkPolicy.md) guide.
 
 ### How can I enable NAT for incoming traffic to containers with private IP addresses?
-As discussed already, the recommended way to get traffic to a containers that 
+As discussed, the recommended way to get traffic to containers that 
 need to be accessed from the internet is to give them public IP addresses and
 to configure Calico to peer with the data center's existing L3 routers.
 

@@ -24,6 +24,7 @@ In addition to the [Getting Started Guide](docs/GettingStarted.md) we also have 
 - [Calico on Google Compute Engine](docs/GCE.md)
 - [Calico on DigitalOcean](docs/DigitalOcean.md)
 - [Calico and Docker Swarm](docs/CalicoSwarm.md)
+- [Calico and Kubernetes](docs/kubernetes/README.md)
 
 Finally, if you want to try out networking containers using Calico with Docker's new [libnetwork network driver support](https://github.com/docker/libnetwork) then you can try out our [Ubuntu Vagrant libnetwork example](https://github.com/Metaswitch/calico-ubuntu-vagrant).
 
@@ -36,7 +37,7 @@ Project Calico uses [etcd](https://github.com/coreos/etcd) to distribute informa
 The `calico-node` service is a worker that configures the network endpoints for containers, handles IP routing, and installs policy rules.  It runs in its own Docker container, and comprises
 + Felix, the Calico worker process
 + BIRD, the routing process
-+ a [Powerstrip](https://github.com/clusterhq/powerstrip) adapter to set up networking when Docker containers are created.
++ A [libnetwork](https://github.com/docker/libnetwork) plugin to set up networking when Docker containers are created (this replaces the [Powerstrip](https://github.com/clusterhq/powerstrip) adapter).
 
 We provide a command line tool, `calicoctl`, which makes it easy to configure and start the Calico services listed above, and allows you to interact with the etcd datastore to define and apply network and security policy to the containers you create. Using `calicoctl`, you can provision Calico nodes, endpoints, and define and manage a rich set of security policy. 
 
