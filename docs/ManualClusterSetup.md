@@ -37,14 +37,14 @@ The [example script][example-commands] assumes that your ordinary user account h
 
 ## Getting Calico Binaries
 
-Get the calico binary onto each host. You can download a specific [release](https://github.com/Metaswitch/calico-docker/releases/) from github.  For example, to retrieve the v0.4.8 release that uses Powerstrip, on each host run
+Get the calico binary onto each host. You can download a specific [release](https://github.com/Metaswitch/calico-docker/releases/) from github.  For example, to retrieve the v0.4.9 release that uses Powerstrip, on each host run
 
-	wget https://github.com/Metaswitch/calico-docker/releases/download/v0.4.8/calicoctl
+	wget https://github.com/Metaswitch/calico-docker/releases/download/v0.4.9/calicoctl
 	chmod +x calicoctl
 
 Finally, preload the Calico Docker image.  This will make the demo more responsive the first time you run it.
 
-    docker pull calico/node:v0.4.8
+    docker pull calico/node:v0.4.9
 
 You are now ready to run the [example commands][example-commands].
 
