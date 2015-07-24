@@ -15,7 +15,7 @@ ST_TO_RUN?=calico_containers/tests/st/
 
 default: all
 all: test
-binary: dist/calicoctl
+binary: dist/calicoctl dist/calico_kubernetes
 node: caliconode.created
 wheel: dist/pycalico-$(WHEEL_VERSION)-py2-none-any.whl
 
@@ -143,9 +143,9 @@ install-completion: /etc/bash_completion.d/calicoctl.sh
 	cp dist/calicoctl.sh /etc/bash_completion.d
 
 .PHONY: kubernetes	
-kubernetes: /dist/calico_kubernetes
+kubernetes: dist/calico_kubernetes
 
-/dist/calico_kubernetes:
+dist/calico_kubernetes:
 	# Build docker container
 	cd build_calicoctl; docker build -t calico-build .
 	mkdir -p dist
