@@ -26,7 +26,7 @@ Description:
 Options:
   --force                   Stop the node process even if it has active endpoints.
   --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
-                                      container [default: calico/node:latest]
+                                      container [default: calico/node:v0.5.3]
   --detach=<DETACH>         Set "true" to run Calico service as detached,
                             "false" to run in the foreground. [default: true]
   --log-dir=<LOG_DIR>       The directory for logs [default: /var/log/calico]
@@ -68,7 +68,7 @@ import signal
 DEFAULT_IPV4_POOL = IPPool("192.168.0.0/16")
 DEFAULT_IPV6_POOL = IPPool("fd80:24e2:f998:72d6::/64")
 
-KUBERNETES_BINARY_URL = 'https://github.com/Metaswitch/calico-docker/releases/download/v0.5.1/calico_kubernetes'
+KUBERNETES_BINARY_URL = 'https://github.com/Metaswitch/calico-docker/releases/download/v0.5.3/calico_kubernetes'
 KUBERNETES_PLUGIN_DIR = '/usr/libexec/kubernetes/kubelet-plugins/net/exec/calico/'
 KUBERNETES_PLUGIN_DIR_BACKUP = '/etc/kubelet-plugins/calico/'
 
