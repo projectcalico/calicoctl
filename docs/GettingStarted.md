@@ -26,11 +26,11 @@ Once you have your cluster up and running, start calico on all the nodes
 
 On ubuntu-1
 
-    sudo ./calicoctl node --ip=172.17.8.101
+    sudo calicoctl node --ip=172.17.8.101
 
 On ubuntu-2
 
-    sudo ./calicoctl node --ip=172.17.8.102
+    sudo calicoctl node --ip=172.17.8.102
 
 This will start a container. Check they are running
 
@@ -122,11 +122,11 @@ Then restart your calico-node processes with the `--ip6` parameter to enable v6 
 
 On ubuntu-1
 
-    sudo ./calicoctl node --ip=172.17.8.101 --ip6=fd80:24e2:f998:72d7::1
+    sudo calicoctl node --ip=172.17.8.101 --ip6=fd80:24e2:f998:72d7::1
 
 On ubuntu-2
 
-    sudo ./calicoctl node --ip=172.17.8.102 --ip6=fd80:24e2:f998:72d7::2
+    sudo calicoctl node --ip=172.17.8.102 --ip6=fd80:24e2:f998:72d7::2
 
 Then, you can start containers with IPv6 connectivity. By default, Calico is configured to use IPv6 addresses in the pool fd80:24e2:f998:72d6/64 (`calicoctl pool add` to change this).
 
