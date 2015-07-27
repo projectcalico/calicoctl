@@ -8,7 +8,7 @@ calico-testing-formation:
       num_units: 2
       options:
         latest: true
-        version: 1.6.2
+        version: 1.7.1
     calico-docker:
       charm: local:trusty/calico-docker
       options:
