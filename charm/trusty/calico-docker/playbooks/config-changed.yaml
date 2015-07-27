@@ -3,8 +3,18 @@
     - set_fact:
         db_relation: "{{ relations.db | default([]) }}"
 
+    - name: read relation data[hostname]
+      shell: relation-get hostname
+      register: hostname
+      when: db_relation != []
+
+    - name: read relation data[port]
+      shell: relation-get port
+      register: port
+      when: db_relation != []
+
     - set_fact:
-        etcd_authority: "{{ relations.db[0].hostname }}:{{ relations.db[0].port }}"
+        etcd_authority: "{{ hostname.stdout }}:{{ port.stdout }}"
       when: db_relation != []
 
 
