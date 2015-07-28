@@ -1239,6 +1239,7 @@ class TestEndpoint(unittest.TestCase):
         self.assertTrue(m_netns.remove_ip_from_ns_veth.called)
         self.assertFalse(m_client.unassign_address.called)
 
+
 class TestEndpoint(unittest.TestCase):
 
     @parameterized.expand([
