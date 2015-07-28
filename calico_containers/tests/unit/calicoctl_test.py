@@ -208,6 +208,7 @@ class TestContainer(unittest.TestCase):
         m_info.assert_called_once_with(name)
         m_sys.exit.assert_called_once_with(1)
 
+
 class TestEndpoint(unittest.TestCase):
 
     @parameterized.expand([
