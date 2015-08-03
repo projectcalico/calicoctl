@@ -1,6 +1,6 @@
 #!/usr/bin/make
 
-build: virtualenv lint test
+build: virtualenv lint
 
 virtualenv: .venv/bin/python
 .venv/bin/python:
@@ -13,13 +13,9 @@ lint: .venv/bin/python
 	@.venv/bin/ansible-lint playbooks/site.yaml
 	@.venv/bin/charm proof
 
-unit_test: .venv/bin/python
-	@echo Starting tests...
-	@CHARM_DIR=. PYTHONPATH=./hooks .venv/bin/nosetests -vv --nologcapture unit_tests
-
 func_test:
 	@echo functional tests...
-	@juju test 
+	@juju test
 
 clean:
 	rm -rf .venv

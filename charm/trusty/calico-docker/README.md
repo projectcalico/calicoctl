@@ -63,6 +63,10 @@ payload is delivered correctly:
     juju set calico-docker calicoctl-package=https://github.com/Metaswitch/calico-docker/releases/download/v0.4.2/calicoctl
     juju set calico-docker calicoctl-sum=90cd21fed0abae9ed524c95d3cff8192dfc133150cdf386951ed9daa28c2d889
 
+> Note: These options are populated for you by default, and only need to be
+> adjusted if you would like ot run a newer release than what is provided in
+> the charm config.
+
 ## Maintainers:
 
 - Charles Butler &lt;[charles.butler@canonical.com](mailto:charles.butler@canonical.com)&gt;
@@ -76,5 +80,5 @@ payload is delivered correctly:
   - [project calico contacts](http://www.projectcalico.org/contact/)
 - Upstream bug tracker
   - [Calico-Docker bugtracker](https://github.com/Metaswitch/calico-docker/issues)
-- Upstream mailing list or contact information
+- Upstream mailing list
   - [Calico Mailing List](http://lists.projectcalico.org/listinfo/calico-tech)

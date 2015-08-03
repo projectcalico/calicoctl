@@ -8,6 +8,7 @@ from charmhelpers.contrib.ansible import AnsibleHooks
 # handled by default by running all sections of the playbook
 # tagged with the hook name.
 
+
 def hook_names(here=path(__file__).parent):
     for name in (x.basename()
                  for x in here.files() if x.islink()):
