@@ -120,7 +120,7 @@ sudo iptables -A PREROUTING -t nat -i eth0 -p tcp --dport 80 -j DNAT  --to 192.1
 ```
 
 You should now be able to access the containers using the public IP address of your DigitalOcean host on port 80 by 
-visiting http://<host public ip>:80 or running:
+visiting http://`<host public ip>`:80 or running:
 
 ```
 curl http://<host public ip>:80

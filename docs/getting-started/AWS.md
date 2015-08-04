@@ -67,7 +67,7 @@ aws ec2 authorize-security-group-ingress \
 ```
 
 ## Spinning up the VMs
-Create the 2 Calico Docker hosts by passing in a `cloud-config` file. 
+Create the two Calico Docker hosts by passing in a `cloud-config` file. 
 
 There are three demonstration options depending on whether you are running with libnetwork, Powerstrip or the 
 default Docker networking.  Select the appropriate cloud-config based on the demonstration option.
