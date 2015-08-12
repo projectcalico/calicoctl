@@ -46,16 +46,18 @@ Command syntax:
 ```
 calicoctl container <CONTAINER> ip add <IP> [--interface=<INTERFACE>]
 
-    <INTERFACE>: The name to give to the interface in the container
-                 [default: eth1]
+Parameters:
     <CONTAINER>: The name or ID of the container
     <IP>: The IPv4 or IPv6 address to add.
+    --interface=<INTERFACE>  The name to give to the interface in the container
+                             [default: eth1]
+    
 ```
 
 Examples:
 
 ```
-calicoctl container test-container ip add 192.10.0.3 --interface=eth1 
+$ calicoctl container test-container ip add 192.10.0.3 --interface=eth1 
 ```
 
 ### calicoctl container <CONTAINER> ip remove <IP> 
@@ -80,7 +82,7 @@ calicoctl container <CONTAINER> ip remove <IP> [--interface=<INTERFACE>]
 Examples:
 
 ```
-calicoctl container test-container ip remove 192.10.0.3 --interface=eth1 
+$ calicoctl container test-container ip remove 192.10.0.3 --interface=eth1 
 ```
 
 ### calicoctl container <CONTAINER> endpoint-id show
@@ -103,7 +105,7 @@ calicoctl container <CONTAINER> endpoint-id show
 Examples:
 
 ```
-calicoctl container test-container endpoint-id show
+$ calicoctl container test-container endpoint-id show
 ```
 
 ### calicoctl container add <CONTAINER> <IP> 
@@ -130,7 +132,7 @@ calicoctl container add <CONTAINER> <IP> [--interface=<INTERFACE>]
 Examples:
 
 ```
-calicoctl container add test-container 192.10.0.3 --interface=eth1 
+$ calicoctl container add test-container 192.10.0.3 --interface=eth1 
 ```
 
 ### calicoctl container remove <CONTAINER>
@@ -151,5 +153,5 @@ calicoctl container remove <CONTAINER>
 Examples:
 
 ```
-calicoctl container remove test-container 
+$ calicoctl container remove test-container 
 ```
