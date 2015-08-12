@@ -109,28 +109,3 @@ Examples:
 ```
 calicoctl endpoint <ENDPOINT_ID> profile show 
 ```
-
-### Configure or show endpoints assigned to existing containers
-This command
-
-
-Command syntax:
-
-```
-Configure or show endpoints assigned to existing containers
-  Show all endpoints belonging to 'host1':
-      $ calicoctl endpoint show --host=host1
-  Add a profile called 'profile-A' to the endpoint a1b2c3d4:
-      $ calicoctl endpoint a1b2c3d4 profile append profile-A
-  Add a profile called 'profile-A' to the endpoint a1b2c3d4, but faster,
-  by providing more specific filters:
-      $ calicoctl endpoint a1b2c3d4 profile append profile-A --host=host1 --orchestrator=docker --workload=f9e8d7e6
-
-    
-```
-
-Examples:
-
-```
-Configure or show endpoints assigned to existing containers
-```

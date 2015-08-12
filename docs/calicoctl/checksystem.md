@@ -28,57 +28,32 @@ Options:
 
 ## calicoctl checksystem commands
 
-
 ### calicoctl checksystem 
-This command
+This command allows you to verify that your host system is configured correctly
+for calicoctl to manage a Calico network.  The command may also, optionally,
+attempt to correct any issues it discovers.
 
+This command must be run as root.
 
 Command syntax:
 
 ```
 calicoctl checksystem [--fix]
 
-    
+    --fix:  Allow calicoctl to attempt to correct any issues detected on the
+            host.
+            
+    If the --fix option is omitted, the command provides a status report of 
+    your host system indicating any issues.
 ```
 
 Examples:
 
 ```
-calicoctl checksystem 
-```
+$ sudo calicoctl checksystem
+WARNING: Unable to detect the xt_set module. Load with `modprobe xt_set`
+WARNING: Unable to detect the ipip module. Load with `modprobe ipip`
 
-### Check for incompatibilities between calico and the host system
-This command
+$ sudo calicoctl checksystem --fix
 
-
-Command syntax:
-
-```
-Check for incompatibilities between calico and the host system
-
-    
-```
-
-Examples:
-
-```
-Check for incompatibilities between calico and the host system
-```
-
-### --fix  Allow calicoctl to attempt to correct any issues detected on the host
-This command
-
-
-Command syntax:
-
-```
---fix  Allow calicoctl to attempt to correct any issues detected on the host
-
-    
-```
-
-Examples:
-
-```
---fix  Allow calicoctl to attempt to correct any issues detected on the host
 ```

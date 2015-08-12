@@ -206,14 +206,14 @@ def get_sub_commands(doc):
             assert commands_full is None
             continue
 
+        # Blank line marks the end of the usage string.
+        if not line.strip():
+            break
+
         # Commands are indented with 2 spaces.
         if not line.startswith("  "):
             continue
         line = line[2:]
-
-        # Blank line marks the end of the usage string.
-        if not line.strip():
-            break
 
         # Continuations are indented with > 2 spaces.
         if line.startswith(" "):

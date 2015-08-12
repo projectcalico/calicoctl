@@ -44,39 +44,3 @@ Examples:
 ```
 calicoctl status
 ```
-
-### Print current status information regarding calico-node container
-This command
-
-
-Command syntax:
-
-```
-Print current status information regarding calico-node container
-
-    
-```
-
-Examples:
-
-```
-Print current status information regarding calico-node container
-```
-
-### and the BIRD routing daemon
-This command
-
-
-Command syntax:
-
-```
-and the BIRD routing daemon.
-
-    
-```
-
-Examples:
-
-```
-and the BIRD routing daemon
-```

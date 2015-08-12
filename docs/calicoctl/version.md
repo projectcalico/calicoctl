@@ -43,21 +43,3 @@ Examples:
 ```
 calicoctl version
 ```
-
-### Display the version of calicoctl
-This command
-
-
-Command syntax:
-
-```
-Display the version of calicoctl
-
-    
-```
-
-Examples:
-
-```
-Display the version of calicoctl
-```
