@@ -33,9 +33,11 @@ Options:
 This command
 
 
-Command options:
+Command syntax:
 
 ```
+calicoctl checksystem [--fix]
+
     
 ```
 
@@ -43,4 +45,40 @@ Examples:
 
 ```
 calicoctl checksystem 
+```
+
+### Check for incompatibilities between calico and the host system
+This command
+
+
+Command syntax:
+
+```
+Check for incompatibilities between calico and the host system
+
+    
+```
+
+Examples:
+
+```
+Check for incompatibilities between calico and the host system
+```
+
+### --fix  Allow calicoctl to attempt to correct any issues detected on the host
+This command
+
+
+Command syntax:
+
+```
+--fix  Allow calicoctl to attempt to correct any issues detected on the host
+
+    
+```
+
+Examples:
+
+```
+--fix  Allow calicoctl to attempt to correct any issues detected on the host
 ```

@@ -70,9 +70,11 @@ Examples:
 This command
 
 
-Command options:
+Command syntax:
 
 ```
+calicoctl profile show [--detailed]
+
     
 ```
 
@@ -86,9 +88,11 @@ calicoctl profile show
 This command
 
 
-Command options:
+Command syntax:
 
 ```
+calicoctl profile add <PROFILE>
+
     <PROFILE>
 ```
 
@@ -102,9 +106,11 @@ calicoctl profile add <PROFILE>
 This command
 
 
-Command options:
+Command syntax:
 
 ```
+calicoctl profile remove <PROFILE> [--no-check]
+
     <PROFILE>
 ```
 
@@ -118,9 +124,11 @@ calicoctl profile remove <PROFILE>
 This command
 
 
-Command options:
+Command syntax:
 
 ```
+calicoctl profile <PROFILE> tag show
+
     <PROFILE>
 ```
 
@@ -134,10 +142,13 @@ calicoctl profile <PROFILE> tag show
 This command
 
 
-Command options:
+Command syntax:
 
 ```
+calicoctl profile <PROFILE> tag (add|remove) <TAG>
+
     <PROFILE>
+    <TAG>
 ```
 
 Examples:
@@ -150,10 +161,30 @@ calicoctl profile <PROFILE> tag
 This command
 
 
-Command options:
+Command syntax:
 
 ```
+calicoctl profile <PROFILE> rule add (inbound|outbound) [--at=<POSITION>]
+  (allow|deny) [(
+    (tcp|udp) [(from [(ports <SRCPORTS>)] [(tag <SRCTAG>)] [(cidr <SRCCIDR>)])]
+              [(to   [(ports <DSTPORTS>)] [(tag <DSTTAG>)] [(cidr <DSTCIDR>)])] |
+    icmp [(type <ICMPTYPE> [(code <ICMPCODE>)])]
+         [(from [(tag <SRCTAG>)] [(cidr <SRCCIDR>)])]
+         [(to   [(tag <DSTTAG>)] [(cidr <DSTCIDR>)])] |
+    [(from [(tag <SRCTAG>)] [(cidr <SRCCIDR>)])]
+    [(to   [(tag <DSTTAG>)] [(cidr <DSTCIDR>)])]
+  )]
+
+    <SRCCIDR>
     <PROFILE>
+    <DSTTAG>
+    <DSTPORTS>
+    <POSITION>
+    <ICMPCODE>
+    <DSTCIDR>
+    <SRCTAG>
+    <SRCPORTS>
+    <ICMPTYPE>
 ```
 
 Examples:
@@ -166,10 +197,30 @@ calicoctl profile <PROFILE> rule add
 This command
 
 
-Command options:
+Command syntax:
 
 ```
+calicoctl profile <PROFILE> rule remove (inbound|outbound) (--at=<POSITION>|
+  (allow|deny) [(
+    (tcp|udp) [(from [(ports <SRCPORTS>)] [(tag <SRCTAG>)] [(cidr <SRCCIDR>)])]
+              [(to   [(ports <DSTPORTS>)] [(tag <DSTTAG>)] [(cidr <DSTCIDR>)])] |
+    icmp [(type <ICMPTYPE> [(code <ICMPCODE>)])]
+         [(from [(tag <SRCTAG>)] [(cidr <SRCCIDR>)])]
+         [(to   [(tag <DSTTAG>)] [(cidr <DSTCIDR>)])] |
+    [(from [(tag <SRCTAG>)] [(cidr <SRCCIDR>)])]
+    [(to   [(tag <DSTTAG>)] [(cidr <DSTCIDR>)])]
+  )])
+
+    <SRCCIDR>
     <PROFILE>
+    <DSTTAG>
+    <DSTPORTS>
+    <POSITION>
+    <ICMPCODE>
+    <DSTCIDR>
+    <SRCTAG>
+    <SRCPORTS>
+    <ICMPTYPE>
 ```
 
 Examples:
@@ -182,9 +233,11 @@ calicoctl profile <PROFILE> rule remove
 This command
 
 
-Command options:
+Command syntax:
 
 ```
+calicoctl profile <PROFILE> rule show
+
     <PROFILE>
 ```
 
@@ -198,9 +251,11 @@ calicoctl profile <PROFILE> rule show
 This command
 
 
-Command options:
+Command syntax:
 
 ```
+calicoctl profile <PROFILE> rule json
+
     <PROFILE>
 ```
 
@@ -214,9 +269,11 @@ calicoctl profile <PROFILE> rule json
 This command
 
 
-Command options:
+Command syntax:
 
 ```
+calicoctl profile <PROFILE> rule update
+
     <PROFILE>
 ```
 
@@ -224,4 +281,150 @@ Examples:
 
 ```
 calicoctl profile <PROFILE> rule update
+```
+
+### Modify available profiles and configure rules or tags
+This command
+
+
+Command syntax:
+
+```
+Modify available profiles and configure rules or tags.
+
+    
+```
+
+Examples:
+
+```
+Modify available profiles and configure rules or tags
+```
+
+### --detailed        Show additional information
+This command
+
+
+Command syntax:
+
+```
+--detailed        Show additional information.
+
+    
+```
+
+Examples:
+
+```
+--detailed        Show additional information
+```
+
+### --no-check        Remove a profile without checking if there are endpoints
+This command
+
+
+Command syntax:
+
+```
+--no-check        Remove a profile without checking if there are endpoints
+                  associated with the profile.
+
+    
+```
+
+Examples:
+
+```
+--no-check        Remove a profile without checking if there are endpoints
+```
+
+### --at
+This command
+
+
+Command syntax:
+
+```
+--at=<POSITION>   Specify the position in the chain where the rule should
+                  be placed. Default: append at end.
+
+    <POSITION>
+```
+
+Examples:
+
+```
+--at
+```
+
+### Add and set up a rule to prevent all inbound traffic except pings from the 192
+This command
+
+
+Command syntax:
+
+```
+Add and set up a rule to prevent all inbound traffic except pings from the 192.168/16 subnet
+
+    
+```
+
+Examples:
+
+```
+Add and set up a rule to prevent all inbound traffic except pings from the 192
+```
+
+### 
+This command
+
+
+Command syntax:
+
+```
+$ calicoctl profile add only-local-pings
+
+    
+```
+
+Examples:
+
+```
+
+```
+
+### 
+This command
+
+
+Command syntax:
+
+```
+$ calicoctl profile only-local-pings rule add inbound deny icmp
+
+    
+```
+
+Examples:
+
+```
+
+```
+
+### 
+This command
+
+
+Command syntax:
+
+```
+$ calicoctl profile only-local-pings rule add inbound --at=0 allow from 192.168.0.0/16
+
+    
+```
+
+Examples:
+
+```
+
 ```

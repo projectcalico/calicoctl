@@ -83,7 +83,7 @@ def update_help(filename, subcommand, doc):
 
 This sections describes the `calicoctl %s` commands.
 
-Read the [calicoctl user guide](../calicoctl.md) for a full list of calicoctl commands.
+Read the [calicoctl command line interface user guide](../calicoctl.md) for a full list of calicoctl commands.
 
 """ % (subcommand, subcommand))
 
@@ -108,10 +108,29 @@ to display the following help menu for the %s commands.
         if not post and subcommand:
             print "  Writing placeholder sections for sub commands"
             outfi.write("## calicoctl %s commands\n\n" % subcommand)
-            for subsubcommand in get_sub_commands(doc):
-                print "    %s" % subsubcommand
-                outfi.write("### %s \n\n" % subsubcommand)
+            for summary, full in get_sub_commands(doc):
+                print "    %s" % summary
+                options = set(re.findall("(<.*?>)", full))
+                outfi.write("""
+### %s
+This command
 
+
+Command syntax:
+
+```
+%s
+
+    %s
+```
+
+Examples:
+
+```
+%s
+```
+"""
+ % (summary, full, "\n    ".join(options), summary))
 
 def update_toc(filename, commands):
     """
@@ -169,30 +188,56 @@ def get_top_level_commands():
 def get_sub_commands(doc):
     """
     Return a list of the sub commands parsed from the doc string.
+
+    This is a list of tuples containing the summary command (i.e. to use in
+    headings etc.) and the full command (the full syntax).
+
+    :param doc: The doc string to parse.
+    :return: [(summary, full), ... ]
     """
-    commands = None
+    commands_summary = None
+    commands_full = None
     for line in doc.split("\n"):
         if line.startswith("Usage:"):
-            commands = []
+            commands_summary = []
+            commands_full = []
             continue
-        if commands is None:
+        if commands_summary is None:
+            assert commands_full is None
             continue
-        match = re.match("  ([<>\w ]*)", line.rstrip())
-        if not match:
-            break
-        command = match.group(1)
-        # If there are more spaces at the start of the line it is a
-        # continuation of the previous command.
-        if command[0] == " ":
-            continue
-        commands.append(match.group(1))
 
-    return commands
+        # Commands are indented with 2 spaces.
+        if not line.startswith("  "):
+            continue
+        line = line[2:]
+
+        # Blank line marks the end of the usage string.
+        if not line.strip():
+            break
+
+        # Continuations are indented with > 2 spaces.
+        if line.startswith(" "):
+            commands_full[-1] = commands_full[-1] + "\n" + line
+            continue
+
+        # Get the summary command first.  All non-optional segments.
+        match = re.match("([-<>\w ]*)", line.rstrip())
+        if not match:
+            assert "Cannot parse line: %s" % line
+        commands_summary.append(match.group(1))
+
+        # The full command is the full line.
+        commands_full.append(line.strip())
+
+    return zip(commands_summary, commands_full)
 
 
 def get_command_md(command):
     """
     Return the path to the MD document for the specific command.
+
+    :param command: The command.
+    :return: Path to document.
     """
     return os.path.join(root_dir, "docs", "calicoctl", "%s.md" % command)
 
@@ -201,6 +246,9 @@ def get_commmand_md_relative(command):
     """
     Return the path to the MD document for the specific command relative
     to the directory containing the main calicoctl document.
+
+    :param command: The command.
+    :return: Path to document.
     """
     return os.path.join("calicoctl", "%s.md" % command)
 

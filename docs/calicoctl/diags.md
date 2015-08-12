@@ -34,14 +34,70 @@ Options:
 This command
 
 
-Command options:
+Command syntax:
 
 ```
-    
+calicoctl diags [--log-dir=<LOG_DIR>] [--upload]
+
+    <LOG_DIR>
 ```
 
 Examples:
 
 ```
 calicoctl diags 
+```
+
+### Save diagnostic information
+This command
+
+
+Command syntax:
+
+```
+Save diagnostic information
+
+    
+```
+
+Examples:
+
+```
+Save diagnostic information
+```
+
+### --log-dir
+This command
+
+
+Command syntax:
+
+```
+--log-dir=<LOG_DIR>  The directory for logs [default: /var/log/calico]
+
+    <LOG_DIR>
+```
+
+Examples:
+
+```
+--log-dir
+```
+
+### --upload             Flag
+This command
+
+
+Command syntax:
+
+```
+--upload             Flag, when set, will upload logs to http://transfer.sh
+
+    
+```
+
+Examples:
+
+```
+--upload             Flag
 ```
