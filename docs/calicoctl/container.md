@@ -3,7 +3,7 @@
 
 This sections describes the `calicoctl container` commands.
 
-Read the [calicoctl user guide](../calicoctl.md) for a full list of calicoctl commands.
+Read the [calicoctl command line interface user guide](../calicoctl.md) for a full list of calicoctl commands.
 
 ## Displaying the help text for 'calicoctl container' commands
 
@@ -32,11 +32,68 @@ Options:
 
 ## calicoctl container commands
 
-### calicoctl container <CONTAINER> ip  
 
-### calicoctl container <CONTAINER> endpoint 
+### calicoctl container <CONTAINER> ip 
+This command
 
-### calicoctl container add <CONTAINER> <IP>  
 
-### calicoctl container remove <CONTAINER> 
+Command options:
 
+```
+    <CONTAINER>
+```
+
+Examples:
+
+```
+calicoctl container <CONTAINER> ip 
+```
+
+### calicoctl container <CONTAINER> endpoint
+This command
+
+
+Command options:
+
+```
+    <CONTAINER>
+```
+
+Examples:
+
+```
+calicoctl container <CONTAINER> endpoint
+```
+
+### calicoctl container add <CONTAINER> <IP> 
+This command
+
+
+Command options:
+
+```
+    <CONTAINER>
+    <IP>
+```
+
+Examples:
+
+```
+calicoctl container add <CONTAINER> <IP> 
+```
+
+### calicoctl container remove <CONTAINER>
+This command
+
+
+Command options:
+
+```
+    <CONTAINER>
+```
+
+Examples:
+
+```
+calicoctl container remove <CONTAINER>
+```

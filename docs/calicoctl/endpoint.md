@@ -3,7 +3,7 @@
 
 This sections describes the `calicoctl endpoint` commands.
 
-Read the [calicoctl user guide](../calicoctl.md) for a full list of calicoctl commands.
+Read the [calicoctl command line interface user guide](../calicoctl.md) for a full list of calicoctl commands.
 
 ## Displaying the help text for 'calicoctl endpoint' commands
 
@@ -45,9 +45,51 @@ Examples:
 
 ## calicoctl endpoint commands
 
-### calicoctl endpoint show  
 
-### calicoctl endpoint <ENDPOINT_ID> profile  
+### calicoctl endpoint show 
+This command
 
-### calicoctl endpoint <ENDPOINT_ID> profile show  
 
+Command options:
+
+```
+    
+```
+
+Examples:
+
+```
+calicoctl endpoint show 
+```
+
+### calicoctl endpoint <ENDPOINT_ID> profile 
+This command
+
+
+Command options:
+
+```
+    <ENDPOINT_ID>
+```
+
+Examples:
+
+```
+calicoctl endpoint <ENDPOINT_ID> profile 
+```
+
+### calicoctl endpoint <ENDPOINT_ID> profile show 
+This command
+
+
+Command options:
+
+```
+    <ENDPOINT_ID>
+```
+
+Examples:
+
+```
+calicoctl endpoint <ENDPOINT_ID> profile show 
+```

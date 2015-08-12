@@ -3,7 +3,7 @@
 
 This sections describes the `calicoctl node` commands.
 
-Read the [calicoctl user guide](../calicoctl.md) for a full list of calicoctl commands.
+Read the [calicoctl command line interface user guide](../calicoctl.md) for a full list of calicoctl commands.
 
 ## Displaying the help text for 'calicoctl node' commands
 
@@ -44,13 +44,84 @@ Options:
 
 ## calicoctl node commands
 
-### calicoctl node  
 
-### calicoctl node stop  
+### calicoctl node 
+This command
 
-### calicoctl node bgp peer add <PEER_IP> as <AS_NUM> 
 
-### calicoctl node bgp peer remove <PEER_IP> 
+Command options:
 
-### calicoctl node bgp peer show  
+```
+    
+```
 
+Examples:
+
+```
+calicoctl node 
+```
+
+### calicoctl node stop 
+This command
+
+
+Command options:
+
+```
+    
+```
+
+Examples:
+
+```
+calicoctl node stop 
+```
+
+### calicoctl node bgp peer add <PEER_IP> as <AS_NUM>
+This command
+
+
+Command options:
+
+```
+    <PEER_IP>
+    <AS_NUM>
+```
+
+Examples:
+
+```
+calicoctl node bgp peer add <PEER_IP> as <AS_NUM>
+```
+
+### calicoctl node bgp peer remove <PEER_IP>
+This command
+
+
+Command options:
+
+```
+    <PEER_IP>
+```
+
+Examples:
+
+```
+calicoctl node bgp peer remove <PEER_IP>
+```
+
+### calicoctl node bgp peer show 
+This command
+
+
+Command options:
+
+```
+    
+```
+
+Examples:
+
+```
+calicoctl node bgp peer show 
+```

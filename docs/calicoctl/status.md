@@ -3,7 +3,7 @@
 
 This sections describes the `calicoctl status` commands.
 
-Read the [calicoctl user guide](../calicoctl.md) for a full list of calicoctl commands.
+Read the [calicoctl command line interface user guide](../calicoctl.md) for a full list of calicoctl commands.
 
 ## Displaying the help text for 'calicoctl status' commands
 
@@ -25,6 +25,4 @@ Description:
 ```
 
 ## calicoctl status commands
-
-### calicoctl status 
 

@@ -3,7 +3,7 @@
 
 This sections describes the `calicoctl pool` commands.
 
-Read the [calicoctl user guide](../calicoctl.md) for a full list of calicoctl commands.
+Read the [calicoctl command line interface user guide](../calicoctl.md) for a full list of calicoctl commands.
 
 ## Displaying the help text for 'calicoctl pool' commands
 
@@ -33,9 +33,52 @@ Options:
 
 ## calicoctl pool commands
 
-### calicoctl pool  
 
-### calicoctl pool range add <START_IP> <END_IP>  
+### calicoctl pool 
+This command
 
-### calicoctl pool show  
 
+Command options:
+
+```
+    
+```
+
+Examples:
+
+```
+calicoctl pool 
+```
+
+### calicoctl pool range add <START_IP> <END_IP> 
+This command
+
+
+Command options:
+
+```
+    <START_IP>
+    <END_IP>
+```
+
+Examples:
+
+```
+calicoctl pool range add <START_IP> <END_IP> 
+```
+
+### calicoctl pool show 
+This command
+
+
+Command options:
+
+```
+    
+```
+
+Examples:
+
+```
+calicoctl pool show 
+```

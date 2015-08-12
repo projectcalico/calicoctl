@@ -3,7 +3,7 @@
 
 This sections describes the `calicoctl profile` commands.
 
-Read the [calicoctl user guide](../calicoctl.md) for a full list of calicoctl commands.
+Read the [calicoctl command line interface user guide](../calicoctl.md) for a full list of calicoctl commands.
 
 ## Displaying the help text for 'calicoctl profile' commands
 
@@ -65,23 +65,163 @@ Examples:
 
 ## calicoctl profile commands
 
-### calicoctl profile show  
 
-### calicoctl profile add <PROFILE> 
+### calicoctl profile show 
+This command
 
-### calicoctl profile remove <PROFILE>  
 
-### calicoctl profile <PROFILE> tag show 
+Command options:
 
-### calicoctl profile <PROFILE> tag  
+```
+    
+```
 
-### calicoctl profile <PROFILE> rule add  
+Examples:
 
-### calicoctl profile <PROFILE> rule remove  
+```
+calicoctl profile show 
+```
 
-### calicoctl profile <PROFILE> rule show 
+### calicoctl profile add <PROFILE>
+This command
 
-### calicoctl profile <PROFILE> rule json 
 
-### calicoctl profile <PROFILE> rule update 
+Command options:
 
+```
+    <PROFILE>
+```
+
+Examples:
+
+```
+calicoctl profile add <PROFILE>
+```
+
+### calicoctl profile remove <PROFILE> 
+This command
+
+
+Command options:
+
+```
+    <PROFILE>
+```
+
+Examples:
+
+```
+calicoctl profile remove <PROFILE> 
+```
+
+### calicoctl profile <PROFILE> tag show
+This command
+
+
+Command options:
+
+```
+    <PROFILE>
+```
+
+Examples:
+
+```
+calicoctl profile <PROFILE> tag show
+```
+
+### calicoctl profile <PROFILE> tag 
+This command
+
+
+Command options:
+
+```
+    <PROFILE>
+```
+
+Examples:
+
+```
+calicoctl profile <PROFILE> tag 
+```
+
+### calicoctl profile <PROFILE> rule add 
+This command
+
+
+Command options:
+
+```
+    <PROFILE>
+```
+
+Examples:
+
+```
+calicoctl profile <PROFILE> rule add 
+```
+
+### calicoctl profile <PROFILE> rule remove 
+This command
+
+
+Command options:
+
+```
+    <PROFILE>
+```
+
+Examples:
+
+```
+calicoctl profile <PROFILE> rule remove 
+```
+
+### calicoctl profile <PROFILE> rule show
+This command
+
+
+Command options:
+
+```
+    <PROFILE>
+```
+
+Examples:
+
+```
+calicoctl profile <PROFILE> rule show
+```
+
+### calicoctl profile <PROFILE> rule json
+This command
+
+
+Command options:
+
+```
+    <PROFILE>
+```
+
+Examples:
+
+```
+calicoctl profile <PROFILE> rule json
+```
+
+### calicoctl profile <PROFILE> rule update
+This command
+
+
+Command options:
+
+```
+    <PROFILE>
+```
+
+Examples:
+
+```
+calicoctl profile <PROFILE> rule update
+```

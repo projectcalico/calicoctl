@@ -3,7 +3,7 @@
 
 This sections describes the `calicoctl version` commands.
 
-Read the [calicoctl user guide](../calicoctl.md) for a full list of calicoctl commands.
+Read the [calicoctl command line interface user guide](../calicoctl.md) for a full list of calicoctl commands.
 
 ## Displaying the help text for 'calicoctl version' commands
 
@@ -25,5 +25,19 @@ Description:
 
 ## calicoctl version commands
 
-### calicoctl version 
 
+### calicoctl version
+This command
+
+
+Command options:
+
+```
+    
+```
+
+Examples:
+
+```
+calicoctl version
+```
