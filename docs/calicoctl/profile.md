@@ -67,8 +67,10 @@ Examples:
 
 
 ### calicoctl profile show 
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -85,8 +87,10 @@ calicoctl profile show
 ```
 
 ### calicoctl profile add <PROFILE>
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -103,8 +107,10 @@ calicoctl profile add <PROFILE>
 ```
 
 ### calicoctl profile remove <PROFILE> 
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -121,8 +127,10 @@ calicoctl profile remove <PROFILE>
 ```
 
 ### calicoctl profile <PROFILE> tag show
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -139,8 +147,10 @@ calicoctl profile <PROFILE> tag show
 ```
 
 ### calicoctl profile <PROFILE> tag 
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -158,8 +168,10 @@ calicoctl profile <PROFILE> tag
 ```
 
 ### calicoctl profile <PROFILE> rule add 
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -194,8 +206,10 @@ calicoctl profile <PROFILE> rule add
 ```
 
 ### calicoctl profile <PROFILE> rule remove 
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -230,8 +244,10 @@ calicoctl profile <PROFILE> rule remove
 ```
 
 ### calicoctl profile <PROFILE> rule show
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -248,8 +264,10 @@ calicoctl profile <PROFILE> rule show
 ```
 
 ### calicoctl profile <PROFILE> rule json
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -266,8 +284,10 @@ calicoctl profile <PROFILE> rule json
 ```
 
 ### calicoctl profile <PROFILE> rule update
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 

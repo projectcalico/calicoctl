@@ -46,8 +46,10 @@ Options:
 
 
 ### calicoctl node 
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -69,8 +71,10 @@ calicoctl node
 ```
 
 ### calicoctl node stop 
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -87,8 +91,10 @@ calicoctl node stop
 ```
 
 ### calicoctl node bgp peer add <PEER_IP> as <AS_NUM>
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -106,8 +112,10 @@ calicoctl node bgp peer add <PEER_IP> as <AS_NUM>
 ```
 
 ### calicoctl node bgp peer remove <PEER_IP>
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 
@@ -124,8 +132,10 @@ calicoctl node bgp peer remove <PEER_IP>
 ```
 
 ### calicoctl node bgp peer show 
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 

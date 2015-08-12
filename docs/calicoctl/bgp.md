@@ -52,6 +52,8 @@ Options:
 ### calicoctl bgp peer add <PEER_IP> as <AS_NUM>
 This command is used to add a global BGP peer.
 
+The command can be run on any Calico node.
+
 Command syntax:
 
 ```
@@ -87,6 +89,8 @@ The peer is uniquely identified by the IP address it was added with.
 Removing a global peer instructs all Calico nodes in the deployment to delete 
 the peering associated with the specified peer IP address.
 
+The command can be run on any Calico node.
+
 Command syntax:
 
 ```
@@ -111,6 +115,8 @@ This command displays the current list of configured global BGP peers.
 This command does not display the connection or protocol status of the peers.
 If you want to view that information, use the [`calicoctl status`](status.md)
 command.
+
+The command can be run on any Calico node.
 
 Command syntax:
 
@@ -153,6 +159,8 @@ node-to-node BGP mesh.
 When set to true, the Calico nodes automatically create a peering with all
 other Calico nodes in the deployment.
 
+The command can be run on any Calico node.
+
 Command syntax:
 
 ```
@@ -186,6 +194,8 @@ been explicitly specified for the node.
 If any nodes are using the default AS number (i.e. it is not explicitly 
 specified), then changing the default value with the following command will
 automatically trigger the nodes to peer using the updated AS number.
+
+The command can be run on any Calico node.
 
 Command syntax:
 

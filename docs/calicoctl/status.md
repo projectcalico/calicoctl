@@ -28,8 +28,10 @@ Description:
 
 
 ### calicoctl status
-This command
 
+***DELETE AS APPROPRIATE***
+This command can be run on any Calico node.  This command must be run as root
+and must be run on the specific Calico node that you are configuring.
 
 Command syntax:
 

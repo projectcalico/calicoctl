@@ -33,7 +33,8 @@ This command allows you to verify that your host system is configured correctly
 for calicoctl to manage a Calico network.  The command may also, optionally,
 attempt to correct any issues it discovers.
 
-This command must be run as root.
+This command must be run as root, and is run on each host that will be running
+a Calico node.
 
 Command syntax:
 
