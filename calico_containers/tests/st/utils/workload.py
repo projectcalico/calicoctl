@@ -31,7 +31,7 @@ class Workload(object):
     software.
     """
     def __init__(self, host, name, image="busybox", network=None,
-                 service=None):
+                 service=None, ipv6=False):
         """
         Create the workload and detect its IPs.
 
@@ -48,6 +48,8 @@ class Workload(object):
         :param service: The name of the service to use. Set to None to have
         a random one generated.
         """
+        if ipv6 and image == "busybox":
+            print "WARNING: busybox does not support ping6 for IPv6!"
         self.host = host
         self.name = name
 
@@ -70,7 +72,8 @@ class Workload(object):
         host.execute(command)
 
         version_key = "IPAddress"
-        # TODO Use version_key = "GlobalIPv6Address" for IPv6
+        if ipv6:
+            version_key = "GlobalIPv6Address"
 
         self.ip = host.execute("docker inspect --format "
                                "'{{ .NetworkSettings.%s }}' %s" % (version_key,

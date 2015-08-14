@@ -18,8 +18,7 @@ from subprocess import check_output, CalledProcessError, STDOUT
 from sh import docker
 
 from tests.st.utils.exceptions import CommandExecError
-from tests.st.utils import utils
-from tests.st.utils.utils import retry_until_success, get_ip
+from tests.st.utils.utils import retry_until_success, get_ip, get_ip6
 from workload import Workload
 from network import DockerNetwork
 
@@ -31,7 +30,7 @@ class DockerHost(object):
     A host container which will hold workload containers to be networked by
     Calico.
     """
-    def __init__(self, name, start_calico=True, dind=True):
+    def __init__(self, name, start_calico=True, dind=True, ipv6=False):
         self.name = name
         self.dind = dind
         self.workloads = set()
@@ -46,7 +45,7 @@ class DockerHost(object):
             docker.run("--privileged", "-v", os.getcwd()+":/code", "--name",
                        self.name,
                        "-e", "DOCKER_DAEMON_ARGS="
-                       "--kv-store=consul:%s:8500" % utils.get_ip(),
+                       "--kv-store=consul:%s:8500" % get_ip(),
                        "-tid", "calico/dind")
             self.ip = docker.inspect("--format", "{{ .NetworkSettings.IPAddress }}",
                                      self.name).stdout.rstrip()
@@ -64,6 +63,8 @@ class DockerHost(object):
                          "docker load --input /code/calico_containers/busybox.tar")
         else:
             self.ip = get_ip()
+            if ipv6:
+                self.ip6 = get_ip6()
 
         if start_calico:
             self.start_calico_node()
@@ -238,12 +239,12 @@ class DockerHost(object):
         assert self._cleaned
 
     def create_workload(self, name, image="busybox", network=None,
-                        service=None):
+                        service=None, ipv6=False):
         """
         Create a workload container inside this host container.
         """
         workload = Workload(self, name, image=image, network=network,
-                            service=service)
+                            service=service, ipv6=ipv6)
         self.workloads.add(workload)
         return workload
 
