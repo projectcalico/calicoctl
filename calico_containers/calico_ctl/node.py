@@ -26,9 +26,9 @@ Description:
 Options:
   --force                   Stop the node process even if it has active endpoints.
   --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
-                                      container. Default is calico/node:latest.
+                                      container. Default is calico/node:v0.6.0.
                                       Default for Calico with libnetwork is
-                                      calico/node-libnetwork:latest.
+                                      calico/node-libnetwork:v0.1.0.
   --detach=<DETACH>         Set "true" to run Calico service as detached,
                             "false" to run in the foreground. [default: true]
   --log-dir=<LOG_DIR>       The directory for logs [default: /var/log/calico]
@@ -75,8 +75,8 @@ KUBERNETES_BINARY_URL = 'https://github.com/projectcalico/calico-kubernetes/rele
 KUBERNETES_PLUGIN_DIR = '/usr/libexec/kubernetes/kubelet-plugins/net/exec/calico/'
 KUBERNETES_PLUGIN_DIR_BACKUP = '/etc/kubelet-plugins/calico/'
 
-CALICO_DEFAULT_IMAGE = "calico/node:latest"
-LIBNETWORK_IMAGE = 'calico/node-libnetwork:latest'
+CALICO_DEFAULT_IMAGE = "calico/node:v0.6.0"
+LIBNETWORK_IMAGE = 'calico/node-libnetwork:v0.1.0'
 
 
 def validate_arguments(arguments):
