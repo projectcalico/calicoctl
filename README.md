@@ -45,6 +45,11 @@ the etcd datastore to define and apply network and security policy to the
 containers you create. Using `calicoctl`, you can provision Calico nodes, 
 endpoints, and define and manage a rich set of security policy. 
 
+## Deployment Requirements
+Calico is extremely versatile - as previously mentioned, it runs its all  core processes in a docker container, truly allowing it to "run anywhere". However, besides a working docker installation, there are a few requirements each host must fulfill in order to succesfully deploy Calico, e.g. IPv4 Forwarding enabled, and ip6_tables kernel modules. These requirements can easily be checked by downloading the calicoctl binary onto the host system and running `calicoctl checksystem`. This will report any configuration issues with the host, and any other dependency failures.
+
+Additionally, containers across multi-host Calico deployments may not be able to function properly if you, the user, do not have control of the networking fabric between containers. In most production deployments, users typically have control of the interconnecting networking system. However, users who want to test calico with a cloud provider where they do not have control can use the `--ipip` flag, which will encapsulate IP packets with IP-over-IP, allowing containers to communicate across hosts.
+
 ## Getting Started
 
 To get started using, we recommend running through one or more of the available 
