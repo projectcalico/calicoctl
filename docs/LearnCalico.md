@@ -16,7 +16,7 @@ The repository provides:
   (responsible for IP routing and ACL programming) and a BGP agent (BIRD) used
   for distributing routes between hosts.
 - A command line tool `calicoctl` used for starting a `calico/node` container,
-  configuring Calico poicy, adding and removing containers in a Calico network via 
+  configuring Calico policy, adding and removing containers in a Calico network via 
   orchestration tools, and managing certain network and diagnostic administration.
 
 A number of additional GitHub repositories provide library functionality and
@@ -36,7 +36,7 @@ orchestration tools that are utilized by calicoctl.  These are listed below:
 
  - [calico-kubernetes](https://github.com/projectcalico/calico-kubernetes): 
    Implements the Calico plugin for running Calico with kubernetes 
-   orchestrator.  This is used when the calico node is started with the 
+   orchestrator.  This is used when the Calico node is started with the 
    `--kubernetes` flag.
 
 
@@ -68,7 +68,7 @@ working with containers:
    policies, and BGP peering.
 
    
- - **Orchestrator (Docker, kubernetes, etc)**: Manages container creation/deletion 
+ - **Orchestrator (Docker, Kubernetes, etc)**: Manages container creation/deletion 
    and runs the calico/node docker image as a container.
 
 
@@ -152,7 +152,7 @@ mesh using the default global AS number.
 There are currently no workload containers running and Felix is standing by, 
 waiting for changes in the etcd datastore.
 
-![calicoctl node](diagrams/calicoctl_node.svg)
+![calicoctl node](diagrams/calicoctl_node.png)
 
 calico-docker allows you to configure other BGP topologies as well, such as a 
 mesh of route reflectors or per-node BGP.  Visit the calico-docker [BGP 
@@ -170,7 +170,7 @@ The workloads do not have connectivity between one another, but they can access
 the internet via the docker bridge interface. None of the Calico processes have 
 performed any new actions at this point.
 
-![docker run](diagrams/docker_run.svg)
+![docker run](diagrams/docker_run.png)
 
 **Note**: Docker's libnetwork plugin works a bit differently than this 
 default-networking example. When using Calico with libnetwork, this step and the 
@@ -187,14 +187,15 @@ The workloads are added to Calico networking by calling:
 
 The `<container_id>` can be either the name of the container or the container's 
 workload id.  The `<ip_address>` must be an address that falls within a 
-configured IP pool.  The default IPv4 pool for calico is `192.168.0.0/16`. 
+configured IP pool.  The default IP pools for Calico are `192.168.0.0/16` for 
+IPv4 and `fd80:24e2:f998:72d6::/64` for IPv6 (we'll use IPv4 in this example). 
 You can view pools by running `calicoctl pool show`. To add a new pool, run 
 `calicoctl pool add <cidr>` or `calicoctl pool range add <start_ip> <end_ip>`. 
 Etcd stores pools as `/calico/v1/ipam/v4/pool/192.168.0.0-16`, where assigned 
 IPs in a pool are stored as: `/calico/v1/ipam/v4/assignment/192.168.0.0-16/192.168.1.1`.
 
 When a workload is added to Calico, the `calicoctl` tool checks the etcd 
-datastore to confirm that the ip address passed in falls under a previously 
+datastore to confirm that the IP address passed in falls under a previously 
 defined IP pool. It then creates a veth pair on the host for the new endpoint, 
 storing one end in the host namespace and moving the other end into the 
 container.  After successfully creating the veth pair, `calicoctl` saves the 
@@ -205,10 +206,16 @@ to the etcd datastore as:
     # KEY
     /calico/v1/host/Host1/workload/docker/<workload_id>/endpoint/<endpoint_id>
     
-    #VALUE
-    {"ipv6_gateway": null, "state": "active", "name": "<host_veth_name>", 
-     "ipv4_gateway": "<host_ip>", "ipv6_nets": [], "profile_ids": [], 
-     "mac": "<container_mac>", "ipv4_nets": ["<assigned_ip>"]}
+    # VALUE
+    {
+     "ipv6_gateway": null,
+     "state": "active",
+     "name": "<host_veth_name>",
+     "ipv4_gateway": "<host_ip>",
+     "ipv6_nets": [], "profile_ids": [],
+     "mac": "<container_mac>",
+     "ipv4_nets": ["<assigned_ip>"]
+    }
 
 Felix reads the changes in etcd. Felix then programs routes to the container's 
 IP address via the host's veth.  Felix also, by default, programs ACLs into the 
@@ -228,7 +235,7 @@ network as part of the container creation.  In these cases, the orchestrator plu
 the same function as the calicoctl commands for explicitly adding the container to the Calico network.
 -->
 
-![calicoctl container add](diagrams/calicoctl_add.svg)
+![calicoctl container add](diagrams/container_add.png)
 
 ### Create a Profile
 <!--
@@ -296,7 +303,7 @@ rules:
     Outbound rules:
        1 allow
 
-![calicoctl profile add](diagrams/calicoctl_profile.svg)
+![calicoctl profile add](diagrams/profile_add.png)
 
 ### Update Containers to use the Profile
 
@@ -330,7 +337,7 @@ from the containers to any destination.
 Now that the ip tables have been configured to allow specific incoming traffic, 
 connectivity has been achieved between endpoints!
 
-![calicoctl container set profile](diagrams/profile_set.svg)
+![calicoctl container set profile](diagrams/set_profile.png)
 
 <!-- 
 - etcd adds profile id to list of profiles associated with the endpoint_id
