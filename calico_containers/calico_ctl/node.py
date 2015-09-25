@@ -26,9 +26,9 @@ Description:
 Options:
   --force                   Stop the node process even if it has active endpoints.
   --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
-                                      container. Default is calico/node:latest.
+                                      container. Default is calico/node:v0.7.0.
                                       Default for Calico with libnetwork is
-                                      calico/node-libnetwork:latest.
+                                      calico/node-libnetwork:v0.3.0.
   --detach=<DETACH>         Set "true" to run Calico service as detached,
                             "false" to run in the foreground. [default: true]
   --log-dir=<LOG_DIR>       The directory for logs [default: /var/log/calico]
@@ -82,8 +82,8 @@ RKT_BINARY_URL = 'https://github.com/projectcalico/calico-rkt/releases/download/
 RKT_PLUGIN_DIR = '/usr/lib/rkt/plugins/net/'
 RKT_PLUGIN_DIR_BACKUP = '/etc/rkt-plugins/calico/'
 
-CALICO_DEFAULT_IMAGE = "calico/node:latest"
-LIBNETWORK_IMAGE = 'calico/node-libnetwork:latest'
+CALICO_DEFAULT_IMAGE = "calico/node:v0.7.0"
+LIBNETWORK_IMAGE = 'calico/node-libnetwork:v0.3.0'
 
 
 def validate_arguments(arguments):
