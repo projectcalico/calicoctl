@@ -22,6 +22,7 @@ from pycalico.datastore import ETCD_AUTHORITY_ENV
 from utils import DOCKER_VERSION
 from utils import print_paragraph
 from utils import validate_hostname_port
+import logging
 
 # If an ETCD_AUTHORITY is specified in the environment variables, validate
 # it.
@@ -33,7 +34,8 @@ if etcd_authority and not validate_hostname_port(etcd_authority):
     sys.exit(1)
 
 client = IPAMClient()
-
+logger = logging.getLogger("pycalico")
+logger.addHandler(logging.NullHandler())
 _base_url=os.getenv("DOCKER_HOST", "unix://var/run/docker.sock")
 docker_client = docker.Client(version=DOCKER_VERSION,
                                base_url=_base_url)
