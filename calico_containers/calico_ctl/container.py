@@ -1,9 +1,9 @@
 """
 Usage:
-  calicoctl container <CONTAINER> ip (add|remove) <IP> [--interface=<INTERFACE>]
+  calicoctl container <CONTAINER> ip (add|remove) [<IP>] [--interface=<INTERFACE>]
   calicoctl container <CONTAINER> endpoint show
   calicoctl container <CONTAINER> profile (append|remove|set) [<PROFILES>...]
-  calicoctl container add <CONTAINER> <IP> [--interface=<INTERFACE>]
+  calicoctl container add <CONTAINER> [<IP>] [--interface=<INTERFACE>]
   calicoctl container remove <CONTAINER>
 
 Description:
@@ -13,6 +13,9 @@ Description:
 Options:
   --interface=<INTERFACE>  The name to give to the interface in the container
                            [default: eth1]
+  <IP>                     The IP address. Can be either an IPv4 or IPv6 address.
+                           If it's not present then an IPv4 address will be
+                           allocated automatically.
 """
 import os
 import sys
@@ -195,10 +198,26 @@ def container_add(container_id, ip, interface):
               container_id
         sys.exit(1)
 
-    # Check the IP is in the allocation pool.  If it isn't, BIRD won't export
-    # it.
-    ip = IPAddress(ip)
-    pool = get_pool_or_exit(ip)
+    if not ip:
+        # If required, allocate the IP address.
+        (v4_address_list, _) = client.auto_assign_ips(1, 0, None, None)
+
+        if not v4_address_list or len(v4_address_list) != 1:
+            print "Failed to allocate an address"
+            sys.exit(1)
+        else:
+            ip = v4_address_list[0]
+            print "Allocated IP address %s" % ip
+    else:
+        # Check the IP is in the allocation pool.  If it isn't, BIRD won't export
+        # it.
+        ip = IPAddress(ip)
+        pool = get_pool_or_exit(ip)
+
+        # Assign the IP
+        if not client.assign_address(pool, ip):
+            print "IP address is already assigned in pool %s " % pool
+            sys.exit(1)
 
     # The next hop IPs for this host are stored in etcd.
     next_hops = client.get_default_next_hops(hostname)
@@ -206,11 +225,6 @@ def container_add(container_id, ip, interface):
         next_hops[ip.version]
     except KeyError:
         print "This node is not configured for IPv%d." % ip.version
-        sys.exit(1)
-
-    # Assign the IP
-    if not client.assign_address(pool, ip):
-        print "IP address is already assigned in pool %s " % pool
         sys.exit(1)
 
     # Get the next hop for the IP address.
@@ -309,17 +323,14 @@ def container_ip_add(container_id, ip, interface):
     Add an IP address to an existing Calico networked container.
 
     :param container_id: The namespace path or container_id of the container.
-    :param ip: The IP to add
+    :param ip: The IP to add. None indicates that the address should be auto
+               allocated.
     :param interface: The name of the interface in the container.
 
     :return: None
     """
-    address = IPAddress(ip)
-
     # The netns manipulations must be done as root.
     enforce_root()
-
-    pool = get_pool_or_exit(address)
 
     if container_id.startswith("/") and os.path.exists(container_id):
         # The ID is a path. Don't do any docker lookups
@@ -349,9 +360,21 @@ def container_ip_add(container_id, ip, interface):
 
     # From here, this method starts having side effects. If something
     # fails then at least try to leave the system in a clean state.
-    if not client.assign_address(pool, address):
-        print "IP address is already assigned in pool %s " % pool
-        sys.exit(1)
+    if ip:
+        address = IPAddress(ip)
+        pool = get_pool_or_exit(address)
+        if not client.assign_address(pool, address):
+            print "IP address is already assigned in pool %s " % pool
+            sys.exit(1)
+    else:
+        (v4_address_list, _) = client.auto_assign_ips(1, 0, None, None)
+
+        if not v4_address_list or len(v4_address_list) != 1:
+            print "Failed to allocate an address"
+            sys.exit(1)
+        else:
+            address = v4_address_list[0]
+            pool = get_pool_or_exit(address)
 
     try:
         if address.version == 4:
@@ -360,7 +383,7 @@ def container_ip_add(container_id, ip, interface):
             endpoint.ipv6_nets.add(IPNetwork(address))
         client.update_endpoint(endpoint)
     except (KeyError, ValueError):
-        client.unassign_address(pool, ip)
+        client.unassign_address(pool, address)
         print "Error updating datastore. Aborting."
         sys.exit(1)
 
@@ -373,10 +396,10 @@ def container_ip_add(container_id, ip, interface):
         else:
             endpoint.ipv6_nets.remove(IPNetwork(address))
         client.update_endpoint(endpoint)
-        client.unassign_address(pool, ip)
+        client.unassign_address(pool, address)
         sys.exit(1)
 
-    print "IP %s added to %s" % (ip, container_id)
+    print "IP %s added to %s" % (address, container_id)
 
 
 def container_ip_remove(container_id, ip, interface):
