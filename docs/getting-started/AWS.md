@@ -137,7 +137,6 @@ There are three demonstration options depending on whether you are running with 
 default Docker networking.  Select the appropriate cloud-config based on the demonstration option.
 
 - [User Data for Docker default networking](default-networking/cloud-config)
-- [User Data for libnetwork](libnetwork/cloud-config)
 - [User Data for Powerstrip](powerstrip/cloud-config)
   
 A different file is used for the two servers.
@@ -202,7 +201,6 @@ You can now run through the standard Calico demonstration.  There are three demo
 whether you are running with libnetwork, Powerstrip or the default Docker networking.
 
 - [demonstration with Docker default networking](default-networking/Demonstration.md)
-- [demonstration with libnetwork](libnetwork/Demonstration.md) 
 - [demonstration with Powerstrip](powerstrip/Demonstration.md)
 
 # (Optional) Enabling traffic from the internet to containers

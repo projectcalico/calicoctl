@@ -2,8 +2,9 @@
 # vi: set ft=ruby :
 
 # The version of calico to install
-calico_docker_ver = "v0.7.0"
-calico_libnetwork_ver = "v0.3.0"
+calicoctl_ver = "v0.8.0"
+calico_node_ver = calicoctl_ver
+calico_libnetwork_ver = "v0.4.0"
 
 # Size of the cluster created by Vagrant
 num_instances=2
@@ -39,7 +40,8 @@ Vagrant.configure(2) do |config|
       # The docker provisioner installs docker.
       host.vm.provision :docker, images: [
           "busybox:latest",
-          "calico/node-libnetwork:#{calico_libnetwork_ver}"
+          "calico/node-libnetwork:#{calico_libnetwork_ver}",
+          "calico/node:#{calico_node_ver}"
       ]
 
       # Replace docker with known good version.
@@ -48,7 +50,7 @@ Vagrant.configure(2) do |config|
       # binary we have stored that is stable and usable by Ubuntu.
       # DO NOT CHANGE THIS VERSION, unless you explicitly and successfully test a new
       # Docker binary with the Ubuntu vagrant libnetwork demonstration.
-      host.vm.provision :shell, inline: "wget -qO /usr/bin/docker https://github.com/projectcalico/calico-docker/releases/download/v0.5.4/docker", :privileged => true
+      host.vm.provision :shell, inline: "wget -qO /usr/bin/docker https://master.dockerproject.org/linux/amd64/docker", :privileged => true
 
       # Docker uses Consul for clustering. Install just on the first host.
       if i == 1
@@ -63,13 +65,13 @@ Vagrant.configure(2) do |config|
       end
 
       # Set Docker to use consul for multihost.
-      host.vm.provision :shell, inline: %Q|sudo sh -c 'echo "DOCKER_OPTS=\"--kv-store=consul:#{primary_ip}:8500\"" > /etc/default/docker'|
+      host.vm.provision :shell, inline: %Q|sudo sh -c 'echo "DOCKER_OPTS=\"--cluster-store=consul://#{primary_ip}:8500\"" > /etc/default/docker'|
 
       # Restart docker.
       host.vm.provision :shell, inline: "sudo start docker"
 
       # download calicoctl.
-      host.vm.provision :shell, inline: "wget -qO /usr/local/bin/calicoctl https://github.com/projectcalico/calico-docker/releases/download/#{calico_docker_ver}/calicoctl", :privileged => true
+      host.vm.provision :shell, inline: "wget -qO /usr/local/bin/calicoctl https://github.com/projectcalico/calico-docker/releases/download/#{calicoctl_ver}/calicoctl", :privileged => true
 
       host.vm.provision :shell, inline: "chmod +x /usr/local/bin/calicoctl"
 
@@ -80,7 +82,7 @@ Vagrant.configure(2) do |config|
       if i == 1
         host.vm.provision :docker do |d|
           d.run "quay.io/coreos/etcd",
-            args: "--net=host",
+            args: "--net=host --name=etcd",
             cmd: "--advertise-client-urls http://#{primary_ip}:4001 "\
                  "--listen-client-urls http://0.0.0.0:4001 "
         end
