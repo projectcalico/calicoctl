@@ -30,5 +30,5 @@ In rkt deployments, Calico will allocate an available IP within the specified su
 
 ## Configuration
 
-* Configure your network with a `*.conf` file in `/etc/rkt/net.d/`. For more information on how to write a `*.conf` file, please [refer to the calico-cni repo](https://github.com/projectcalico/calico-cni).
+* Configure your network with a `*.conf` file in `/etc/cni/net.d/`. For more information on how to write a `*.conf` file, please [refer to the calico-cni repo](https://github.com/projectcalico/calico-cni).
 * When you spin up a container with `rkt run`, specify the `--private-net=<NETWORK_NAME>` flag, or in the above case, `--private-net=example_net`, to apply the network config and enable Calico Networking
