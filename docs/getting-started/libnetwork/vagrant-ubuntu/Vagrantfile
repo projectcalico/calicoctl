@@ -44,12 +44,8 @@ Vagrant.configure(2) do |config|
           "calico/node:#{calico_node_ver}"
       ]
 
-      # Replace docker with known good version.
+      # Replace docker with the latest master build
       host.vm.provision :shell, inline: "stop docker", :privileged => true
-      # The version number v0.5.4 is explicitly set here because it is the latest Docker
-      # binary we have stored that is stable and usable by Ubuntu.
-      # DO NOT CHANGE THIS VERSION, unless you explicitly and successfully test a new
-      # Docker binary with the Ubuntu vagrant libnetwork demonstration.
       host.vm.provision :shell, inline: "wget -qO /usr/bin/docker https://master.dockerproject.org/linux/amd64/docker", :privileged => true
 
       # Docker uses Consul for clustering. Install just on the first host.
