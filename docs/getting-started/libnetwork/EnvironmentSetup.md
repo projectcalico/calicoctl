@@ -19,11 +19,13 @@ The worked examples below allow you to quickly set up a virtualized environment
 using Vagrant or a cloud service - be sure to follow the appropriate instructions
 for using libnetwork.
 
-- [Vagrant install with CoreOS](../VagrantCoreOS.md)
 - [Vagrant install with Ubuntu](../VagrantUbuntu.md)
 - [Amazon Web Services (AWS)](../AWS.md)
 - [Google Compute Engine (GCE)](../GCE.md)
 - [DigitalOcean](../DigitalOcean.md)
+
+CoreOS versions for Vagrant, Amazon Web Services, Google Compute Engine and
+Digital Ocean will be implemented soon.
 
 # Manual Setup
 
@@ -37,9 +39,9 @@ The servers also need:
 - A specific Docker release to be running - since the Calico agent is packaged
 as a Docker container, and the libnetwork features required are currently
 only available in an experimental release.
-- A consul server used for clustering Docker.
+- A consul server used for clustering Docker
 - An Etcd cluster - which Calico uses for coordinating state between the nodes.
-- The `calicoctl` to be placed in the `$PATH`.
+- The `calicoctl` binary to be placed in the system `$PATH`.
 
 ## Requirements
 
@@ -50,7 +52,7 @@ We recommend configuring the hosts with the hostname `calico-01` and
 `calico-02`.  The demonstration will refer to these hostnames.
 
 They must have the following software installed:
-- The experimental release of [Docker](#experimental-docker)
+- [Docker 1.9 or greater](#Docker)
 - etcd installed and available on each node: [etcd documentation][etcd]
 - `ipset`, `iptables`, and `ip6tables` kernel modules.
 - A [consul server](#consul) running on calico-01
@@ -68,17 +70,16 @@ permissions.  For example:
 You can start consul using the following:
 
     ./consul agent -server -bootstrap-expect 1 -data-dir /tmp/consul -client <IPV4>
-    
-where <IPV4> is replaced with your appropriate IPv4 address.  This address 
+
+where <IPV4> is replaced with your appropriate IPv4 address.  This address
 should be accessible by both servers.
 
-### Experimental Docker
+### Docker
 
-Follow the instructions for installing the 
-[experimental channel of Docker][experimental-docker-git].
+Follow the instructions for installing
+[Docker][docker].
  
-Docker's experimental channel is still moving fast and some of its 
-features are not yet fully stable.
+A version of 1.9 or greater is required.
 
 ### Docker permissions
 
@@ -110,7 +111,7 @@ You can optionally preload this image to avoid the delay when you run
 `calicoctl node --libnetwork` the first time.  For example, to pull the latest 
 released version, run
 
-    docker pull calico/node-libnetwork:v0.3.0
+    docker pull calico/node-libnetwork:v0.4.0
 
 ## Final checks
 
@@ -120,17 +121,17 @@ you'll need to adjust the demonstration instructions accordingly.
 Check that the hosts have IP addresses assigned, and that your hosts can ping
 one another.
 
-Check that you are running with the experimental version of Docker.
+Check that you are running with a suitable version of Docker.
 
     docker version
    
-It should indicate a version of 1.8.0 and experimental.
+It should indicate a version of 1.9 or greater.
 
 You should also verify each host can access etcd.  The following will return 
-an error if etcd is not available.
+the current etcd version if etcd is available.
 
-    etcdctl ls /
+    curl -L http://127.0.0.1:4001/version
     
 [etcd]: https://coreos.com/etcd/docs/latest/
 [calico-releases]: https://github.com/projectcalico/calico-docker/releases/
-[experimental-docker-git]: https://github.com/docker/docker/tree/master/experimental
+[docker]: https://docs.docker.com/installation/

@@ -51,7 +51,6 @@ There are two demonstration options depending on whether you are running with li
 default Docker networking.  Select the appropriate cloud-config based on the demonstration option.
 
 - [User Data for Docker default networking](default-networking/cloud-config) 
-- [User Data for libnetwork](libnetwork/cloud-config)  
   
 A different file is used for the two servers.    
 - For the first server, use the `user-data-first`
@@ -97,7 +96,6 @@ You can now run through the standard Calico demonstration.  There are two demons
 whether you are running with libnetwork or the default Docker networking.
 
 - [demonstration with Docker default networking](default-networking/Demonstration.md) 
-- [demonstration with libnetwork](libnetwork/Demonstration.md) 
 
 ## (Optional) Enabling traffic from the internet to containers
 Services running on a Calico host's containers in GCE can be exposed to the internet.  Since the containers have IP 
