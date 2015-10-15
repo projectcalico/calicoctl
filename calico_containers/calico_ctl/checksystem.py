@@ -101,9 +101,9 @@ def _check_kernel_modules(fix):
     :return: True if kernel modules are ok.
     """
     modprobe = sh.Command._create('modprobe')
-    ip6tables = sh.Command._create('ip6tables')
     system_ok = True
     try:
+        ip6tables = sh.Command._create('ip6tables')
         ip6tables("-L")
     except:
         if fix:
