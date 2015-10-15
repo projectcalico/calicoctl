@@ -30,7 +30,7 @@ Options:
   --force                   Stop the node process even if it has active
                             endpoints.
   --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
-                            container. [default: calico/node:latest]
+                            container. [default: calico/node:v0.8.0]
   --detach=<DETACH>         Set "true" to run Calico service as detached,
                             "false" to run in the foreground.  When using
                             libnetwork, this may not be set to "false".
@@ -46,7 +46,7 @@ Options:
   --libnetwork              Use the libnetwork plugin.
   --libnetwork-image=<LIBNETWORK_IMAGE_NAME>    Docker image to use for
                             Calico's libnetwork driver.
-                            [default: calico/node-libnetwork:latest]
+                            [default: calico/node-libnetwork:v0.5.0]
 """
 import sys
 import os
