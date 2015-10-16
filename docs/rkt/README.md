@@ -4,31 +4,41 @@ This guide will describe the configuration required to use the Calico network pl
 
 ## Using rkt Plugins
 
-The CoreOS [documentation](https://github.com/coreos/rkt/blob/master/Documentation/networking.md) for Network Plugins will walk you through the basics of setting up networking in rkt.
+This guide will assume you already have a working rkt deployment.
+
+If not, the CoreOS [documentation](https://github.com/coreos/rkt/blob/master/Documentation/networking.md) for Network Plugins will walk you through the basics of setting up networking in rkt.
 
 ## Requirements
 
-* A working [etcd](https://github.com/coreos/etcd) service
-* A build of `calicoctl` after [projectcalico/calico-docker@10460cc405](https://github.com/projectcalico/calico-docker/commit/10460cc405f5aa4bc9ccb1fcaf8760088ae1ebf9)
-* Though Calico is capable of networking rkt containers, our core software is distributed and deployed in a [docker container](https://github.com/projectcalico/calico-docker/blob/master/docs/getting-started/default-networking/Demonstration.md). While we work on native rkt support, you will need to run Calico in Docker before starting your rkt containers. This can be easily done wtih `calicoctl` by running the following command: `sudo calicoctl node --ip=<IP> --rkt`
+In order to run Calico in your rkt deployment, you will need:
+* A working [etcd](https://github.com/coreos/etcd) service.
+* A build of `calicoctl` after [v0.7.0](https://github.com/projectcalico/calico-docker/releases).
+* A working [docker](https://github.com/docker/docker) service. (Although Calico is capable of networking rkt containers, our core software is distributed and deployed in a [docker container](https://github.com/projectcalico/calico-docker/blob/master/docs/getting-started/default-networking/Demonstration.md). While we work on native rkt support, you will need to run Calico in Docker before starting your rkt containers.)
 
 ## Installing
 
-* Running `calicoctl node` with the `--rkt` flag will start the calico/node process and automatically install the plugin for you. Alternatively you can download the [plugin binary](https://github.com/projectcalico/calico-rkt/releases/) yourself and move it to the rkt plugin directory.
-```
-chmod +x calico_rkt
-sudo mv -f ./calico_rkt /usr/lib/rkt/plugins/net/calico
-```
+We recommend installing the plugin using the following `calicoctl` command. This will run our Docker agent, as well as install the plugin.
 
-## Building the plugin locally
+```calicoctl node --ip=<IP> --rkt```
 
-To build the Calico Networking Plugin for rkt locally, clone this repository and run `make`.  This will build the binary, as well as run the unit tests.  To just build the binary, with no tests, run `make binary`.  To only run the unit tests, simply run `make ut`.
-
-## Networking Behavior
-
-In rkt deployments, Calico will allocate an available IP within the specified subnet pool and enforce the default Calico networking rules on containers. The default behavior is to allow traffic only from other containers in the network. For each network with a unique `"name"` parameter (as shown above), Calico will create a single profile that will be applied to each container added to that network.
+Including the `--rkt` command downloads the rkt plugin and moves it to the correct location. You can manually install the plugin by downloading one of our releases in the [calico-cni](https://github.com/projectcalico/calico-cni/releases) repo
 
 ## Configuration
 
-* Configure your network with a `*.conf` file in `/etc/cni/net.d/`. For more information on how to write a `*.conf` file, please [refer to the calico-cni repo](https://github.com/projectcalico/calico-cni).
-* When you spin up a container with `rkt run`, specify the `--private-net=<NETWORK_NAME>` flag, or in the above case, `--private-net=example_net`, to apply the network config and enable Calico Networking
+Configure your network with a `*.conf` file. 
+* The default file location is `/etc/rkt/net.d/`. If you choose to put the net configuration file in a different location, be sure to specify the path with the environment variable `CNI_PATH`. 
+* Each network should have their own configuration file and must be given a unique `"name"`.
+* To call the Calico plugin, set the `"type"` to `"calico"`.
+* The `"ipam"` section must include the key `"type": "calico-ipam"` and specify an IP Pool in `"subnet"`. An IP address will be allocated from the indicated `"subnet"` pool.
+```
+# 10-calico.conf
+
+{
+    "name": "example_net",
+    "type": "calico",
+    "ipam": {
+        "type": "calico-ipam",
+        "subnet": "10.1.0.0/16"
+    }
+}
+```
