@@ -61,6 +61,7 @@ from pycalico.datastore_datatypes import BGPPeer
 from pycalico.datastore import (ETCD_AUTHORITY_ENV,
                                 ETCD_AUTHORITY_DEFAULT)
 from pycalico.util import get_host_ips
+from pycalico.netns import remove_veth
 from netaddr import IPAddress
 from prettytable import PrettyTable
 
@@ -419,12 +420,21 @@ def _setup_ip_forwarding():
 
 
 def node_stop(force):
-    num_endpoints = len(client.get_endpoints(hostname=hostname,
-                                             orchestrator_id=DOCKER_ORCHESTRATOR_ID))
-    if num_endpoints and not force:
+    endpoints = client.get_endpoints(hostname=hostname,
+                                     orchestrator_id=DOCKER_ORCHESTRATOR_ID)
+    if endpoints and not force:
         print "Current host has active endpoints so can't be stopped." \
               " Force with --force"
         return
+
+    ip_set = set()
+    for endpoint in endpoints:
+        for net in endpoint.ipv4_nets | endpoint.ipv6_nets:
+            ip_set.add(net.ip)
+        remove_veth(endpoint.name)
+        client.remove_endpoint(endpoint)
+
+    client.release_ips(ip_set)
 
     client.remove_host(hostname)
     try:
