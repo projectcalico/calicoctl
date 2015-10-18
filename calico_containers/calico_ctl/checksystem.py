@@ -19,7 +19,7 @@ Description:
   Check for incompatibilities between calico and the host system
 
 Options:
-  --fix  Allow calicoctl to attempt to correct any issues detected on the host
+  --fix  Deprecated: checksystem no longer fixes issues that it detects
   --libnetwork  Check for the correct docker version for libnetwork deployments
 """
 import sys
@@ -28,8 +28,9 @@ import sh
 
 import docker
 from requests import ConnectionError
+from subprocess32 import check_output
 
-from utils import DOCKER_VERSION, DOCKER_LIBNETWORK_VERSION
+from utils import DOCKER_VERSION, DOCKER_LIBNETWORK_VERSION, REQUIRED_MODULES
 from utils import enforce_root
 from connectors import docker_client
 
@@ -44,33 +45,26 @@ def checksystem(arguments):
     this file's docstring with docopt
     :return: None
     """
-    check_system(fix=arguments["--fix"],
-                 quit_if_error=True,
+    if arguments["--fix"]:
+        print >> sys.stderr, "WARNING: Deprecated flag --fix:" \
+                             "checksystem no longer fixes detected issues"
+    check_system(quit_if_error=True,
                  libnetwork=arguments["--libnetwork"])
 
-
-def check_system(fix=False, quit_if_error=False, libnetwork=False):
+def check_system(quit_if_error=False, libnetwork=False):
     """
-    Checks that the system is setup correctly. fix==True, this command will
-    attempt to fix any issues it encounters. If any fixes fail, it will
-    exit(1). Fix will automatically be set to True if the user specifies --fix
-    at the command line.
+    Checks that the system is setup correctly.
 
-    :param fix: if True, try to fix any system dependency issues that are
-    detected.
     :param quit_if_error: if True, quit with error code 1 if any issues are
-    detected, or if any fixes are unsuccesful.
+    detected.
     :return: True if all system dependencies are in the proper state, False if
     they are not. This function will sys.exit(1) instead of returning false if
     quit_if_error == True
     """
-    # modprobe requires root privileges.
-    enforce_root()
-
-    kernel_ok = _check_kernel_modules(fix)
+    modules_ok = _check_modules()
     docker_ok = _check_docker_version(libnetwork)
 
-    system_ok = kernel_ok and docker_ok
+    system_ok = modules_ok and docker_ok
 
     if quit_if_error and not system_ok:
         sys.exit(1)
@@ -78,13 +72,43 @@ def check_system(fix=False, quit_if_error=False, libnetwork=False):
     return system_ok
 
 
-def module_loaded(module):
+def modules_available(modules):
     """
-    Checks if the specified kernel-module has been loaded.
-    :param module: Name of the module to check
-    :return: True if the module is loaded, False if not.
+    Checks if the specified modules are available.
+
+    :param modules: A list of of module names to check
+    :return: True if all the module is available, False if not.
     """
-    return any(s.startswith(module) for s in open("/proc/modules").readlines())
+    # For the modules we're expecting to look for, the mainline case is that
+    # they will be loadable modules. Therefore, loadable modules are checked
+    # first and builtins are checked only if needed.
+    kernel_version = check_output(["uname", "-r"]).rstrip()
+    modules_loadable_path = "/lib/modules/%s/modules.dep" % kernel_version
+    available_lines = open(modules_loadable_path).readlines()
+    all_available = check_module_lines(available_lines, modules)
+
+    if not all_available:
+        modules_builtin_path = "/lib/modules/%s/modules.builtin" % kernel_version
+        builtin_lines = open(modules_builtin_path).readlines()
+        all_available = check_module_lines(builtin_lines, modules)
+
+    return all_available
+
+
+def check_module_lines(lines, modules):
+    """
+    Check if a normalized module name appears in the given lines
+    :param lines: THe lines to check
+    :param modules: A list of module names - e.g. ["xt_set", "ip6_tables"]
+    :return: True if the module appears. False otherwise
+    """
+    all_present = True
+    for module in modules:
+        full_module = "/%s.ko" % module
+        all_present= any(full_module in s for s in lines)
+        if not all_present:
+            break
+    return all_present
 
 
 def normalize_version(version):
@@ -97,43 +121,19 @@ def normalize_version(version):
     return [int(x) for x in re.sub(r'(\.0+)*$', '', version).split(".")]
 
 
-def _check_kernel_modules(fix):
+def _check_modules():
     """
     Check system kernel modules
-    :param fix: if True, try to fix any system dependency issues that are
-    detected.
     :return: True if kernel modules are ok.
     """
-    modprobe = sh.Command._create('modprobe')
-    ip6tables = sh.Command._create('ip6tables')
     system_ok = True
-    try:
-        ip6tables("-L")
-    except:
-        if fix:
-            try:
-                modprobe('ip6_tables')
-            except sh.ErrorReturnCode:
-                print >> sys.stderr, "ERROR: Could not enable ip6_tables."
-                system_ok = False
-        else:
-            print >> sys.stderr, "WARNING: Unable to detect the ip6_tables " \
-                                 "module. Load with `modprobe ip6_tables`"
-            system_ok = False
 
-    for module in ["xt_set"]:
-        if not module_loaded(module):
-            if fix:
-                try:
-                    modprobe(module)
-                except sh.ErrorReturnCode:
-                    print >> sys.stderr, "ERROR: Could not enable %s." % module
-                    system_ok = False
-            else:
-                print >> sys.stderr, "WARNING: Unable to detect the %s " \
-                                     "module. Load with `modprobe %s`" % \
-                                     (module, module)
-                system_ok = False
+    for module in REQUIRED_MODULES:
+        # Check modules individually to get a better error message
+        if not modules_available([module]):
+            print >> sys.stderr, "WARNING: Unable to detect the %s " \
+                                 "module." % module
+            system_ok = False
     return system_ok
 
 
