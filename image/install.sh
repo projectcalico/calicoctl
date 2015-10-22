@@ -17,5 +17,5 @@ apt-get install -qy \
 curl -L https://github.com/projectcalico/confd/releases/download/v0.10.0-scale/confd -o confd
 chmod +x confd
 
-pip install git+https://github.com/projectcalico/calico.git
+pip install git+https://github.com/projectcalico/calico.git@1.1.0
 
