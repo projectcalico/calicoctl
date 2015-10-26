@@ -23,7 +23,7 @@ from calico_ctl.bgp import *
 from calico_ctl import container
 from calico_ctl import utils
 from pycalico.datastore_datatypes import Endpoint, IPPool
-
+from pycalico.util import get_hostname
 
 class TestContainer(unittest.TestCase):
 
@@ -80,12 +80,12 @@ class TestContainer(unittest.TestCase):
         m_enforce_root.assert_called_once_with()
         m_get_container_info_or_exit.assert_called_once_with('container1')
         m_client.get_endpoint.assert_called_once_with(
-            hostname=utils.hostname,
+            hostname=get_hostname(),
             orchestrator_id=utils.DOCKER_ORCHESTRATOR_ID,
             workload_id=666
         )
         m_get_pool_or_exit.assert_called_once_with(IPAddress('1.1.1.1'))
-        m_client.get_default_next_hops.assert_called_once_with(utils.hostname)
+        m_client.get_default_next_hops.assert_called_once_with(get_hostname())
 
         # Check an enpoint object was returned
         self.assertTrue(isinstance(test_return, Endpoint))
@@ -259,14 +259,14 @@ class TestContainer(unittest.TestCase):
         # Assert
         m_enforce_root.assert_called_once_with()
         m_client.get_endpoints.assert_called_once_with(
-            hostname=utils.hostname,
+            hostname=get_hostname(),
             orchestrator_id=utils.DOCKER_ORCHESTRATOR_ID,
             workload_id='container1'
         )
         self.assertEqual(m_client.release_ips.call_count, 1)
         m_netns.remove_veth.assert_called_once_with("eth1234")
         m_client.remove_workload.assert_called_once_with(
-            utils.hostname, utils.DOCKER_ORCHESTRATOR_ID, "container1")
+            get_hostname(), utils.DOCKER_ORCHESTRATOR_ID, "container1")
 
     @patch('calico_ctl.container.enforce_root', autospec=True)
     @patch('calico_ctl.container.get_workload_id', autospec=True)
@@ -289,10 +289,10 @@ class TestContainer(unittest.TestCase):
         self.assertEqual(m_client.release_ips.call_count, 0)
         self.assertEqual(m_netns.remove_veth.call_count, 0)
         self.assertEqual(m_client.get_endpoints.call_args_list,
-                         [call(hostname=utils.hostname, workload_id='container1', orchestrator_id='docker'),
-                          call(hostname=utils.hostname, workload_id='long_id', orchestrator_id='docker')])
+                         [call(hostname=get_hostname(), workload_id='container1', orchestrator_id='docker'),
+                          call(hostname=get_hostname(), workload_id='long_id', orchestrator_id='docker')])
         m_client.remove_workload.assert_called_once_with(
-            utils.hostname, utils.DOCKER_ORCHESTRATOR_ID, "long_id")
+            get_hostname(), utils.DOCKER_ORCHESTRATOR_ID, "long_id")
 
 
     @patch('calico_ctl.container.enforce_root', autospec=True)
@@ -317,10 +317,10 @@ class TestContainer(unittest.TestCase):
         self.assertEqual(m_client.release_ips.call_count, 0)
         self.assertEqual(m_netns.remove_veth.call_count, 0)
         self.assertEqual(m_client.get_endpoints.call_args_list,
-                         [call(hostname=utils.hostname, workload_id='container1', orchestrator_id='docker'),
-                          call(hostname=utils.hostname, workload_id='long_id', orchestrator_id='docker')])
+                         [call(hostname=get_hostname(), workload_id='container1', orchestrator_id='docker'),
+                          call(hostname=get_hostname(), workload_id='long_id', orchestrator_id='docker')])
         m_client.remove_workload.assert_called_once_with(
-            utils.hostname, utils.DOCKER_ORCHESTRATOR_ID, "long_id")
+            get_hostname(), utils.DOCKER_ORCHESTRATOR_ID, "long_id")
 
 
     @patch('calico_ctl.container.enforce_root', autospec=True)
@@ -363,7 +363,7 @@ class TestContainer(unittest.TestCase):
         m_get_pool_or_exit.assert_called_once_with(ip_addr)
         m_get_container_info_or_exit.assert_called_once_with(container_name)
         m_client.get_endpoint.assert_called_once_with(
-            hostname=utils.hostname,
+            hostname=get_hostname(),
             orchestrator_id=utils.DOCKER_ORCHESTRATOR_ID,
             workload_id=666
         )
@@ -418,7 +418,7 @@ class TestContainer(unittest.TestCase):
         m_get_pool_or_exit.assert_called_once_with(ip_addr)
         m_get_container_info_or_exit.assert_called_once_with(container_name)
         m_client.get_endpoint.assert_called_once_with(
-            hostname=utils.hostname,
+            hostname=get_hostname(),
             orchestrator_id=utils.DOCKER_ORCHESTRATOR_ID,
             workload_id=666
         )
@@ -473,7 +473,7 @@ class TestContainer(unittest.TestCase):
         m_get_pool_or_exit.assert_called_once_with(ip_addr)
         m_get_container_info_or_exit.assert_called_once_with(container_name)
         m_client.get_endpoint.assert_called_once_with(
-            hostname=utils.hostname,
+            hostname=get_hostname(),
             orchestrator_id=utils.DOCKER_ORCHESTRATOR_ID,
             workload_id=666
         )
@@ -528,7 +528,7 @@ class TestContainer(unittest.TestCase):
         m_get_pool_or_exit.assert_called_once_with(ip_addr)
         m_get_container_info_or_exit.assert_called_once_with(container_name)
         m_client.get_endpoint.assert_called_once_with(
-            hostname=utils.hostname,
+            hostname=get_hostname(),
             orchestrator_id=utils.DOCKER_ORCHESTRATOR_ID,
             workload_id=666
         )
@@ -586,7 +586,7 @@ class TestContainer(unittest.TestCase):
         m_ippool.assert_called_once_with(ip)
         m_get_container_info_or_exit.assert_called_once_with(container_name)
         m_client.get_endpoint.assert_called_once_with(
-            hostname=utils.hostname,
+            hostname=get_hostname(),
             orchestrator_id=utils.DOCKER_ORCHESTRATOR_ID,
             workload_id=666
         )
@@ -982,7 +982,7 @@ class TestContainer(unittest.TestCase):
         m_get_pool_or_exit.assert_called_once_with(IPAddress(ip))
         m_get_container_info_or_exit.assert_called_once_with(container_name)
         m_client.get_endpoint.assert_called_once_with(
-            hostname=utils.hostname,
+            hostname=get_hostname(),
             orchestrator_id=utils.DOCKER_ORCHESTRATOR_ID,
             workload_id=666
         )
@@ -1030,7 +1030,7 @@ class TestContainer(unittest.TestCase):
         m_get_pool_or_exit.assert_called_once_with(IPAddress(ip))
         m_get_container_info_or_exit.assert_called_once_with(container_name)
         m_client.get_endpoint.assert_called_once_with(
-            hostname=utils.hostname,
+            hostname=get_hostname(),
             orchestrator_id=utils.DOCKER_ORCHESTRATOR_ID,
             workload_id=666
         )

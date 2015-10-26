@@ -47,7 +47,7 @@ class TestDiags(unittest.TestCase):
         m_tempfile.mkdtemp.return_value = '/temp/dir'
         date_today = '2015-7-24_09_05_00'
         m_datetime.strftime.return_value = date_today
-        m_socket.return_value = 'hostname'
+        m_socket.return_value = 'test'
         m_sh_command_return = Mock(autospec=True)
         m_sh_command.return_value = m_sh_command_return
         m_datetime.today.return_value = 'diags-07242015_090500.tar.gz'
@@ -110,7 +110,7 @@ class TestDiags(unittest.TestCase):
     @patch('os.path.isdir', autospec=True)
     @patch('calico_ctl.diags.datetime', autospec=True)
     @patch('__builtin__.open', autospec=True)
-    @patch('socket.gethostname', autospec=True)
+    @patch('calico_ctl.diags.get_hostname', autospec=True)
     @patch('sh.Command._create', spec=Command)
     @patch('calico_ctl.diags.copytree', autospec=True)
     @patch('tarfile.open', autospec=True)
@@ -118,7 +118,7 @@ class TestDiags(unittest.TestCase):
     @patch('calico_ctl.diags.subprocess', autospec=True)
     def test_save_diags_exceptions(
             self, m_subprocess, m_DatastoreClient, m_tarfile_open, m_copytree,
-            m_sh_command, m_socket, m_open, m_datetime, m_os_path_isdir,
+            m_sh_command, m_gethostname, m_open, m_datetime, m_os_path_isdir,
             m_os_mkdir, m_tempfile):
         """
         Test all exception cases save_diags method in calicoctl diags command
@@ -131,7 +131,7 @@ class TestDiags(unittest.TestCase):
         m_tempfile.mkdtemp.return_value = '/temp/dir'
         date_today = '2015-7-24_09_05_00'
         m_datetime.strftime.return_value = date_today
-        m_socket.return_value = 'hostname'
+        m_gethostname.return_value = 'hostname'
         m_sh_command_return = Mock(autospec=True)
         m_sh_command.return_value = m_sh_command_return
         m_sh_command.side_effect= CommandNotFound

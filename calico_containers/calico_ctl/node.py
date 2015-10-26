@@ -66,11 +66,10 @@ from pycalico.datastore_datatypes import IPPool
 from pycalico.datastore_datatypes import BGPPeer
 from pycalico.datastore import (ETCD_AUTHORITY_ENV,
                                 ETCD_AUTHORITY_DEFAULT)
-from pycalico.util import get_host_ips
+from pycalico.util import get_host_ips, get_hostname
 from connectors import client
 from connectors import docker_client
 from utils import DOCKER_ORCHESTRATOR_ID, REQUIRED_MODULES
-from utils import hostname
 from utils import print_paragraph
 from utils import get_container_ipv_from_arguments
 from utils import validate_ip, validate_asn, convert_asn_to_asplain
@@ -232,6 +231,8 @@ def node_start(node_image, log_dir, ip, ip6, as_num, detach,
     # Print warnings for any known system issues before continuing
     check_system(quit_if_error=False, libnetwork=libnetwork_image)
 
+    print "Using Hostname: ", get_hostname()
+
     # We will always want to setup IP forwarding
     _setup_ip_forwarding()
 
@@ -288,7 +289,7 @@ def node_start(node_image, log_dir, ip, ip6, as_num, detach,
         client.add_ip_pool(6, DEFAULT_IPV6_POOL)
 
     client.ensure_global_config()
-    client.create_host(hostname, ip, ip6, as_num)
+    client.create_host(get_hostname(), ip, ip6, as_num)
 
     # Always try to convert the address(hostname) to an IP. This is a noop if
     # the address is already an IP address.  Note that the format of the authority
@@ -326,7 +327,7 @@ def _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach):
             raise
 
     environment = [
-        "HOSTNAME=%s" % hostname,
+        "HOSTNAME=%s" % get_hostname(),
         "IP=%s" % ip,
         "IP6=%s" % (ip6 or ""),
         "ETCD_AUTHORITY=%s" % etcd_authority,  # etcd host:port
@@ -382,7 +383,7 @@ def _start_libnetwork_container(etcd_authority, libnetwork_image):
             raise
 
     environment = [
-        "HOSTNAME=%s" % hostname,
+        "HOSTNAME=%s" % get_hostname(),
         "ETCD_AUTHORITY=%s" % etcd_authority   # etcd host:port
     ]
 
@@ -437,14 +438,14 @@ def _setup_ip_forwarding():
 
 
 def node_stop(force):
-    num_endpoints = len(client.get_endpoints(hostname=hostname,
+    num_endpoints = len(client.get_endpoints(hostname=get_hostname(),
                                              orchestrator_id=DOCKER_ORCHESTRATOR_ID))
     if num_endpoints and not force:
         print "Current host has active endpoints so can't be stopped." \
               " Force with --force"
         return
 
-    client.remove_host(hostname)
+    client.remove_host(get_hostname())
     try:
         docker_client.stop("calico-node")
     except docker.errors.APIError as err:
@@ -470,7 +471,7 @@ def node_bgppeer_add(ip, version, as_num):
     """
     address = IPAddress(ip)
     peer = BGPPeer(address, as_num)
-    client.add_bgp_peer(version, peer, hostname=hostname)
+    client.add_bgp_peer(version, peer, hostname=get_hostname())
 
 
 def node_bgppeer_remove(ip, version):
@@ -483,7 +484,7 @@ def node_bgppeer_remove(ip, version):
     """
     address = IPAddress(ip)
     try:
-        client.remove_bgp_peer(version, address, hostname=hostname)
+        client.remove_bgp_peer(version, address, hostname=get_hostname())
     except KeyError:
         print "%s is not a configured peer for this node." % address
         sys.exit(1)
@@ -496,7 +497,7 @@ def node_bgppeer_show(version):
     Print a list of the BGP Peers for this node.
     """
     assert version in (4, 6)
-    peers = client.get_bgp_peers(version, hostname=hostname)
+    peers = client.get_bgp_peers(version, hostname=get_hostname())
     if peers:
         heading = "Node specific IPv%s BGP Peer" % version
         x = PrettyTable([heading, "AS Num"], sortby=heading)
@@ -540,7 +541,7 @@ def warn_if_hostname_conflict(ip):
         # Otherwise, check if another host with the same hostname
         # is already configured
         try:
-            current_ipv4, _ = client.get_host_bgp_ips(hostname)
+            current_ipv4, _ = client.get_host_bgp_ips(get_hostname())
         except KeyError:
             # No other machine has registered configuration under this hostname.
             # This must be a new host with a unique hostname, which is the
@@ -553,7 +554,7 @@ def warn_if_hostname_conflict(ip):
                                 "have a unique hostname. If this is your first time "
                                 "running 'calicoctl node' on this host, ensure that "
                                 "another host is not already using the "
-                                "same hostname." % (hostname, ip))
+                                "same hostname." % (get_hostname(), ip))
 
 
 def _find_or_pull_node_image(image_name):

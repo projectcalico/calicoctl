@@ -202,7 +202,7 @@ class TestNode(unittest.TestCase):
 
         # Set up variables used in assertion statements
         environment = [
-            "HOSTNAME=%s" % node.hostname,
+            "HOSTNAME=%s" % node.get_hostname(),
             "IP=%s" % ip_2,
             "IP6=%s" % ip6,
             "ETCD_AUTHORITY=%s" % ETCD_AUTHORITY_DEFAULT,  # etcd host:port
@@ -228,7 +228,7 @@ class TestNode(unittest.TestCase):
         m_client.get_ip_pools.assert_has_calls([call(4), call(6)])
         m_client.ensure_global_config.assert_called_once_with()
         m_client.create_host.assert_called_once_with(
-            node.hostname, ip_2, ip6, as_num
+            node.get_hostname(), ip_2, ip6, as_num
         )
 
         url = node.KUBERNETES_BINARY_URL % kube_plugin_version
@@ -473,7 +473,7 @@ class TestNode(unittest.TestCase):
         node.node_stop(True)
 
         # Assert
-        m_client.remove_host.assert_called_once_with(node.hostname)
+        m_client.remove_host.assert_called_once_with(node.get_hostname())
         m_docker_client.stop.assert_has_calls([call('calico-node'),
                                                call('calico-libnetwork')])
 

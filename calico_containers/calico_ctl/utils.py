@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import socket
 import os
 import sys
 import textwrap
@@ -26,7 +25,6 @@ DOCKER_LIBNETWORK_VERSION = "1.21"
 DOCKER_ORCHESTRATOR_ID = "docker"
 NAMESPACE_ORCHESTRATOR_ID = "namespace"
 REQUIRED_MODULES = ["xt_set", "ip6_tables"]
-hostname = socket.gethostname()
 
 
 def enforce_root():
