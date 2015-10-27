@@ -9,10 +9,10 @@
 [![IRC Channel](https://img.shields.io/badge/irc-%23calico-blue.svg)](https://kiwiirc.com/client/irc.freenode.net/#calico)
 <!--- end of master only -->
 
-# Calico on Docker
-As well as providing networking for OpenStack VMs, Calico can provide
-networking for containers in a Docker environment.  Each container gets its 
-own IP and fine grain security policy.  In addition, Calico can be deployed 
+# Calico on Containers
+As well as providing networking for OpenStack VMs, Calico can provide 
+networking for containerized environments. Each container gets its 
+own IP and fine grain security policy. In addition, Calico can be deployed 
 without encapsulation or overlays to provide high performance at massive 
 scales.  For more information on Project Calico see 
 http://www.projectcalico.org/learn/.
@@ -34,20 +34,20 @@ Use the links below to navigate to other documents within the `calico-docker`
 repository.
 
 Calico Readings:
-  - [Calico Deployment Requirements](TODO.md)
-  - [Calico Libraries and Repositories](TODO.md)
+  - [Calico Repository Structure](docs/RepoStructure.md)
+  - [Calico Components](docs/Components.md)
   - [Building Calico](docs/Building.md)
   - [etcd Data Model Structure](docs/etcdStructure)
   - [FAQ](docs/FAQ.md)
   - [Troubleshooting](docs/Troubleshooting.md)
 
 Calico Advanced Readings:
+  - [Orchestrator Integration](docs/Orchestrators.md)
   - [`calicoctl` Reference Guide](docs/calicoctl.md)
   - [Advanced Network Policy](docs/AdvancedNetworkPolicy.md)
   - [BGP Configuration](docs/bgp.md)
   - [Logging Configuration](docs/logging.md)
-  - [Anatomy of `calico/node`](TODO.md)
-  - [Lifecycle of a Calico-Networked Docker Container](TODO.md) 
+  - [Lifecycle of a Calico-Networked Docker Container](DockerContainerLifecycle.md) 
 
 Calico Demonstrations:
   - [Docker Default Networking](docs/getting-started/default-networking/Demonstration.md)

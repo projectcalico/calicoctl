@@ -1,140 +1,10 @@
-# Calico networking in a containerized environment
+# Lifecycle of a Calico Networked Docker Container
+TODO: THIS DOC PROVIDES A LOW-LEVEL LOOK AT WHAT HAPPENS IN CALICO WHEN 
+CONTAINERS ARE CREATED/ADDED TO CALICO/ASSIGNED A PROFILE.
 
-This GitHub repository is the entry point for running a Calico network in a
-containerized environment.
+TODO: MAKE NOTE TO ADD DOCS FOR OTHER ORCHESTRATOR PLUGINS??
 
-The `calico-docker` repository allows users to easily configure endpoints and 
-network policy with the `calicoctl` command line tool. `calico-docker` utilizes 
-the Calico Felix process from within a container to interface with a host's 
-Linux kernel, providing configurable connectivity between containers in a 
-network and the outside world.
-
-
-The repository provides:
-
-- `calico/node`: the Docker image used to run the Calico Felix agent 
-  (responsible for IP routing and ACL programming) and a BGP agent (BIRD) 
-  for distributing routes between hosts.
-- `calicoctl`: the command line tool used for starting a `calico/node` container,
-  configuring Calico policy, adding and removing containers in a Calico network via 
-  orchestration tools, and managing certain network and diagnostic administration.
-
-A number of additional GitHub repositories provide library functionality and
-orchestration tools that are utilized by `calicoctl`.  These are listed below:
-
-### Calico Libraries
- - [calico](https://github.com/projectcalico/calico): Implements the Felix 
-   process that interfaces with the Linux kernel to configure routes and ACLs 
-   that control network policy connectivity.  Felix runs as a process within 
-   the `calico/node` container.
-
-
- - [libcalico](https://github.com/projectcalico/libcalico): Contains code for 
-   assigning IP addresses to endpoints, interfacing with Linux namespaces, and 
-   storing data in the etcd datastore.  The libcalico library is used by 
-   `calicoctl`.
-
-### Orchestration Plugins
- - [calico-kubernetes](https://github.com/projectcalico/calico-kubernetes): 
-   Implements the Calico plugin for running Calico with the 
-   [kubernetes](https://github.com/kubernetes/kubernetes) orchestrator. This is 
-   used when the Calico node is started with the `--kubernetes` flag.
-
-
- - [calico-mesos](https://github.com/projectcalico/calico-mesos): Implements 
-   the Calico plugin for running Calico with the [mesos](https://github.com/apache/mesos) 
-   orchestrator.
-
-
- - [calico-rkt](https://github.com/projectcalico/calico-rkt): Implements the 
-   Calico plugin for running Calico with the [rkt](https://github.com/coreos/rkt) 
-   orchestrator. This is used when the Calico node is started with the `--rkt` 
-   flag.
-
-
- - [libnetwork-plugin](https://github.com/projectcalico/libnetwork-plugin): 
-   Implements Calico plugin support for the Docker libnetwork networking plugin. 
-   This is used when the Calico node is started with the `--libnetwork` flag.
-
-
-## Components of Basic Calico Container Deployments
-
-All basic Calico deployments require the following components:
-
- - **`calico/node`**: Docker image that runs the underlying calico processes (see 
-   ***Anatomy of calico/node*** below). The `calico/node` image must be deployed 
-   on each host in the network.
-
-
- - **`calicoctl`**: The command line tool responsible for configuring all of the 
-   networking components within Calico, including endpoint addresses, security 
-   policies, and BGP peering.
-
-   
- - **Orchestrator (Docker, Kubernetes, etc)**: Manages container creation/deletion 
-   and runs the `calico/node` Docker image as a container.
-
-
- - [**etcd**](https://github.com/coreos/etcd): Datastore used by Calico to store 
-   endpoint, bgp, and policy data that can be accessed by all of the hosts.
-
-
-<!--
-*** Short description of how example below has etcd running on 
- single host where the host is the ETCD_AUTHORITY. Other hosts access data by 
- connecting to the host over port 2379.***
-
-***TODO: Link to more detailed reading about Calico networking?***
--->
-
-## Anatomy of calico/node
-
-`calico/node` can be regarded as a helper container that bundles together the 
-various components required for Calico networking.  The image utilizes the 
-following processes:
-
-<!--
-Diagram?: [Host [calico/node [Felix] [BIRD] [confd]] [etcd] [kernel [iptables] [FIB] [RIB]]]
-
-- Felix has line to kernel for configuring kernel
-
-- confd has dotted line to etcd for reading etcd, and line to BIRD for template config
-
-- BIRD has dotted line to kernel for reading routes, and in/out line going outside
-  of the host for BGP (sending/receiving routes to/from peers)
-
-- etcd is DB shape
--->
-
-#### Calico Felix agent
-<!--
-***TODO: Link to more detailed documentation.***
-***TODO: Reword some of this, as per Rob's email.***
--->
-
-The Felix daemon is the heart of Calico networking.  Felix's primary job is to 
-program routes and ACL's on a workload host to provide desired connectivity to 
-and from workloads on the host.  Felix programs 
-endpoint routes of workloads into the host's Linux kernel FIB table so that packets 
-to endpoints arrive on the host and then forward to the correct endpoint.
-
-Felix also programs interface information to the kernel for outgoing endpoint 
-traffic. Felix instructs the host to respond to ARPs for workloads with the 
-MAC address of the host.
-
-#### BIRD internet routing daemon
-
-BIRD is an open source BGP client that is used to exchange routing information 
-between hosts.  The routes that Felix programs into the kernel for endpoints 
-are picked up by BIRD and distributed to BGP peers on the network.
-
-#### confd templating engine 
-
-The confd templating engine watches the etcd datastore for any changes to BGP 
-configuration.  Confd dynamically generates BIRD configuration files based on 
-these changes, then triggers BIRD to load the new files.
-
-## Lifecycle of a Calico Networked Container
+TODO: SPLIT EACH SECTION UP (background, user actions, system responses)
 
 Below is an example of what happens behind the scenes when you start Calico on 
 two hosts, create and add containers to Calico, and configure endpoints with 
@@ -176,6 +46,8 @@ The workloads do not have connectivity between one another, but they can access
 the internet via the Docker bridge interface. None of the Calico processes have 
 performed any new actions at this point.
 
+TODO: DOCUMENT --net=none for simplicity (what we have in our demo)
+
 ![docker run](diagrams/docker_run.png)
 
 **Note**: Docker's libnetwork plugin works a bit differently than this 
@@ -189,7 +61,9 @@ what happens under the covers.
 
 The workloads are added to Calico networking by calling:
 
-    calicoctl container add <container_id> <ip_address>
+    calicoctl container add <container_id> <ip>
+
+TODO: UPDATE TO BE AWARE OF DIFFERENT OPTIONS FOR <IP>
 
 The `<container_id>` can be either the name of the container or the container's 
 workload id.  The `<ip_address>` must be an address that falls within a 
@@ -200,7 +74,7 @@ You can view pools by running `calicoctl pool show`. To add a new pool, run
 Etcd stores pools as `/calico/v1/ipam/v4/pool/192.168.0.0-16`, where assigned 
 IPs in a pool are stored as: `/calico/v1/ipam/v4/assignment/192.168.0.0-16/192.168.1.1`.
 
-When a workload is added to Calico, the `calicoctl` tool checks the etcd 
+When a workload is added to Calico using `calicoctl`, the tool checks the etcd 
 datastore to confirm that the IP address passed in falls under a previously 
 defined IP pool. It then creates a veth pair on the host for the new endpoint, 
 storing one end in the host namespace and moving the other end into the 
