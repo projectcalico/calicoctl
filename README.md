@@ -29,39 +29,6 @@ We welcome questions/comments/feedback (and pull requests).
 * For Calico-on-Docker specific issues, please [raise issues][raise-issues] on 
 GitHub.
 
-# Contents
-Use the links below to navigate to other documents within the `calico-docker` 
-repository.
-
-Calico Readings:
-  - [Calico Repository Structure](docs/RepoStructure.md)
-  - [Calico Components](docs/Components.md)
-  - [Building Calico](docs/Building.md)
-  - [etcd Data Model Structure](docs/etcdStructure)
-  - [FAQ](docs/FAQ.md)
-  - [Troubleshooting](docs/Troubleshooting.md)
-
-Calico Advanced Readings:
-  - [Orchestrator Integration](docs/Orchestrators.md)
-  - [`calicoctl` Reference Guide](docs/calicoctl.md)
-  - [Advanced Network Policy](docs/AdvancedNetworkPolicy.md)
-  - [BGP Configuration](docs/bgp.md)
-  - [Logging Configuration](docs/logging.md)
-  - [Lifecycle of a Calico-Networked Docker Container](DockerContainerLifecycle.md) 
-
-Calico Demonstrations:
-  - [Docker Default Networking](docs/getting-started/default-networking/Demonstration.md)
-  - [Docker libnetwork](docs/getting-started/default-networking/Demonstration.md)
-
-Calico with Cloud Services:
-  - [AWS](docs/getting-started/AWS.md)
-  - [GCE](docs/getting-started/GCE.md)
-  - [DigitalOcean](docs/getting-started/DigitalOcean.md)
-
-Calico Vagrant Installs:
-  - [CoreOS](docs/getting-started/VagrantCoreOS.md)
-  - [Ubuntu](docs/getting-started/VagrantUbuntu.md)
-
 ## How does it work?
 
 Calico provides a highly scalable networking solution for connecting data 
@@ -90,8 +57,10 @@ endpoints, and define and manage a rich set of security policy.
 
 ## Getting Started
 
-To get started using, we recommend running through one or more of the available 
-[demonstrations](#demonstrations) described below.
+TODO: ADD LINK TO [GETTING STARTED](docs/getting-started/README.md)
+
+To get started using Calico, we recommend running through one or more of the 
+available [demonstrations](#demonstrations) described below.
 
 If you would like to get involved writing code for calico-docker, or if you 
 need to build binaries specific to your OS, checkout out the 
