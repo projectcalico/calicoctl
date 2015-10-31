@@ -57,17 +57,6 @@ endpoints, and define and manage a rich set of security policy.
 
 ## Getting Started
 
-TODO: ADD LINK TO [GETTING STARTED](docs/getting-started/README.md)
-
-To get started using Calico, we recommend running through one or more of the 
-available [demonstrations](#demonstrations) described below.
-
-If you would like to get involved writing code for calico-docker, or if you 
-need to build binaries specific to your OS, checkout out the 
-[Building and testing guide](docs/Building.md).
-
-### Demonstrations
-
 Worked examples are available for demonstrating Calico networking with the 
 following different networking options:
 
@@ -85,29 +74,31 @@ We also provide the following additional demonstration:
 - [Calico and Kubernetes](docs/kubernetes/README.md)
 - [Calico and Mesos](docs/mesos/README.md)
 
+If you would like to get involved writing code for calico-docker, or if you 
+need to build binaries specific to your OS, checkout out the 
+[Building and testing guide](docs/Building.md).
 
-### Networking options
+The Calico documentation provides information for both Calico users and 
+developers.
 
-#### Docker default networking
-
-This uses Docker's standard networking infrastructure, requiring you to 
-explicitly add a created container into a Calico network.
-
-This is compatible with all Docker versions from 1.6 onwards.
-
-#### Docker with libnetwork
-
-Docker's native [libnetwork network driver][libnetwork] is available in the 
-Docker 1.9 release currently undergoing development.
-
-Setup of the libnetwork environment is a little more involved since it requires
-the current master (1.9.dev) builds of Docker, and the use of etcd as a
-datastore for Docker clustering.
-
-## FAQ 
-For more information on what you can do with Calico, please visit the 
-[frequently asked questions](docs/FAQ.md) page. 
-
+  - **Learn how to configure Calico in a deployment**
+    - [BGP Configuration](docs/bgp.md)
+    - [Logging Configuration](docs/logging.md)
+    - [Advanced Network Policy](docs/AdvancedNetworkPolicy.md)
+    - [External Connectivity](docs/ExternalConnectivity) for hosts on their own 
+      Layer 2 segment
+    - [`calicoctl` Reference Guide](docs/calicoctl.md)
+  - **Learn how to build and use Calico in a lower level integration**
+    - [Building Calico](docs/Building.md)
+    - [Orchestrator Integration](docs/Orchestrators.md)
+  - **Learn how Calico works under the covers**
+    - [Calico Repository Structure](docs/RepoStructure.md)
+    - [etcd Data Model Structure](docs/etcdStructure)
+    - [Calico Components](docs/Components.md)
+    - [Lifecycle of a Calico-Networked Docker Container](docs/DockerContainerLifecycle.md)
+  - **FAQ and Troubleshooting**
+    - [FAQ](docs/FAQ.md)
+    - [Troubleshooting](docs/Troubleshooting.md)
 
 [libnetwork]: https://github.com/docker/libnetwork
 [raise-issues]: https://github.com/projectcalico/calico-docker/issues/new
