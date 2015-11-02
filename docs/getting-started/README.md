@@ -1,40 +1,6 @@
 # Getting Started with Calico
 
-## Components of Basic Calico Container Deployments
-
-All basic Calico deployments require the following components:
-
- - **`calico/node`**: Docker image that runs the underlying calico processes (see 
-   ***Anatomy of calico/node*** below). The `calico/node` image must be deployed 
-   on each host in the network.
-
-
- - **`calicoctl`**: The command line tool responsible for configuring all of the 
-   networking components within Calico, including endpoint addresses, security 
-   policies, and BGP peering.
-
-
- - **Orchestrator (Docker, Kubernetes, etc)**: Manages container creation/deletion 
-   and runs the `calico/node` Docker image as a container. (See the [Calico 
-   Orchestrators page](./Orchestrators.md) for details on integration)
-
-
- - [**etcd**](https://github.com/coreos/etcd): Datastore used by Calico to store 
-   endpoint, bgp, and policy data that can be accessed by all of the hosts.
-
-<!--
-*** Short description of how example below has etcd running on 
- single host where the host is the ETCD_AUTHORITY. Other hosts access data by 
- connecting to the host over port 2379.***
-
-***TODO: Link to more detailed reading about Calico networking?***
--->
-
 ## Networking options
-
-With each of these tutorials we provide details for running the demonstration 
-using manual setup on your own servers, or with a quick set-up in a virtualized
-environment using Vagrant, or a number of cloud services.
 
 Worked examples are available for demonstrating Calico networking with the 
 following different networking options.
@@ -75,8 +41,10 @@ you:
 
 Alternatively you can configure your Calico components manually using the 
 Environment Setup guides for [libnetwork](libnetwork/EnvironmentSetup.md) and 
-[Docker default networking](default-networking/EnvironmentSetup.md).
-
+[Docker default networking](default-networking/EnvironmentSetup.md).  
+Check out the [Calico Components page](../Components.md) for details on the 
+basic requirements for a Calico deployment and information about the 
+`calico/node` container networking backbone.
 
 ## Demonstrations
 

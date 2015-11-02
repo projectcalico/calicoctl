@@ -1,6 +1,4 @@
 # Calico Components
-TODO: THIS DOC PROVIDES INFORMATION ABOUT THE COMPONENTS THAT MAKE UP A CALICO 
-CLUSTER USING CONTAINERS.
 
 ## Components of Basic Calico Container Deployments
 
@@ -10,27 +8,16 @@ All basic Calico deployments require the following components:
    ***Anatomy of calico/node*** below). The `calico/node` image must be deployed 
    on each host in the network.
 
-
  - **`calicoctl`**: The command line tool responsible for configuring all of the 
    networking components within Calico, including endpoint addresses, security 
    policies, and BGP peering.
 
-   
  - **Orchestrator (Docker, Kubernetes, etc)**: Manages container creation/deletion 
    and runs the `calico/node` Docker image as a container. (See the [Calico 
    Orchestrators page](./Orchestrators.md) for details on integration)
 
-
  - [**etcd**](https://github.com/coreos/etcd): Datastore used by Calico to store 
    endpoint, bgp, and policy data that can be accessed by all of the hosts.
-
-<!--
-*** Short description of how example below has etcd running on 
- single host where the host is the ETCD_AUTHORITY. Other hosts access data by 
- connecting to the host over port 2379.***
-
-***TODO: Link to more detailed reading about Calico networking?***
--->
 
 ## Anatomy of calico/node
 
@@ -38,24 +25,7 @@ All basic Calico deployments require the following components:
 various components required for Calico networking.  The image utilizes the 
 following processes:
 
-<!--
-Diagram?: [Host [calico/node [Felix] [BIRD] [confd]] [etcd] [kernel [iptables] [FIB] [RIB]]]
-
-- Felix has line to kernel for configuring kernel
-
-- confd has dotted line to etcd for reading etcd, and line to BIRD for template config
-
-- BIRD has dotted line to kernel for reading routes, and in/out line going outside
-  of the host for BGP (sending/receiving routes to/from peers)
-
-- etcd is DB shape
--->
-
 #### Calico Felix agent
-<!--
-***TODO: Link to more detailed documentation.***
-***TODO: Reword some of this, as per Rob's email.***
--->
 
 The Felix daemon is the heart of Calico networking.  Felix's primary job is to 
 program routes and ACL's on a workload host to provide desired connectivity to 
@@ -81,3 +51,8 @@ configuration.  Confd dynamically generates BIRD configuration files based on
 these changes, then triggers BIRD to load the new files.  Confd also watches 
 IPAM information to filter exported routes and handle route aggregation.
 
+## In Practice
+
+For a detailed look at how each component works when adding Docker containers 
+to Calico networking, check out the [Lifecycle of a Docker Default Container]
+(./DockerContainerLifecycle.md) page.
