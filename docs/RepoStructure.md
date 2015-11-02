@@ -1,6 +1,12 @@
+<!--- master only -->
+> ![warning](../images/warning.png) This document applies to the HEAD of the calico-docker source tree.
+>
+> View the calico-docker documentation for the latest release [here](https://github.com/projectcalico/calico-docker/blob/v0.9.0/README.md).
+<!--- else
+> You are viewing the calico-docker documentation for release **release**.
+<!--- end of master only -->
+
 # Calico Repositories
-TODO: THIS DOC WILL BE USED TO EXPLAIN THE REPOSITORY STRUCTURE OF CALICO IN A 
-CONTAINERIZED ENVIRONMENT.
 
 A number of GitHub repositories provide library functionality and
 orchestration tools that are utilized by Calico.  This repository provides:
@@ -27,8 +33,9 @@ are listed below.
    `calicoctl`.
 
 ## Calico Orchestrator Integration Plugins
-TODO: There are several integrations available for Calico in a containerized 
-environment....
+There are several integrations available for Calico in a containerized 
+environment.  The repositories below hold the plugin code for these 
+integrations.
 
  - [calico-kubernetes](https://github.com/projectcalico/calico-kubernetes): 
    Implements the Calico plugin for running Calico with the 
@@ -51,5 +58,5 @@ environment....
    Implements Calico plugin support for the Docker libnetwork networking plugin. 
    This is used when the Calico node is started with the `--libnetwork` flag.
 
-TODO: For more information on these orchestrators and how to integrate Calico with 
-your orchestrator, visit the [Calico Orchestrators document page](./Orchestrators.md).
+For more information on how to integrate Calico with your orchestrator, visit 
+the [Calico Orchestrators documentation page](./Orchestrators.md).

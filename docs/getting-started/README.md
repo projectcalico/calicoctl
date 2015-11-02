@@ -1,3 +1,11 @@
+<!--- master only -->
+> ![warning](../images/warning.png) This document applies to the HEAD of the calico-docker source tree.
+>
+> View the calico-docker documentation for the latest release [here](https://github.com/projectcalico/calico-docker/blob/v0.9.0/README.md).
+<!--- else
+> You are viewing the calico-docker documentation for release **release**.
+<!--- end of master only -->
+
 # Getting Started with Calico
 
 ## Networking options
@@ -53,7 +61,6 @@ demonstrations below:
   - [Docker Default Networking](default-networking/Demonstration.md)
     - For IPv6, use the [Docker Default IPv6 guide](default-networking/DemonstrationIPv6.md)
   - [Docker libnetwork](libnetwork/Demonstration.md)
-    - For IPv6, use the [libnetwork IPv6 guide](libnetwork/DemonstrationIPv6.md)
 
 ## Orchestrator Integrations
 
