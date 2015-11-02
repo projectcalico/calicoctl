@@ -69,13 +69,18 @@ With each of these tutorials we provide details for running the demonstration
 using manual setup on your own servers, a quick set-up in a virtualized
 environment using Vagrant, or a number of cloud services.
 
-We recommend using one of our quick set-up guides to start, such as the [Vagrant Ubuntu](docs/VagrantUbuntu.md) 
-or [Vagrant CoreOS](docs/VagrantCoreos.md) guides for local installs or the 
-[GCE](docs/GCE.md), [AWS](docs/AWS.md) or [DigitalOcean](docs/DigitcalOcean.md) 
-guides for Calico with cloud services.
+We recommend using one of our quick set-up guides to start, such as:
 
-Also check out the [Calico Kubernetes integration](kubernetes/README.me) to 
-learn how to configure Calico with the Kubernetes Orchestrator.
+  - [Vagrant Ubuntu](docs/getting-started/VagrantUbuntu.md) or 
+    [Vagrant CoreOS](docs/getting-started/VagrantCoreos.md) for local installs 
+    with VirtualBox
+  - [GCE](docs/getting-started/GCE.md), [AWS](docs/getting-started/AWS.md) or 
+    [DigitalOcean](docs/getting-started/DigitcalOcean.md) for Calico with cloud 
+    services.
+
+We also provide the following additional demonstrations with orchestrators: 
+- [Calico and Kubernetes](docs/kubernetes/README.md)
+- [Calico and Mesos](docs/mesos/README.md)
 
 ## Documenation
 The Calico documentation provides information for both Calico users and 
