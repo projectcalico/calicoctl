@@ -64,9 +64,10 @@ demonstrations below:
 
 ## Orchestrator Integrations
 
-If you'd like to use Calico with an Orchestrator, checkout the Calico 
-integration docs below.
+This repository contains documentation for running [Calico with Kubernetes]
+(kubernetes/README.me).
 
-  - [Kubernetes](kubernetes/README.me)
-  - See the [Orchestrators page](../Orchestrators.md) for more information 
-    about using Calico with Orchestrators.
+If you'd like to use Calico with another orchestrator, check out the [Calico 
+Repository Structure](../RepoStructure.md) page to see the available plugins.
+
+

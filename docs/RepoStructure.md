@@ -42,21 +42,15 @@ integrations.
    [kubernetes](https://github.com/kubernetes/kubernetes) orchestrator. This is 
    used when the Calico node is started with the `--kubernetes` flag.
 
-
  - [calico-mesos](https://github.com/projectcalico/calico-mesos): Implements 
    the Calico plugin for running Calico with the [mesos](https://github.com/apache/mesos) 
    orchestrator.
-
 
  - [calico-rkt](https://github.com/projectcalico/calico-rkt): Implements the 
    Calico plugin for running Calico with the [rkt](https://github.com/coreos/rkt) 
    orchestrator. This is used when the Calico node is started with the `--rkt` 
    flag.
 
-
  - [libnetwork-plugin](https://github.com/projectcalico/libnetwork-plugin): 
    Implements Calico plugin support for the Docker libnetwork networking plugin. 
    This is used when the Calico node is started with the `--libnetwork` flag.
-
-For more information on how to integrate Calico with your orchestrator, visit 
-the [Calico Orchestrators documentation page](./Orchestrators.md).

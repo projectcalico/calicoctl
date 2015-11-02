@@ -21,11 +21,12 @@ All basic Calico deployments require the following components:
    policies, and BGP peering.
 
  - **Orchestrator (Docker, Kubernetes, etc)**: Manages container creation/deletion 
-   and runs the `calico/node` Docker image as a container. (See the [Calico 
-   Orchestrators page](./Orchestrators.md) for details on integration)
+   and runs the `calico/node` Docker image as a container.
 
  - [**etcd**](https://github.com/coreos/etcd): Datastore used by Calico to store 
-   endpoint, bgp, and policy data that can be accessed by all of the hosts.
+   endpoint, bgp, and policy data that can be accessed by all of the hosts.  
+   See the [etcd Data Model page](./etcdStructure.md) for details on how Calico 
+   data is stored in etcd. 
 
 ## Anatomy of calico/node
 

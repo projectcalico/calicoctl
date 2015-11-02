@@ -102,7 +102,7 @@ developers.
       and repositories behind Calico and its integration plugin
     - [Calico Components](docs/Components.md) to see the required components 
       for a Calico integration 
-    - [etcd Data Model Structure](docs/etcdStructure) for viewing how Calico 
+    - [etcd Data Model Structure](docs/etcdStructure.md) for viewing how Calico 
       stores data for network and endpoint configurations
     - [Lifecycle of a Calico-Networked Docker Container](docs/DockerContainerLifecycle.md) 
       shows you what happens in Calico when containers are added to Calico 
@@ -110,8 +110,6 @@ developers.
   - **Learn how to get involved with Calico builds and lower level integrations**
     - [Building Calico](docs/Building.md) to build a Calico setup on your local 
       machine for development and testing 
-    - [Orchestrator Integration](docs/Orchestrators.md) for a lower level look 
-      at Calico can be configured with an orchestrator
   - **FAQ and Troubleshooting**
     - [FAQ](docs/FAQ.md)
     - [Troubleshooting](docs/Troubleshooting.md)
