@@ -57,45 +57,56 @@ endpoints, and define and manage a rich set of security policy.
 
 ## Getting Started
 
-Worked examples are available for demonstrating Calico networking with the 
-following different networking options:
+To get started using Calico, we recommend running through one or more of the 
+available demonstrations from our [Getting Started](getting-started/README.md) 
+guides.
 
-- [Demonstration with Docker default networking](docs/getting-started/default-networking/Demonstration.md)
-- [Demonstration with libnetwork](docs/getting-started/libnetwork/Demonstration.md)
-
-See the [Networking options](#networking-options) below for more details on 
-each of these different networking options.
+These guides will help you understand the different networking options when 
+using Calico by allowing you to configure and run a Calico cluster both locally 
+and with your preferred cloud service.
 
 With each of these tutorials we provide details for running the demonstration 
-using manual setup on your own servers, or with a quick set-up in a virtualized
+using manual setup on your own servers, a quick set-up in a virtualized
 environment using Vagrant, or a number of cloud services.
 
-We also provide the following additional demonstration: 
-- [Calico and Kubernetes](docs/kubernetes/README.md)
-- [Calico and Mesos](docs/mesos/README.md)
+We recommend using one of our quick set-up guides to start, such as the [Vagrant Ubuntu](docs/VagrantUbuntu.md) 
+or [Vagrant CoreOS](docs/VagrantCoreos.md) guides for local installs or the 
+[GCE](docs/GCE.md), [AWS](docs/AWS.md) or [DigitalOcean](docs/DigitcalOcean.md) 
+guides for Calico with cloud services.
 
-If you would like to get involved writing code for calico-docker, or if you 
-need to build binaries specific to your OS, checkout out the 
-[Building and testing guide](docs/Building.md).
+Also check out the [Calico Kubernetes integration](kubernetes/README.me) to 
+learn how to configure Calico with the Kubernetes Orchestrator.
 
+## Documenation
 The Calico documentation provides information for both Calico users and 
 developers.
 
-  - **Learn how to configure Calico in a deployment**
-    - [BGP Configuration](docs/bgp.md)
-    - [Logging Configuration](docs/logging.md)
-    - [Advanced Network Policy](docs/AdvancedNetworkPolicy.md)
+  - **Learn how to configure Calico features in a deployment**
+    - [BGP Configuration](docs/bgp.md) for managing global, node-to-node, and 
+      node-specific BGP peers
+    - [Logging Configuration](docs/logging.md) to set logging levels and choose 
+      where Calico logs should be stored
+    - [Advanced Network Policy](docs/AdvancedNetworkPolicy.md) to configure 
+      security policy between Calico nodes and other networks
     - [External Connectivity](docs/ExternalConnectivity) for hosts on their own 
       Layer 2 segment
-    - [`calicoctl` Reference Guide](docs/calicoctl.md)
-  - **Learn how to build and use Calico in a lower level integration**
-    - [Building Calico](docs/Building.md)
-    - [Orchestrator Integration](docs/Orchestrators.md)
+    - [`calicoctl` Reference Guide](docs/calicoctl.md) explains how the 
+      `calicoctl` command line tool can be used to manage your Calico cluster
   - **Learn how Calico works under the covers**
-    - [Calico Repository Structure](docs/RepoStructure.md)
-    - [etcd Data Model Structure](docs/etcdStructure)
-    - [Calico Components](docs/Components.md)
-    - [Lifecycle of a Calico-Networked Docker Container](docs/DockerContainerLifecycle.md)
+    - [Calico Repository Structure](docs/RepoStructure.md) to see the tools 
+      and repositories behind Calico and its integration plugin
+    - [Calico Components](docs/Components.md) to see the required components 
+      for a Calico integration 
+    - [etcd Data Model Structure](docs/etcdStructure) for viewing how Calico 
+      stores data for network and endpoint configurations
+    - [Lifecycle of a Calico-Networked Docker Container](docs/DockerContainerLifecycle.md) 
+      shows you what happens in Calico when containers are added to Calico 
+      networking using Docker default networking
+  - **Learn how to get involved with Calico builds and lower level integrations**
+    - [Building Calico](docs/Building.md) to build a Calico setup on your local 
+      machine for development and testing 
+    - [Orchestrator Integration](docs/Orchestrators.md) for a lower level look 
+      at Calico can be configured with an orchestrator
   - **FAQ and Troubleshooting**
     - [FAQ](docs/FAQ.md)
     - [Troubleshooting](docs/Troubleshooting.md)
