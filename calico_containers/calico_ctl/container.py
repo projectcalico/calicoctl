@@ -26,6 +26,7 @@ import sys
 import uuid
 
 import docker.errors
+from pycalico.util import get_hostname
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import MaxRetryError
 from subprocess import CalledProcessError
@@ -36,7 +37,7 @@ from pycalico.datastore_datatypes import IPPool, Endpoint
 
 from connectors import client
 from connectors import docker_client
-from utils import hostname, DOCKER_ORCHESTRATOR_ID, NAMESPACE_ORCHESTRATOR_ID, \
+from utils import DOCKER_ORCHESTRATOR_ID, NAMESPACE_ORCHESTRATOR_ID, \
     escape_etcd
 from utils import enforce_root
 from utils import print_paragraph
@@ -133,7 +134,7 @@ def container(arguments):
         elif arguments.get("endpoint"):
             orchestrator_id, workload_id = \
                                   lookup_workload(arguments.get("<CONTAINER>"))
-            endpoint.endpoint_show(hostname,
+            endpoint.endpoint_show(get_hostname(),
                                    orchestrator_id,
                                    workload_id,
                                    None,
@@ -142,19 +143,19 @@ def container(arguments):
             orchestrator_id, workload_id = \
                                   lookup_workload(arguments.get("<CONTAINER>"))
             if arguments.get("append"):
-                endpoint.endpoint_profile_append(hostname,
+                endpoint.endpoint_profile_append(get_hostname(),
                                                  orchestrator_id,
                                                  workload_id,
                                                  None,
                                                  arguments['<PROFILES>'])
             elif arguments.get("remove"):
-                endpoint.endpoint_profile_remove(hostname,
+                endpoint.endpoint_profile_remove(get_hostname(),
                                                  orchestrator_id,
                                                  workload_id,
                                                  None,
                                                  arguments['<PROFILES>'])
             elif arguments.get("set"):
-                endpoint.endpoint_profile_set(hostname,
+                endpoint.endpoint_profile_set(get_hostname(),
                                               orchestrator_id,
                                               workload_id,
                                               None,
@@ -234,7 +235,7 @@ def container_add(container_id, ip, interface):
 
     # Check if the container already exists
     try:
-        _ = client.get_endpoint(hostname=hostname,
+        _ = client.get_endpoint(hostname=get_hostname(),
                                 orchestrator_id=orchestrator_id,
                                 workload_id=workload_id)
     except KeyError:
@@ -252,7 +253,7 @@ def container_add(container_id, ip, interface):
     ip, pool = get_ip_and_pool(ip)
 
     # The next hop IPs for this host are stored in etcd.
-    next_hops = client.get_default_next_hops(hostname)
+    next_hops = client.get_default_next_hops(get_hostname())
     try:
         next_hops[ip.version]
     except KeyError:
@@ -267,7 +268,7 @@ def container_add(container_id, ip, interface):
     next_hop = next_hops[ip.version]
 
     network = IPNetwork(IPAddress(ip))
-    ep = Endpoint(hostname=hostname,
+    ep = Endpoint(hostname=get_hostname(),
                   orchestrator_id=DOCKER_ORCHESTRATOR_ID,
                   workload_id=workload_id,
                   endpoint_id=uuid.uuid1().hex,
@@ -316,7 +317,7 @@ def container_remove(container_id):
     if container_id.startswith("/") and os.path.exists(container_id):
         # The ID is a path. Don't do any docker lookups
         orchestrator_id = NAMESPACE_ORCHESTRATOR_ID
-        endpoints = client.get_endpoints(hostname=hostname,
+        endpoints = client.get_endpoints(hostname=get_hostname(),
                                          orchestrator_id=orchestrator_id,
                                          workload_id=escape_etcd(container_id))
     else:
@@ -324,13 +325,13 @@ def container_remove(container_id):
         # hit on the container id then we can proceed. Otherwise, ask docker to
         # try converting the name/id fragment into a full ID.
         orchestrator_id = DOCKER_ORCHESTRATOR_ID
-        endpoints = client.get_endpoints(hostname=hostname,
+        endpoints = client.get_endpoints(hostname=get_hostname(),
                                          orchestrator_id=orchestrator_id,
                                          workload_id=container_id)
 
         if not endpoints:
             container_id = get_workload_id(container_id)
-            endpoints = client.get_endpoints(hostname=hostname,
+            endpoints = client.get_endpoints(hostname=get_hostname(),
                                              orchestrator_id=orchestrator_id,
                                              workload_id=container_id)
 
@@ -348,7 +349,7 @@ def container_remove(container_id):
     # Always try to remove the workload, even if we didn't find any
     # endpoints.
     try:
-        client.remove_workload(hostname, orchestrator_id, container_id)
+        client.remove_workload(get_hostname(), orchestrator_id, container_id)
         print "Removed Calico from %s" % container_id
     except KeyError:
         print "Failed find Calico data for %s" % container_id
@@ -388,7 +389,7 @@ def container_ip_add(container_id, ip, interface):
 
     # Check that the container is already networked
     try:
-        endpoint = client.get_endpoint(hostname=hostname,
+        endpoint = client.get_endpoint(hostname=get_hostname(),
                                        orchestrator_id=orchestrator_id,
                                        workload_id=workload_id)
     except KeyError:
@@ -464,7 +465,7 @@ def container_ip_remove(container_id, ip, interface):
 
     # Check that the container is already networked
     try:
-        endpoint = client.get_endpoint(hostname=hostname,
+        endpoint = client.get_endpoint(hostname=get_hostname(),
                                        orchestrator_id=orchestrator_id,
                                        workload_id=workload_id)
         if address.version == 4:

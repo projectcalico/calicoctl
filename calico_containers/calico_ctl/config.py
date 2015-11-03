@@ -45,10 +45,10 @@ import sys
 from etcd import EtcdKeyNotFound
 from pycalico.datastore import handle_errors
 from pycalico.datastore import CONFIG_PATH, BGP_HOST_PATH, BGP_GLOBAL_PATH
+from pycalico.util import get_hostname
 
 from connectors import client
 from utils import print_paragraph
-from utils import hostname
 
 # Dictionaries providing look up between the configuration name, and a tuple
 # of (internal name, value regex string)
@@ -127,7 +127,7 @@ def _get_key(arguments):
     if arguments.get("felix"):
         base = CONFIG_PATH
     elif arguments.get("node"):
-        base = BGP_HOST_PATH % {"hostname": hostname}
+        base = BGP_HOST_PATH % {"hostname": get_hostname()}
     else:
         base = BGP_GLOBAL_PATH
 

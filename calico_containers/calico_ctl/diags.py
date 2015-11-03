@@ -33,6 +33,7 @@ import subprocess
 
 from etcd import EtcdException
 from pycalico.datastore import DatastoreClient
+from pycalico.util import get_hostname
 from shutil import copytree, ignore_patterns
 
 from utils import print_paragraph
@@ -65,7 +66,7 @@ def save_diags(log_dir):
 
     # Write hostname to file
     with DiagsErrorWriter(temp_diags_dir, 'hostname') as f:
-        f.write("%s" % socket.gethostname())
+        f.write("%s" % get_hostname())
 
     # Write netstat output to file
     with DiagsErrorWriter(temp_diags_dir, 'netstat') as f:
