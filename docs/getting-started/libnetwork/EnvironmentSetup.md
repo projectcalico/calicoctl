@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../../images/warning.png) This document applies to the HEAD of the calico-docker source tree.
->
-> View the calico-docker documentation for the latest release [here](https://github.com/projectcalico/calico-docker/blob/v0.9.0/README.md).
-<!--- else
-> You are viewing the calico-docker documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-docker documentation for release v0.10.0.
 
 # Preparing the environment for libnetwork
 
@@ -87,7 +81,7 @@ If you prefer not to do this you can still run the demo but remember to run
 
 Get the calicoctl binary onto each host.
 
-	wget http://www.projectcalico.org/latest/calicoctl
+	wget http://www.projectcalico.org/latest/calicoctl?circleci-branch=v0.10.0-candidate
 	chmod +x calicoctl
 	
 This binary should be placed in your `$PATH` so it can be run from any
@@ -100,8 +94,8 @@ run `calicoctl node` the first time.  Select the appropriate versions of the
 `calico/node` and `calico/node-libnetwork` as required by the version of 
 calicoctl:
 
-    docker pull calico/node:latest
-    docker pull calico/node-libnetwork:latest
+    docker pull calico/node:v0.10.0
+    docker pull calico/node-libnetwork:v0.5.2
 
 ## Final checks
 

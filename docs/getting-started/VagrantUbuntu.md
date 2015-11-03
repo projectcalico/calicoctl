@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../images/warning.png) This document applies to the HEAD of the calico-docker source tree.
->
-> View the calico-docker documentation for the latest release [here](https://github.com/projectcalico/calico-docker/blob/v0.9.0/README.md).
-<!--- else
-> You are viewing the calico-docker documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-docker documentation for release v0.10.0.
 
 # Set up Calico on Ubuntu using Vagrant
 
@@ -19,16 +13,10 @@ These instructions allow you to set up an Ubuntu cluster ready to network Docker
 * [Vagrant][vagrant] 1.7.4 or greater.
 * [Git][git]
 
-<!--- master only -->
-2) Clone this project
+2) Clone this project, and checkout the v0.10.0 release
 
     git clone https://github.com/projectcalico/calico-docker.git
-<!--- else
-2) Clone this project, and checkout the **release** release
-
-    git clone https://github.com/projectcalico/calico-docker.git
-    git checkout tags/**release**
-<!--- end of master only -->
+    git checkout tags/v0.10.0
     
 3) There are two demonstration options depending on whether you are running with libnetwork or the
    default Docker networking.  Select the required demonstration by changing into the appropriate directory:
