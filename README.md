@@ -58,7 +58,7 @@ endpoints, and define and manage a rich set of security policy.
 ## Getting Started
 
 To get started using Calico, we recommend running through one or more of the 
-available demonstrations from our [Getting Started](getting-started/README.md) 
+available demonstrations from our [Getting Started](docs/getting-started/README.md) 
 guides.
 
 These guides will help you understand the different networking options when 
