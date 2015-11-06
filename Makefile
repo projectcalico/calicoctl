@@ -188,3 +188,32 @@ help: # Some kind of magic from https://gist.github.com/rcmachado/af3db315e31383
 	{ helpMsg = $$0 }'                                             \
 	width=$$(grep -o '^[a-zA-Z_0-9]\+:' $(MAKEFILE_LIST) | wc -L)  \
 	$(MAKEFILE_LIST)
+
+setup-env:
+	virtualenv venv
+	venv/bin/pip install --upgrade -r build_calicoctl/requirements.txt
+	@echo "run\n. venv/bin/activate"
+
+
+run-etcd-secure:
+	@-docker rm -f calico-etcd
+	docker run --detach \
+	--net=host \
+	-v `pwd`/certs:/etc/calico/certs \
+	--name calico-etcd quay.io/coreos/etcd:v2.0.11 \
+	--cert-file "/etc/calico/certs/test-cert.crt" \
+	--key-file "/etc/calico/certs/test-cert.key.insecure" \
+	--advertise-client-urls "https://$(LOCAL_IP_ENV):2379,https://127.0.0.1:4001" \
+	--listen-client-urls "https://0.0.0.0:2379,https://0.0.0.0:4001"
+
+run-etcd-secure-ca:
+	@-docker rm -f calico-etcd
+	docker run --detach \
+	--net=host \
+	-v `pwd`/certs:/etc/calico/certs \
+	--name calico-etcd quay.io/coreos/etcd:v2.0.11 \
+	--cert-file "/etc/calico/certs/test-cert.crt" \
+	--key-file "/etc/calico/certs/test-cert.key.insecure" \
+	--ca-file "/etc/calico/certs/ca.crt" \
+	--advertise-client-urls "https://$(LOCAL_IP_ENV):2379,https://127.0.0.1:4001" \
+	--listen-client-urls "https://0.0.0.0:2379,https://0.0.0.0:4001"
