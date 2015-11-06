@@ -73,8 +73,11 @@ from prettytable import PrettyTable
 
 from pycalico.datastore_datatypes import IPPool
 from pycalico.datastore_datatypes import BGPPeer
-from pycalico.datastore import (ETCD_AUTHORITY_ENV,
-                                ETCD_AUTHORITY_DEFAULT)
+from pycalico.datastore import (ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT,
+                                ETCD_KEY_FILE_ENV, ETCD_KEY_NODE_FILE,
+                                ETCD_CERT_FILE_ENV, ETCD_CERT_NODE_FILE,
+                                ETCD_CA_CERT_FILE_ENV, ETCD_CA_CERT_NODE_FILE,
+                                ETCD_SCHEME_ENV)
 from pycalico.netns import remove_veth
 from pycalico.util import get_host_ips
 from connectors import client
@@ -319,13 +322,48 @@ def node_start(node_image, runtime, log_dir, ip, ip6, as_num, detach,
     etcd_authority_address, etcd_authority_port = etcd_authority.split(':')
     etcd_authority = '%s:%s' % (socket.gethostbyname(etcd_authority_address),
                                 etcd_authority_port)
+<<<<<<< HEAD
     if runtime == 'docker':
         _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach)
         if libnetwork_image:
             _start_libnetwork_container(etcd_authority, libnetwork_image)
+=======
+
+    # Get etcd SSL environment variables if they exist
+    etcd_scheme = os.getenv(ETCD_SCHEME_ENV, None)
+    etcd_key_file = os.getenv(ETCD_KEY_FILE_ENV, None)
+    etcd_cert_file = os.getenv(ETCD_CERT_FILE_ENV, None)
+    etcd_ca_cert_file = os.getenv(ETCD_CA_CERT_FILE_ENV, None)
+    etcd_key_node_file = ""
+    etcd_cert_node_file = ""
+    etcd_ca_cert_node_file = ""
+
+    etcd_volumes = []
+
+    if etcd_key_file and etcd_cert_file:
+        etcd_key_node_file = ETCD_KEY_NODE_FILE
+        etcd_volumes.append("%s:%s" % (etcd_key_file, ETCD_KEY_NODE_FILE))
+        etcd_cert_node_file = ETCD_CERT_NODE_FILE
+        etcd_volumes.append("%s:%s" % (etcd_cert_file, ETCD_CERT_NODE_FILE))
+        if etcd_ca_cert_file:
+            etcd_ca_cert_node_file = ETCD_CA_CERT_NODE_FILE
+            etcd_volumes.append("%s:%s" % (etcd_ca_cert_file,
+                                           ETCD_CA_CERT_NODE_FILE))
+
+    _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach,
+                          etcd_scheme, etcd_key_node_file, etcd_cert_node_file,
+                          etcd_ca_cert_node_file, etcd_volumes)
+    if libnetwork_image:
+        _start_libnetwork_container(etcd_authority, libnetwork_image,
+                                    etcd_scheme, etcd_key_node_file,
+                                    etcd_cert_node_file,
+                                    etcd_ca_cert_node_file, etcd_volumes)
+>>>>>>> f5bcffe... Add support for secure etcd
 
 
-def _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach):
+def _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach,
+                          etcd_scheme, etcd_key, etcd_cert, etcd_ca_cert,
+                          etcd_volumes):
     """
     Start the main Calico node container.
 
@@ -336,6 +374,12 @@ def _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach):
     :param node_image:  The calico-node image to use.
     :param detach: True to run in Docker's "detached" mode, False to run
     attached.
+    :param etcd_key: Path to the etcd SSL key file for secure etcd
+    :param etcd_cert: Path to the etcd SSL certificate file for secure etcd
+    :param etcd_ca_cert: Path to the etcd SSL certificate authority file for
+    secure etcd
+    :param etcd_volumes: List of 'host_file_path:mount_path" for etcd files to
+    mount on the container
     :return: None.
     """
     calico_networking = os.getenv(CALICO_NETWORKING_ENV,
@@ -355,8 +399,16 @@ def _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach):
         "HOSTNAME=%s" % hostname,
         "IP=%s" % ip,
         "IP6=%s" % (ip6 or ""),
-        "ETCD_AUTHORITY=%s" % etcd_authority,  # etcd host:port
-        "FELIX_ETCDADDR=%s" % etcd_authority,  # etcd host:port
+        "ETCD_AUTHORITY=%s" % etcd_authority,   # etcd host:port
+        "FELIX_ETCDADDR=%s" % etcd_authority,   # etcd host:port
+        "ETCD_SCHEME=%s" % etcd_scheme,         # blank, "http", or "https"
+        "FELIX__ETCDSCHEME=%s" % etcd_scheme,   # blank, "http", or "https"
+        "ETCD_KEY_FILE=%s" % etcd_key,          # file path
+        "FELIX_ETCDKEYFILE=%s" % etcd_key,      # file path
+        "ETCD_CERT_FILE=%s" % etcd_cert,        # file path
+        "FELIX_ETCDCERTFILE=%s" % etcd_cert,    # file path
+        "ETCD_CA_CERT_FILE=%s" % etcd_ca_cert,  # file path
+        "FELIX_ETCDCAFILE=%s" % etcd_ca_cert,   # file path
         "CALICO_NETWORKING=%s" % calico_networking
     ]
 
@@ -374,13 +426,18 @@ def _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach):
         network_mode="host",
         binds=binds)
 
+<<<<<<< HEAD
+=======
+    volumes = ["/var/log/calico"] + etcd_volumes
+    _find_or_pull_node_image(node_image)
+>>>>>>> f5bcffe... Add support for secure etcd
     container = docker_client.create_container(
         node_image,
         name="calico-node",
         detach=True,
         environment=environment,
         host_config=host_config,
-        volumes=["/var/log/calico"])
+        volumes=volumes)
     cid = container["Id"]
 
     docker_client.start(container)
@@ -390,7 +447,9 @@ def _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach):
         _attach_and_stream(container)
 
 
-def _start_libnetwork_container(etcd_authority, libnetwork_image):
+def _start_libnetwork_container(etcd_authority, libnetwork_image, etcd_scheme,
+                                etcd_key, etcd_cert, etcd_ca_cert,
+                                etcd_volumes):
     """
     Start the libnetwork driver container.
 
@@ -412,7 +471,11 @@ def _start_libnetwork_container(etcd_authority, libnetwork_image):
 
     environment = [
         "HOSTNAME=%s" % hostname,
-        "ETCD_AUTHORITY=%s" % etcd_authority   # etcd host:port
+        "ETCD_AUTHORITY=%s" % etcd_authority,   # etcd host:port
+        "ETCD_SCHEME=%s" % etcd_scheme,         # blank, "http", or "https"
+        "ETCD_KEY_FILE=%s" % etcd_key,          # file path
+        "ETCD_CERT_FILE=%s" % etcd_cert,        # file path
+        "ETCD_CA_CERT_FILE=%s" % etcd_ca_cert,  # file path
     ]
 
     binds = {
@@ -429,13 +492,18 @@ def _start_libnetwork_container(etcd_authority, libnetwork_image):
         network_mode="host",
         binds=binds)
 
+<<<<<<< HEAD
+=======
+    volumes = ["/run/docker/plugins"] + etcd_volumes
+    _find_or_pull_node_image(libnetwork_image)
+>>>>>>> f5bcffe... Add support for secure etcd
     container = docker_client.create_container(
         libnetwork_image,
         name="calico-libnetwork",
         detach=True,
         environment=environment,
         host_config=host_config,
-        volumes=["/run/docker/plugins"])
+        volumes=volumes)
     cid = container["Id"]
 
     docker_client.start(container)
