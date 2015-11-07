@@ -74,10 +74,9 @@ from prettytable import PrettyTable
 from pycalico.datastore_datatypes import IPPool
 from pycalico.datastore_datatypes import BGPPeer
 from pycalico.datastore import (ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT,
-                                ETCD_KEY_FILE_ENV, ETCD_KEY_NODE_FILE,
-                                ETCD_CERT_FILE_ENV, ETCD_CERT_NODE_FILE,
-                                ETCD_CA_CERT_FILE_ENV, ETCD_CA_CERT_NODE_FILE,
-                                ETCD_SCHEME_ENV)
+                                ETCD_KEY_FILE_ENV, ETCD_CERT_FILE_ENV,
+                                ETCD_CA_CERT_FILE_ENV, ETCD_SCHEME_ENV,
+                                ETCD_SCHEME_DEFAULT)
 from pycalico.netns import remove_veth
 from pycalico.util import get_host_ips
 from connectors import client
@@ -105,6 +104,9 @@ RKT_BINARY_URL = 'https://github.com/projectcalico/calico-rkt/releases/download/
 RKT_PLUGIN_DIR = '/usr/lib/rkt/plugins/net/'
 RKT_PLUGIN_DIR_BACKUP = '/etc/rkt-plugins/calico/'
 
+ETCD_KEY_NODE_FILE = "/etc/calico/certs/key.pem"
+ETCD_CERT_NODE_FILE = "/etc/calico/certs/cert.crt"
+ETCD_CA_CERT_NODE_FILE = "/etc/calico/certs/ca_cert.crt"
 
 def validate_arguments(arguments):
     """
@@ -330,54 +332,59 @@ def node_start(node_image, runtime, log_dir, ip, ip6, as_num, detach,
 =======
 
     # Get etcd SSL environment variables if they exist
-    etcd_scheme = os.getenv(ETCD_SCHEME_ENV, None)
+    etcd_scheme = os.getenv(ETCD_SCHEME_ENV, ETCD_SCHEME_DEFAULT)
     etcd_key_file = os.getenv(ETCD_KEY_FILE_ENV, None)
     etcd_cert_file = os.getenv(ETCD_CERT_FILE_ENV, None)
     etcd_ca_cert_file = os.getenv(ETCD_CA_CERT_FILE_ENV, None)
-    etcd_key_node_file = ""
-    etcd_cert_node_file = ""
-    etcd_ca_cert_node_file = ""
 
     etcd_volumes = []
+    etcd_envs = ["ETCD_AUTHORITY=%s" % etcd_authority,
+                 "ETCD_SCHEME=%s" % etcd_scheme]
+    felix_envs = ["FELIX_ETCDADDR=%s" % etcd_authority,
+                  "FELIX_ETCDSCHEME=%s" % etcd_scheme]
 
     if etcd_key_file and etcd_cert_file:
-        etcd_key_node_file = ETCD_KEY_NODE_FILE
         etcd_volumes.append("%s:%s" % (etcd_key_file, ETCD_KEY_NODE_FILE))
-        etcd_cert_node_file = ETCD_CERT_NODE_FILE
+        etcd_envs.append("ETCD_KEY_FILE=%s" % ETCD_KEY_NODE_FILE)
+        felix_envs.append("FELIX_ETCDKEYFILE=%s" % ETCD_KEY_NODE_FILE)
+
         etcd_volumes.append("%s:%s" % (etcd_cert_file, ETCD_CERT_NODE_FILE))
+        etcd_envs.append("ETCD_CERT_FILE=%s" % ETCD_CERT_NODE_FILE)
+        felix_envs.append("FELIX_ETCDCERTFILE=%s" % ETCD_CERT_NODE_FILE)
+
         if etcd_ca_cert_file:
-            etcd_ca_cert_node_file = ETCD_CA_CERT_NODE_FILE
             etcd_volumes.append("%s:%s" % (etcd_ca_cert_file,
                                            ETCD_CA_CERT_NODE_FILE))
+            etcd_envs.append("ETCD_CA_CERT_FILE=%s" % ETCD_CA_CERT_NODE_FILE)
+            felix_envs.append("FELIX_ETCDCAFILE=%s" % ETCD_CA_CERT_NODE_FILE)
 
-    _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach,
-                          etcd_scheme, etcd_key_node_file, etcd_cert_node_file,
-                          etcd_ca_cert_node_file, etcd_volumes)
+    _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
+                          felix_envs, etcd_volumes)
     if libnetwork_image:
+<<<<<<< HEAD
         _start_libnetwork_container(etcd_authority, libnetwork_image,
                                     etcd_scheme, etcd_key_node_file,
                                     etcd_cert_node_file,
                                     etcd_ca_cert_node_file, etcd_volumes)
 >>>>>>> f5bcffe... Add support for secure etcd
+=======
+        _start_libnetwork_container(libnetwork_image, etcd_envs, etcd_volumes)
+>>>>>>> 979c42d... Fix up names of certs and rework env var lists for node start
 
 
-def _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach,
-                          etcd_scheme, etcd_key, etcd_cert, etcd_ca_cert,
-                          etcd_volumes):
+def _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
+                          felix_envs, etcd_volumes):
     """
     Start the main Calico node container.
 
     :param ip:  The IPv4 address of the host.
     :param ip6:  The IPv6 address of the host (or None if not configured)
-    :param etcd_authority: The etcd authority string.
     :param log_dir:  The log directory to use.
     :param node_image:  The calico-node image to use.
     :param detach: True to run in Docker's "detached" mode, False to run
     attached.
-    :param etcd_key: Path to the etcd SSL key file for secure etcd
-    :param etcd_cert: Path to the etcd SSL certificate file for secure etcd
-    :param etcd_ca_cert: Path to the etcd SSL certificate authority file for
-    secure etcd
+    :param etcd_envs: Etcd environment variables to pass into the container
+    :param felix_envs: Felix environment variables to pass into the container
     :param etcd_volumes: List of 'host_file_path:mount_path" for etcd files to
     mount on the container
     :return: None.
@@ -399,18 +406,8 @@ def _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach,
         "HOSTNAME=%s" % hostname,
         "IP=%s" % ip,
         "IP6=%s" % (ip6 or ""),
-        "ETCD_AUTHORITY=%s" % etcd_authority,   # etcd host:port
-        "FELIX_ETCDADDR=%s" % etcd_authority,   # etcd host:port
-        "ETCD_SCHEME=%s" % etcd_scheme,         # blank, "http", or "https"
-        "FELIX__ETCDSCHEME=%s" % etcd_scheme,   # blank, "http", or "https"
-        "ETCD_KEY_FILE=%s" % etcd_key,          # file path
-        "FELIX_ETCDKEYFILE=%s" % etcd_key,      # file path
-        "ETCD_CERT_FILE=%s" % etcd_cert,        # file path
-        "FELIX_ETCDCERTFILE=%s" % etcd_cert,    # file path
-        "ETCD_CA_CERT_FILE=%s" % etcd_ca_cert,  # file path
-        "FELIX_ETCDCAFILE=%s" % etcd_ca_cert,   # file path
         "CALICO_NETWORKING=%s" % calico_networking
-    ]
+    ] + etcd_envs + felix_envs
 
     binds = {
         log_dir:
@@ -447,13 +444,11 @@ def _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach,
         _attach_and_stream(container)
 
 
-def _start_libnetwork_container(etcd_authority, libnetwork_image, etcd_scheme,
-                                etcd_key, etcd_cert, etcd_ca_cert,
-                                etcd_volumes):
+def _start_libnetwork_container(libnetwork_image, etcd_envs, etcd_volumes):
     """
     Start the libnetwork driver container.
 
-    :param etcd_authority: The etcd authority string.
+    :param etcd_envs: Etcd environment variables to pass into the container
     :param log_dir:  The log directory to use.
     :param libnetwork_image: The name of the Calico libnetwork driver image to
     use.  None, if not using libnetwork.
@@ -469,14 +464,7 @@ def _start_libnetwork_container(etcd_authority, libnetwork_image, etcd_scheme,
         if err.response.status_code != 404:
             raise
 
-    environment = [
-        "HOSTNAME=%s" % hostname,
-        "ETCD_AUTHORITY=%s" % etcd_authority,   # etcd host:port
-        "ETCD_SCHEME=%s" % etcd_scheme,         # blank, "http", or "https"
-        "ETCD_KEY_FILE=%s" % etcd_key,          # file path
-        "ETCD_CERT_FILE=%s" % etcd_cert,        # file path
-        "ETCD_CA_CERT_FILE=%s" % etcd_ca_cert,  # file path
-    ]
+    environment = ["HOSTNAME=%s" % hostname] + etcd_envs
 
     binds = {
         "/run/docker/plugins":
