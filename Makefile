@@ -119,6 +119,30 @@ st: run-etcd dist/calicoctl docker calico_test/.calico_test.created busybox.tar 
 	           calico/test \
 	           sh -c 'cp -ra tests/st/* /tests/st && cd / && nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer $(ST_OPTIONS)'
 
+run-etcd-secure:
+	@-docker rm -f calico-etcd
+	docker run --detach \
+	--net=host \
+	-v `pwd`/certs:/etc/calico/certs \
+	--name calico-etcd quay.io/coreos/etcd:v2.0.11 \
+	--cert-file "/etc/calico/certs/server-cert.crt" \
+	--key-file "/etc/calico/certs/server-cert.key" \
+	--advertise-client-urls "https://$(LOCAL_IP_ENV):2379,https://127.0.0.1:2379" \
+	--listen-client-urls "https://0.0.0.0:2379"
+
+run-etcd-secure-ca:
+	@-docker rm -f calico-etcd
+	docker run --detach \
+	--net=host \
+	-v `pwd`/certs:/etc/calico/certs \
+	--name calico-etcd quay.io/coreos/etcd:v2.0.11 \
+	--cert-file "/etc/calico/certs/server-cert.crt" \
+	--key-file "/etc/calico/certs/server-cert.key" \
+	--ca-file "/etc/calico/certs/ca.crt" \
+	--advertise-client-urls "https://$(LOCAL_IP_ENV):2379,https://127.0.0.1:2379" \
+	--listen-client-urls "https://0.0.0.0:2379"
+
+
 semaphore:
 	# Clean up unwanted files to free disk space.
 	rm -rf /home/runner/{.npm,.phpbrew,.phpunit,.kerl,.kiex,.lein,.nvm,.npm,.phpbrew,.rbenv}
@@ -193,27 +217,3 @@ setup-env:
 	virtualenv venv
 	venv/bin/pip install --upgrade -r build_calicoctl/requirements.txt
 	@echo "run\n. venv/bin/activate"
-
-
-run-etcd-secure:
-	@-docker rm -f calico-etcd
-	docker run --detach \
-	--net=host \
-	-v `pwd`/certs:/etc/calico/certs \
-	--name calico-etcd quay.io/coreos/etcd:v2.0.11 \
-	--cert-file "/etc/calico/certs/test-cert.crt" \
-	--key-file "/etc/calico/certs/test-cert.key.insecure" \
-	--advertise-client-urls "https://$(LOCAL_IP_ENV):2379,https://127.0.0.1:4001" \
-	--listen-client-urls "https://0.0.0.0:2379,https://0.0.0.0:4001"
-
-run-etcd-secure-ca:
-	@-docker rm -f calico-etcd
-	docker run --detach \
-	--net=host \
-	-v `pwd`/certs:/etc/calico/certs \
-	--name calico-etcd quay.io/coreos/etcd:v2.0.11 \
-	--cert-file "/etc/calico/certs/test-cert.crt" \
-	--key-file "/etc/calico/certs/test-cert.key.insecure" \
-	--ca-file "/etc/calico/certs/ca.crt" \
-	--advertise-client-urls "https://$(LOCAL_IP_ENV):2379,https://127.0.0.1:4001" \
-	--listen-client-urls "https://0.0.0.0:2379,https://0.0.0.0:4001"

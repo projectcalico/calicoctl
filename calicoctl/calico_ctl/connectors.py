@@ -22,7 +22,6 @@ from pycalico.datastore import (ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT
                                 ETCD_KEY_FILE_ENV, ETCD_CERT_FILE_ENV,
                                 ETCD_CA_CERT_FILE_ENV,
                                 assert_valid_etcd_keys, DataStoreError)
-
 from utils import DOCKER_VERSION
 from utils import print_paragraph
 from utils import validate_hostname_port
@@ -43,14 +42,10 @@ etcd_cert_file = os.getenv(ETCD_CERT_FILE_ENV, "")
 etcd_ca_cert_file = os.getenv(ETCD_CA_CERT_FILE_ENV, "")
 
 try:
-    assert_valid_etcd_keys(etcd_scheme, etcd_key_file, etcd_cert_file,
-                           etcd_ca_cert_file)
+    client = IPAMClient()
 except DataStoreError as e:
     print_paragraph(e.message)
     sys.exit(1)
 
-client = IPAMClient()
-
 _base_url=os.getenv("DOCKER_HOST", "unix://var/run/docker.sock")
-docker_client = docker.Client(version=DOCKER_VERSION,
-                               base_url=_base_url)
+docker_client = docker.Client(version=DOCKER_VERSION, base_url=_base_url)
