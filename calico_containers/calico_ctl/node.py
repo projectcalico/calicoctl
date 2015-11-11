@@ -324,12 +324,6 @@ def node_start(node_image, runtime, log_dir, ip, ip6, as_num, detach,
     etcd_authority_address, etcd_authority_port = etcd_authority.split(':')
     etcd_authority = '%s:%s' % (socket.gethostbyname(etcd_authority_address),
                                 etcd_authority_port)
-<<<<<<< HEAD
-    if runtime == 'docker':
-        _start_node_container(ip, ip6, etcd_authority, log_dir, node_image, detach)
-        if libnetwork_image:
-            _start_libnetwork_container(etcd_authority, libnetwork_image)
-=======
 
     # Get etcd SSL environment variables if they exist
     etcd_scheme = os.getenv(ETCD_SCHEME_ENV, ETCD_SCHEME_DEFAULT)
@@ -358,18 +352,11 @@ def node_start(node_image, runtime, log_dir, ip, ip6, as_num, detach,
             etcd_envs.append("ETCD_CA_CERT_FILE=%s" % ETCD_CA_CERT_NODE_FILE)
             felix_envs.append("FELIX_ETCDCAFILE=%s" % ETCD_CA_CERT_NODE_FILE)
 
-    _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
-                          felix_envs, etcd_volumes)
-    if libnetwork_image:
-<<<<<<< HEAD
-        _start_libnetwork_container(etcd_authority, libnetwork_image,
-                                    etcd_scheme, etcd_key_node_file,
-                                    etcd_cert_node_file,
-                                    etcd_ca_cert_node_file, etcd_volumes)
->>>>>>> f5bcffe... Add support for secure etcd
-=======
-        _start_libnetwork_container(libnetwork_image, etcd_envs, etcd_volumes)
->>>>>>> 979c42d... Fix up names of certs and rework env var lists for node start
+    if runtime == 'docker':
+        _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
+                              felix_envs, etcd_volumes)
+        if libnetwork_image:
+            _start_libnetwork_container(libnetwork_image, etcd_envs, etcd_volumes)
 
 
 def _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
@@ -409,6 +396,10 @@ def _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
         "CALICO_NETWORKING=%s" % calico_networking
     ] + etcd_envs + felix_envs
 
+    #TODO: Remove this after it passes
+    print "Passing etcd env values to node:\n%s" % etcd_envs
+    print "Passing env values for Felix:\n%s" % felix_envs
+
     binds = {
         log_dir:
             {
@@ -423,11 +414,8 @@ def _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
         network_mode="host",
         binds=binds)
 
-<<<<<<< HEAD
-=======
     volumes = ["/var/log/calico"] + etcd_volumes
-    _find_or_pull_node_image(node_image)
->>>>>>> f5bcffe... Add support for secure etcd
+
     container = docker_client.create_container(
         node_image,
         name="calico-node",
@@ -480,11 +468,7 @@ def _start_libnetwork_container(libnetwork_image, etcd_envs, etcd_volumes):
         network_mode="host",
         binds=binds)
 
-<<<<<<< HEAD
-=======
     volumes = ["/run/docker/plugins"] + etcd_volumes
-    _find_or_pull_node_image(libnetwork_image)
->>>>>>> f5bcffe... Add support for secure etcd
     container = docker_client.create_container(
         libnetwork_image,
         name="calico-libnetwork",
