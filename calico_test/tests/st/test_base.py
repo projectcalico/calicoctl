@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import subprocess
 from unittest import TestCase
 
@@ -38,9 +39,17 @@ class TestBase(TestCase):
 
         # Delete /calico if it exists. This ensures each test has an empty data
         # store at start of day.
-        subprocess.check_output(
-            "curl -sL http://%s:2379/v2/keys/calico?recursive=true -XDELETE"
-            % self.ip, shell=True)
+        etcd_scheme = os.getenv("ETCD_SCHEME", "http")
+        #TODO: Remove and clean up after working
+        print "----------------------- Using scheme: %s" % etcd_scheme
+        if etcd_scheme == "https":
+            subprocess.check_output(
+                "curl --cacert certs/ca.crt -sL http://127.0.0.1:2379/v2/keys/calico?recursive=true -XDELETE", shell=True)
+                #% self.ip, shell=True)
+        else:
+            subprocess.check_output(
+                "curl -sL http://%s:2379/v2/keys/calico?recursive=true -XDELETE"
+                % self.ip, shell=True)
 
         # Log a newline to ensure that the first log appears on its own line.
         logger.info("")

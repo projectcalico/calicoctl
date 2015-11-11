@@ -17,11 +17,10 @@ import docker
 import docker.errors
 
 from pycalico.ipam import IPAMClient
-from pycalico.datastore import (ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT
+from pycalico.datastore import (ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT,
                                 ETCD_SCHEME_ENV, ETCD_SCHEME_DEFAULT, 
                                 ETCD_KEY_FILE_ENV, ETCD_CERT_FILE_ENV,
-                                ETCD_CA_CERT_FILE_ENV,
-                                assert_valid_etcd_keys, DataStoreError)
+                                ETCD_CA_CERT_FILE_ENV, DataStoreError)
 from utils import DOCKER_VERSION
 from utils import print_paragraph
 from utils import validate_hostname_port
@@ -41,7 +40,15 @@ etcd_key_file = os.getenv(ETCD_KEY_FILE_ENV, "")
 etcd_cert_file = os.getenv(ETCD_CERT_FILE_ENV, "")
 etcd_ca_cert_file = os.getenv(ETCD_CA_CERT_FILE_ENV, "")
 
+#TODO: Remove these prints after getting it working
+print "etcd_scheme is %s" % etcd_scheme
+print "etcd_key is %s" % etcd_key_file
+print "etcd_cert is %s" % etcd_cert_file
+print "etcd_ca is %s" % etcd_ca_cert_file
+
 try:
+    #TODO: Remove print after working
+    print "Creating IPAM client"
     client = IPAMClient()
 except DataStoreError as e:
     print_paragraph(e.message)

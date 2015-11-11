@@ -142,6 +142,16 @@ run-etcd-secure-ca:
 	--advertise-client-urls "https://$(LOCAL_IP_ENV):2379,https://127.0.0.1:2379" \
 	--listen-client-urls "https://0.0.0.0:2379"
 
+st-secure: docker binary calico_containers/busybox.tar calico_containers/routereflector.tar calico_containers/calico-node.tar run-etcd-secure
+	nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer
+
+fast-st: docker calico_containers/busybox.tar calico_containers/routereflector.tar calico_containers/calico-node.tar run-etcd
+	# This runs the tests by calling python directory without using the
+	# calicoctl binary - this doesn't work with DIND so commenting out for now.
+	#	CALICOCTL=$(CURDIR)/calico_containers/calicoctl.py \
+	nosetests $(ST_TO_RUN) \
+	-sv --nologcapture --with-timer -a '!slow'
+
 
 semaphore:
 	# Clean up unwanted files to free disk space.
