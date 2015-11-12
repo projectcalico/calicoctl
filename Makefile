@@ -24,7 +24,7 @@ WHEEL_VERSION=0.0.0
 default: help
 all: test                ## Run all the tests
 binary: dist/calicoctl   ## Create the calicoctl binary
-node_image: calico_node/.calico_node.created ## Create the calico/node image
+node_image: calico_node/docker_dist/.calico_node.created ## Create the calico/node image
 build_image: calicoctl/.calico_build.created ## Create the calico/build image
 test_image: calico_test/.calico_test.created ## Create the calico/test image
 test: st ut              ## Run all the tests
@@ -52,9 +52,10 @@ calico_test/.calico_test.created: $(TEST_CONTAINER_FILES)
 	cd calico_test && docker build -t calico/test:latest .
 	touch calico_test/.calico_test.created
 
-calico_node/.calico_node.created: $(NODE_CONTAINER_FILES)
-	cd calico_node && docker build -t calico/node:latest .
-	touch calico_node/.calico_node.created
+calico_node/docker_dist/.calico_node.created: $(NODE_CONTAINER_FILES)
+	cd calico_node && docker build -f docker_dist/Dockerfile -t calico/node:latest .
+	touch calico_node/docker_dist/.calico_node.created
+
 
 ## Generate the keys and certificates for running etcd with SSL.
 certs/.certificates.created:
@@ -72,7 +73,7 @@ certs/.certificates.created:
 	  ./etcd-ca export | tar xvf -
 	touch certs/.certificates.created
 
-calico-node.tar: calico_node/.calico_node.created
+calico-node.tar: calico_node/docker_dist/.calico_node.created
 	docker save --output calico-node.tar calico/node:latest
 
 busybox.tar:

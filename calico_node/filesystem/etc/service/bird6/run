@@ -1,3 +1,0 @@
-#!/bin/sh
-exec 2>&1
-exec bird6 -R -s bird6.ctl -d -c /config/bird6.cfg
