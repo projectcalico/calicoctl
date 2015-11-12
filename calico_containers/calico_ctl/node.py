@@ -332,35 +332,42 @@ def node_start(node_image, runtime, log_dir, ip, ip6, as_num, detach,
     etcd_ca_cert_file = os.getenv(ETCD_CA_CERT_FILE_ENV, None)
 
     etcd_volumes = []
+    etcd_binds = {}
     etcd_envs = ["ETCD_AUTHORITY=%s" % etcd_authority,
                  "ETCD_SCHEME=%s" % etcd_scheme]
     felix_envs = ["FELIX_ETCDADDR=%s" % etcd_authority,
                   "FELIX_ETCDSCHEME=%s" % etcd_scheme]
 
     if etcd_key_file and etcd_cert_file:
-        etcd_volumes.append("%s:%s" % (etcd_key_file, ETCD_KEY_NODE_FILE))
+        etcd_volumes.append(ETCD_KEY_NODE_FILE)
+        etcd_binds[etcd_key_file] = {"bind": ETCD_KEY_NODE_FILE,
+                                     "ro": True}
         etcd_envs.append("ETCD_KEY_FILE=%s" % ETCD_KEY_NODE_FILE)
         felix_envs.append("FELIX_ETCDKEYFILE=%s" % ETCD_KEY_NODE_FILE)
 
-        etcd_volumes.append("%s:%s" % (etcd_cert_file, ETCD_CERT_NODE_FILE))
+        etcd_volumes.append(ETCD_CERT_NODE_FILE)
+        etcd_binds[etcd_cert_file] = {"bind": ETCD_CERT_NODE_FILE,
+                                      "ro": True}
         etcd_envs.append("ETCD_CERT_FILE=%s" % ETCD_CERT_NODE_FILE)
         felix_envs.append("FELIX_ETCDCERTFILE=%s" % ETCD_CERT_NODE_FILE)
 
         if etcd_ca_cert_file:
-            etcd_volumes.append("%s:%s" % (etcd_ca_cert_file,
-                                           ETCD_CA_CERT_NODE_FILE))
+            etcd_volumes.append(ETCD_CA_CERT_NODE_FILE)
+            etcd_binds[etcd_ca_cert_file] = {"bind": ETCD_CA_CERT_NODE_FILE,
+                                             "ro": True}
             etcd_envs.append("ETCD_CA_CERT_FILE=%s" % ETCD_CA_CERT_NODE_FILE)
             felix_envs.append("FELIX_ETCDCAFILE=%s" % ETCD_CA_CERT_NODE_FILE)
 
     if runtime == 'docker':
         _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
-                              felix_envs, etcd_volumes)
+                              felix_envs, etcd_volumes, etcd_binds)
         if libnetwork_image:
-            _start_libnetwork_container(libnetwork_image, etcd_envs, etcd_volumes)
+            _start_libnetwork_container(libnetwork_image, etcd_envs,
+                                        etcd_volumes, etcd_binds)
 
 
 def _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
-                          felix_envs, etcd_volumes):
+                          felix_envs, etcd_volumes, etcd_binds):
     """
     Start the main Calico node container.
 
@@ -372,8 +379,10 @@ def _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
     attached.
     :param etcd_envs: Etcd environment variables to pass into the container
     :param felix_envs: Felix environment variables to pass into the container
-    :param etcd_volumes: List of 'host_file_path:mount_path" for etcd files to
-    mount on the container
+    :param etcd_volumes: List of mount_paths for etcd files to mount on the
+    container
+    :param etcd_binds: Dictionary of host file and mount file pairs for etcd
+    files to mount on the container
     :return: None.
     """
     calico_networking = os.getenv(CALICO_NETWORKING_ENV,
@@ -407,6 +416,7 @@ def _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
                 "ro": False
             }
     }
+    binds.update(etcd_binds)
 
     host_config = docker.utils.create_host_config(
         privileged=True,
@@ -415,7 +425,6 @@ def _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
         binds=binds)
 
     volumes = ["/var/log/calico"] + etcd_volumes
-
     container = docker_client.create_container(
         node_image,
         name="calico-node",
@@ -432,14 +441,18 @@ def _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
         _attach_and_stream(container)
 
 
-def _start_libnetwork_container(libnetwork_image, etcd_envs, etcd_volumes):
+def _start_libnetwork_container(libnetwork_image, etcd_envs, etcd_volumes,
+                                etcd_binds):
     """
     Start the libnetwork driver container.
 
     :param etcd_envs: Etcd environment variables to pass into the container
-    :param log_dir:  The log directory to use.
     :param libnetwork_image: The name of the Calico libnetwork driver image to
     use.  None, if not using libnetwork.
+    :param etcd_volumes: List of mount_paths for etcd files to mount on the
+    container
+    :param etcd_binds: Dictionary of host file and mount file pairs for etcd
+    files to mount on the container
     :return:  None
     """
     # Make sure the required image is pulled before removing the old one.
@@ -461,6 +474,7 @@ def _start_libnetwork_container(libnetwork_image, etcd_envs, etcd_volumes):
                 "ro": False
             }
     }
+    binds.update(etcd_binds)
 
     host_config = docker.utils.create_host_config(
         privileged=True, # Needed since the plugin does "ip link" commands.

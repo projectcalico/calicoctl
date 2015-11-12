@@ -106,7 +106,7 @@ ut-circle: calicotest.created
 
 ## Run etcd in a container. Used by the STs and generally useful.
 run-etcd:
-	@-docker rm -f calico-etcd
+	@-docker rm -f calico-etcd calico-etcd-secure calico-etcd-secure-ca
 	docker run --detach \
 	--net=host \
 	--name calico-etcd quay.io/coreos/etcd:v2.0.11 \
@@ -114,22 +114,22 @@ run-etcd:
 	--listen-client-urls "http://0.0.0.0:2379"
 
 run-etcd-secure:
-	@-docker rm -f calico-etcd
+	@-docker rm -f calico-etcd calico-etcd-secure calico-etcd-secure-ca
 	docker run --detach \
 	--net=host \
 	-v `pwd`/certs:/etc/calico/certs \
-	--name calico-etcd quay.io/coreos/etcd:v2.0.11 \
+	--name calico-etcd-secure quay.io/coreos/etcd:v2.0.11 \
 	--cert-file "/etc/calico/certs/server-cert.crt" \
 	--key-file "/etc/calico/certs/server-cert.key" \
 	--advertise-client-urls "https://$(LOCAL_IP_ENV):2379,https://127.0.0.1:2379" \
 	--listen-client-urls "https://0.0.0.0:2379"
 
 run-etcd-secure-ca:
-	@-docker rm -f calico-etcd
+	@-docker rm -f calico-etcd calico-etcd-secure calico-etcd-secure-ca
 	docker run --detach \
 	--net=host \
 	-v `pwd`/certs:/etc/calico/certs \
-	--name calico-etcd quay.io/coreos/etcd:v2.0.11 \
+	--name calico-etcd-secure-ca quay.io/coreos/etcd:v2.0.11 \
 	--cert-file "/etc/calico/certs/server-cert.crt" \
 	--key-file "/etc/calico/certs/server-cert.key" \
 	--ca-file "/etc/calico/certs/ca.crt" \
