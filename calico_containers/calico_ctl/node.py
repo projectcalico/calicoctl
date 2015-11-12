@@ -405,10 +405,6 @@ def _start_node_container(ip, ip6, log_dir, node_image, detach, etcd_envs,
         "CALICO_NETWORKING=%s" % calico_networking
     ] + etcd_envs + felix_envs
 
-    #TODO: Remove this after it passes
-    print "Passing etcd env values to node:\n%s" % etcd_envs
-    print "Passing env values for Felix:\n%s" % felix_envs
-
     binds = {
         log_dir:
             {

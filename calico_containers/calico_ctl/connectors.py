@@ -40,15 +40,7 @@ etcd_key_file = os.getenv(ETCD_KEY_FILE_ENV, "")
 etcd_cert_file = os.getenv(ETCD_CERT_FILE_ENV, "")
 etcd_ca_cert_file = os.getenv(ETCD_CA_CERT_FILE_ENV, "")
 
-#TODO: Remove these prints after getting it working
-print "etcd_scheme is %s" % etcd_scheme
-print "etcd_key is %s" % etcd_key_file
-print "etcd_cert is %s" % etcd_cert_file
-print "etcd_ca is %s" % etcd_ca_cert_file
-
 try:
-    #TODO: Remove print after working
-    print "Creating IPAM client"
     client = IPAMClient()
 except DataStoreError as e:
     print_paragraph(e.message)
