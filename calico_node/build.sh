@@ -9,10 +9,13 @@ echo "http://alpine.gliderlabs.com/alpine/edge/testing" >> /etc/apk/repositories
 apk -U add runit python py-setuptools libffi ip6tables ipset iputils iproute2
 
 # These packages are only used for building and get removed.
-apk add --virtual temp python-dev libffi-dev py-pip alpine-sdk curl
+apk add --virtual temp python-dev libffi-dev py-pip alpine-sdk curl cmake
 
 # Install Confd
 curl -L https://github.com/projectcalico/confd/releases/download/v0.10.0-scale/confd.static -o /sbin/confd
+curl -L https://github.com/lloyd/yajl/archive/2.1.0.tar.gz -o /tmp/2.1.0.tar.gz
+tar zxf /tmp/2.1.0.tar.gz
+cd ./yajl-2.1.0 && ./configure && make install && cd .. && rm -r ./yajl-2.1.0
 
 # Copy patched BIRD daemon with tunnel support.
 curl -L https://github.com/projectcalico/calico-bird/releases/download/v0.1.0/bird -o /sbin/bird
@@ -28,7 +31,3 @@ pip list > libraries.txt
 
 # Cleanup
 apk del temp && rm -rf /var/cache/apk/*
-
-
-
-

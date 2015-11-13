@@ -103,7 +103,9 @@ class DockerHost(object):
             else:
                 calicoctl = "dist/calicoctl"
 
-        etcd_auth = "ETCD_AUTHORITY=%s:2379" % get_ip()
+        #TODO: Remove this after getting general test case passing
+        #etcd_auth = "ETCD_AUTHORITY=%s:2379" % get_ip()
+        etcd_auth = "ETCD_AUTHORITY=127.0.0.1:2379"
         # Export the environment, in case the command has multiple parts, e.g.
         # use of | or ;
         calicoctl = "export %s; %s" % (etcd_auth, calicoctl)
