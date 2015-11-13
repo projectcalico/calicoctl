@@ -57,6 +57,10 @@ import calico_ctl.config
 import calico_ctl.ipam
 from calico_ctl.utils import print_paragraph
 
+import logging
+
+# Suppress warnings from urllib3 when etcd is used without CA cert.
+logging.captureWarnings(True)
 
 if __name__ == '__main__':
     """
