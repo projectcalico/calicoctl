@@ -1,4 +1,4 @@
-.PHONEY: all binary node_image test_image build_image test ut ut-circle st clean run-etcd create-dind help
+.PHONEY: all binary node_image test_image build_image test ut ut-circle st st-secure st-secure-ca clean run-etcd run-etcd-secure run-etcd-secure-ca create-dind help
 
 # These variables can be overridden by setting an environment variable.
 LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
@@ -100,25 +100,6 @@ run-etcd:
 	--advertise-client-urls "http://$(LOCAL_IP_ENV):2379,http://127.0.0.1:2379" \
 	--listen-client-urls "http://0.0.0.0:2379"
 
-## Run the STs in a container
-st: run-etcd dist/calicoctl docker calico_test/.calico_test.created busybox.tar routereflector.tar calico-node.tar
-	# Use the host, PID and network namespaces from the host.
-	# Privileged is needed since 'calico node' write to /proc (to enable ip_forwarding)
-	# Map the docker socket in so docker can be used from inside the container
-	# HOST_CHECKOUT_DIR is used for volume mounts on containers started by this one.
-	# All of code under test is mounted into the container.
-	#   - This also provides access to calicoctl and the docker client
-	docker run --uts=host \
-	           --pid=host \
-	           --net=host \
-	           --privileged \
-	           -e HOST_CHECKOUT_DIR=$(HOST_CHECKOUT_DIR) \
-	           --rm -ti \
-	           -v /var/run/docker.sock:/var/run/docker.sock \
-	           -v `pwd`:/code \
-	           calico/test \
-	           sh -c 'cp -ra tests/st/* /tests/st && cd / && nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer $(ST_OPTIONS)'
-
 run-etcd-secure:
 	@-docker rm -f calico-etcd calico-etcd-secure calico-etcd-secure-ca
 	docker run --detach \
@@ -142,18 +123,49 @@ run-etcd-secure-ca:
 	--advertise-client-urls "https://$(LOCAL_IP_ENV):2379,https://127.0.0.1:2379" \
 	--listen-client-urls "https://0.0.0.0:2379"
 
+## Run the STs in a container
+st: run-etcd dist/calicoctl docker calico_test/.calico_test.created busybox.tar routereflector.tar calico-node.tar
+	# Use the host, PID and network namespaces from the host.
+	# Privileged is needed since 'calico node' write to /proc (to enable ip_forwarding)
+	# Map the docker socket in so docker can be used from inside the container
+	# HOST_CHECKOUT_DIR is used for volume mounts on containers started by this one.
+	# All of code under test is mounted into the container.
+	#   - This also provides access to calicoctl and the docker client
+	docker run --uts=host \
+	           --pid=host \
+	           --net=host \
+	           --privileged \
+	           -e HOST_CHECKOUT_DIR=$(HOST_CHECKOUT_DIR) \
+	           --rm -ti \
+	           -v /var/run/docker.sock:/var/run/docker.sock \
+	           -v `pwd`:/code \
+	           calico/test \
+	           sh -c 'cp -ra tests/st/* /tests/st && cd / && nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer $(ST_OPTIONS)'
+
 st-secure: docker binary calico_containers/busybox.tar calico_containers/routereflector.tar calico_containers/calico-node.tar run-etcd-secure
-	nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer
+	docker run --uts=host \
+	           --pid=host \
+	           --net=host \
+	           --privileged \
+	           -e HOST_CHECKOUT_DIR=$(HOST_CHECKOUT_DIR) \
+	           --rm -ti \
+	           -v /var/run/docker.sock:/var/run/docker.sock \
+	           -v `pwd`:/code \
+	           calico/test \
+	           sh -c 'cp -ra tests/st/* /tests/st && cd / && nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer $(ST_OPTIONS)'
+
 
 st-secure-ca: docker binary calico_containers/busybox.tar calico_containers/routereflector.tar calico_containers/calico-node.tar run-etcd-secure-ca
-	nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer
-
-fast-st: docker calico_containers/busybox.tar calico_containers/routereflector.tar calico_containers/calico-node.tar run-etcd
-	# This runs the tests by calling python directory without using the
-	# calicoctl binary - this doesn't work with DIND so commenting out for now.
-	#	CALICOCTL=$(CURDIR)/calico_containers/calicoctl.py \
-	nosetests $(ST_TO_RUN) \
-	-sv --nologcapture --with-timer -a '!slow'
+	docker run --uts=host \
+	           --pid=host \
+	           --net=host \
+	           --privileged \
+	           -e HOST_CHECKOUT_DIR=$(HOST_CHECKOUT_DIR) \
+	           --rm -ti \
+	           -v /var/run/docker.sock:/var/run/docker.sock \
+	           -v `pwd`:/code \
+	           calico/test \
+	           sh -c 'cp -ra tests/st/* /tests/st && cd / && nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer $(ST_OPTIONS)'
 
 semaphore:
 	# Clean up unwanted files to free disk space.

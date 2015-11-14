@@ -18,7 +18,7 @@ import docker.errors
 
 from pycalico.ipam import IPAMClient
 from pycalico.datastore import (ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT,
-                                ETCD_SCHEME_ENV, ETCD_SCHEME_DEFAULT, 
+                                ETCD_SCHEME_ENV, ETCD_SCHEME_DEFAULT,
                                 ETCD_KEY_FILE_ENV, ETCD_CERT_FILE_ENV,
                                 ETCD_CA_CERT_FILE_ENV, DataStoreError)
 from utils import DOCKER_VERSION

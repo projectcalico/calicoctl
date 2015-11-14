@@ -22,7 +22,7 @@ from docker.errors import APIError
 from docker import Client as DockerClient
 from mock import patch, Mock, call
 from nose_parameterized import parameterized
-from pycalico.datastore import ETCD_AUTHORITY_DEFAULT
+from pycalico.datastore import ETCD_AUTHORITY_DEFAULT, ETCD_SCHEME_DEFAULT
 
 from calico_ctl import node
 
@@ -299,9 +299,11 @@ class TestNode(unittest.TestCase):
             "HOSTNAME=%s" % node.hostname,
             "IP=%s" % ip_2,
             "IP6=%s" % ip6,
-            "ETCD_AUTHORITY=%s" % ETCD_AUTHORITY_DEFAULT,  # etcd host:port
-            "FELIX_ETCDADDR=%s" % ETCD_AUTHORITY_DEFAULT,  # etcd host:port
             "CALICO_NETWORKING=%s" % node.CALICO_NETWORKING_DEFAULT,
+            "ETCD_AUTHORITY=%s" % ETCD_AUTHORITY_DEFAULT,  # etcd host:port
+            "ETCD_SCHEME=%s" % ETCD_SCHEME_DEFAULT,
+            "FELIX_ETCDADDR=%s" % ETCD_AUTHORITY_DEFAULT,  # etcd host:port
+            "FELIX_ETCDSCHEME=%s" % ETCD_SCHEME_DEFAULT
         ]
         binds = {
             log_dir:
