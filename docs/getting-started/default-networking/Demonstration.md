@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../../images/warning.png) This document applies to the HEAD of the calico-docker source tree.
->
-> View the calico-docker documentation for the latest release [here](https://github.com/projectcalico/calico-docker/blob/v0.11.0/README.md).
-<!--- else
-> You are viewing the calico-docker documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-docker documentation for release v0.12.0.
 
 # Calico with Docker default networking
 
@@ -49,7 +43,7 @@ You should see output like this on each node
 
     vagrant@calico-01:~$ docker ps
     CONTAINER ID        IMAGE                           COMMAND                  CREATED             STATUS              PORTS               NAMES
-    ffe6cb403e9b        calico/node:latest              "/sbin/my_init"          21 seconds ago      Up 20 seconds                           calico-node
+    ffe6cb403e9b        calico/node:v0.12.0              "/sbin/my_init"          21 seconds ago      Up 20 seconds                           calico-node
 
 ## Networking containers.
 

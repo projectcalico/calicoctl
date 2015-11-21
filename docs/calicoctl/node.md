@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../images/warning.png) This document applies to the HEAD of the calico-docker source tree.
->
-> View the calico-docker documentation for the latest release [here](https://github.com/projectcalico/calico-docker/blob/v0.11.0/README.md).
-<!--- else
-> You are viewing the calico-docker documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-docker documentation for release v0.12.0.
 
 # User reference for 'calicoctl node' commands
 
@@ -47,7 +41,7 @@ Options:
   --remove-endpoints        Remove the endpoint data when deleting the node
                             from the Calico network.
   --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
-                            container. [default: calico/node:latest]
+                            container. [default: calico/node:v0.12.0]
   --detach=<DETACH>         Set "true" to run Calico service as detached,
                             "false" to run in the foreground.  When using
                             libnetwork, this may not be set to "false".
@@ -71,7 +65,7 @@ Options:
   --libnetwork              Use the libnetwork plugin.
   --libnetwork-image=<LIBNETWORK_IMAGE_NAME>    Docker image to use for
                             Calico's libnetwork driver.
-                            [default: calico/node-libnetwork:latest]
+                            [default: calico/node-libnetwork:v0.6.0]
 
 ```
 

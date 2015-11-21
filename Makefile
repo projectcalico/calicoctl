@@ -53,11 +53,11 @@ calico_test/.calico_test.created: $(TEST_CONTAINER_FILES)
 	touch calico_test/.calico_test.created
 
 calico_node/.calico_node.created: $(NODE_CONTAINER_FILES)
-	cd calico_node && docker build -t calico/node:latest .
+	cd calico_node && docker build -t calico/node:v0.12.0 .
 	touch calico_node/.calico_node.created
 
 calico-node.tar: calico_node/.calico_node.created
-	docker save --output calico-node.tar calico/node:latest
+	docker save --output calico-node.tar calico/node:v0.12.0
 
 busybox.tar:
 	docker pull busybox:latest
