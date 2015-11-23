@@ -70,7 +70,7 @@ If you prefer not to do this you can still run the demo but remember to run
 
 Get the calicoctl binary onto each host.
 
-	wget http://www.projectcalico.org/latest/calicoctl?circleci-branch=v0.12.0-candidate
+	wget https://github.com/projectcalico/calico-docker/releases/download/v0.12.0/calicoctl
 	chmod +x calicoctl
 	
 This binary should be placed in your `$PATH` so it can be run from any
