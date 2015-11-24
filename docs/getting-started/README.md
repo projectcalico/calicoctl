@@ -23,11 +23,7 @@ This is compatible with all Docker versions from 1.6 onwards.
 ### Docker with libnetwork
 
 Docker's native [libnetwork network driver][libnetwork] is available in the 
-Docker 1.9 release currently underoing development.
-
-Setup of the libnetwork environment is a little more involved since it requires
-the current master (1.9.dev) builds of Docker, and the use of etcd as a
-datastore for Docker clustering.
+Docker 1.9 release.
 
 ## Environment Setup
 
@@ -36,6 +32,7 @@ There are several ways to set up your own Calico cluster.
 Our automated setup guides are the fastest and easiest to get started using 
 Calico.  They automatically install all of the required Calico components for 
 you:
+
   - The **Calico Vagrant Installs** use vagrant with VirtualBox to automatically 
     install two Calico nodes on your local machine.
     - [CoreOS](./VagrantCoreOS.md)
@@ -49,25 +46,26 @@ you:
 
 Alternatively you can configure your Calico components manually using the 
 Environment Setup guides for [libnetwork](libnetwork/EnvironmentSetup.md) and 
-[Docker default networking](default-networking/EnvironmentSetup.md).  
+[Docker default networking](default-networking/EnvironmentSetup.md).
+
 Check out the [Calico Components page](../Components.md) for details on the 
 basic requirements for a Calico deployment and information about the 
 `calico/node` container networking backbone.
 
-## Demonstrations
+## Guides
 
 Once your environment has been configured, you can run through the 
-demonstrations below:
+guides below:
   - [Docker Default Networking](default-networking/Demonstration.md)
     - For IPv6, use the [Docker Default IPv6 guide](default-networking/DemonstrationIPv6.md)
   - [Docker libnetwork](libnetwork/Demonstration.md)
 
 ## Orchestrator Integrations
 
-This repository contains documentation for running [Calico with Kubernetes]
-(kubernetes/README.me).
+This repository contains documentation for running [Calico with Kubernetes](../kubernetes/README.md) as well as [Calico with Mesos](../mesos/README.md)
 
 If you'd like to use Calico with another orchestrator, check out the [Calico 
 Repository Structure](../RepoStructure.md) page to see the available plugins.
 
 
+[libnetwork]: https://github.com/docker/libnetwork
