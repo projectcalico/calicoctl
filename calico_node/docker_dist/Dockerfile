@@ -14,12 +14,13 @@
 FROM gliderlabs/alpine:edge
 MAINTAINER Tom Denham <tom@projectcalico.org>
 
-ADD start_runit /sbin/
-ADD build.sh /build.sh
+ADD docker_dist/start_runit /sbin/
+ADD docker_dist/build.sh /build.sh
 RUN /build.sh
 
 # Copy in our custom configuration files etc. We do this last to speed up
 # builds for developer, as it's the thing they're most likely to change.
-COPY filesystem /
-
+COPY common /etc/calico/
+COPY docker_dist/filesystem /
+COPY docker_dist/restart-calico-confd /usr/local/bin/
 CMD ["/sbin/start_runit"]
