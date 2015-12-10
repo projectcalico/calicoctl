@@ -11,6 +11,9 @@ Calico can be used as a network plugin for Kubernetes, to provide connectivity f
 
 The Kubernetes Vagrant provider can be configured to provision a local cluster with Calico networking.
 
+# Prerequisites 
+You'll need to make sure you meet the prerequisites laid out in: https://github.com/kubernetes/kubernetes/blob/master/docs/getting-started-guides/vagrant.md#prerequisites
+
 ## Getting Started
 First, you'll need to check out a copy of the Kubernetes git repo. Currently the Calico Vagrant plugin code is waiting to be merged into the Kubernetes repo, so for now you'll need to check out our fork of the Kubernetes repo (which is based on the v1.1.2 release).
 ```
