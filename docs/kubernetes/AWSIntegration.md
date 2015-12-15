@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../images/warning.png) This document applies to the HEAD of the calico-docker source tree.
->
-> View the calico-docker documentation for the latest release [here](https://github.com/projectcalico/calico-docker/blob/v0.12.0/README.md).
-<!--- else
-> You are viewing the calico-docker documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-docker documentation for release v0.13.0.
 
 # Integration with an AWS Kubernetes cluster
 This guide will walk you through how to use Calico Networking with an existing AWS Kubernetes cluster.
@@ -27,7 +21,7 @@ sudo mv calicoctl /usr/bin/
 ## Configuring the Master
 On your master, you will need to setup an etcd instance specifically for Calico. To do so, you will need to download our etcd manifest
 ```
-wget https://raw.githubusercontent.com/projectcalico/calico-kubernetes/v0.6.0/config/master/calico-etcd.manifest 
+wget https://raw.githubusercontent.com/projectcalico/calico-kubernetes/v0.7.0/config/master/calico-etcd.manifest 
 ```
 
 Replace all instances of `<PRIVATE_IPV4>` with your master's IP. Then, place the manifest file in the `/etc/kubernetes/manifests/` directory. 

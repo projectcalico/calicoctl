@@ -65,7 +65,7 @@ Options:
   --remove-endpoints        Remove the endpoint data when deleting the node
                             from the Calico network.
   --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
-                            container. [default: calico/node:latest]
+                            container. [default: calico/node:v0.13.0]
   --detach=<DETACH>         Set "true" to run Calico service as detached,
                             "false" to run in the foreground.  When using
                             libnetwork, this may not be set to "false".
@@ -89,7 +89,7 @@ Options:
   --libnetwork              Use the libnetwork plugin.
   --libnetwork-image=<LIBNETWORK_IMAGE_NAME>    Docker image to use for
                             Calico's libnetwork driver.
-                            [default: calico/node-libnetwork:latest]
+                            [default: calico/node-libnetwork:v0.7.0]
 """ % __kubernetes_plugin_version__
 
 DEFAULT_IPV4_POOL = IPPool("192.168.0.0/16")

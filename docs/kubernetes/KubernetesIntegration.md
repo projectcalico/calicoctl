@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../images/warning.png) This document applies to the HEAD of the calico-docker source tree.
->
-> View the calico-docker documentation for the latest release [here](https://github.com/projectcalico/calico-docker/blob/v0.12.0/README.md).
-<!--- else
-> You are viewing the calico-docker documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-docker documentation for release v0.13.0.
 
 # Add Calico to an Existing Kubernetes Cluster 
 
@@ -34,7 +28,7 @@ Each Kubernetes node requires both the `calico/node` container as well as the `c
 The following set of commands will install both `calico/node` and the `calico-kubernetes` plugin on a machine.
 ```
 # Download and install `calicoctl`
-wget http://www.projectcalico.org/latest/calicoctl 
+wget http://www.projectcalico.org/builds/calicoctl?circleci-branch=v0.13.0-candidate 
 sudo chmod +x calicoctl
 
 # Run the calico/node container
