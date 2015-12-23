@@ -202,6 +202,7 @@ semaphore:
 	make st
 
 	# Run subset of STs with secure etcd
+	sudo rm -rf certs
 	ST_TO_RUN=tests/st/no_orchestrator/ make st-ssl
 	ST_TO_RUN=tests/st/bgp/test_route_reflector_cluster.py make st-ssl
 
