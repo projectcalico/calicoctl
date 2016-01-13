@@ -14,7 +14,7 @@ existing AWS Kubernetes cluster.
 ## Installing Calico
 On each of your AWS Instances, you will need to download and install the `calicoctl` binary
 ```
-wget http://www.projectcalico.org/builds/calicoctl?circleci-branch=v0.14.0-candidate
+wget https://github.com/projectcalico/calico-docker/releases/download/v0.14.0/calicoctl
 chmod +x calicoctl
 sudo mv calicoctl /usr/bin/
 ```
