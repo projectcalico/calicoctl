@@ -5,5 +5,5 @@ docker-py==1.2.1
 sh==1.11
 prettytable==0.7.2
 netaddr==0.7.15
-git+https://github.com/projectcalico/libcalico.git
+git+https://github.com/projectcalico/libcalico.git@v0.9.0
 ConcurrentLogHandler
