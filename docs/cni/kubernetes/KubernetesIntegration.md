@@ -76,7 +76,7 @@ The Kubernetes `kubelet` calls out to the `calico-cni` plugin.
 
 Download it and make sure it's executable
 ```
-wget -N -P /opt/cni/bin https://github.com/projectcalico/calico-cni/releases/download/v0.2.0/calico
+wget -N -P /opt/cni/bin https://github.com/projectcalico/calico-cni/releases/download/v1.0.0/calico
 chmod +x /opt/cni/bin/calico
 ```
 It's recommended that this is done as part of job that manages the `kubelet` process (see below)
@@ -121,7 +121,7 @@ Requires=calico-node.service
 [Service]
 ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v1.1.3/bin/linux/amd64/kubelet
 ExecStartPre=/usr/bin/chmod +x /opt/bin/kubelet
-ExecStartPre=/usr/bin/wget -N -P /opt/cni/bin https://github.com/projectcalico/calico-cni/releases/download/v0.2.0/calico
+ExecStartPre=/usr/bin/wget -N -P /opt/cni/bin https://github.com/projectcalico/calico-cni/releases/download/v1.0.0/calico
 ExecStartPre=/usr/bin/chmod +x /opt/cni/bin/calico
 ExecStart=/opt/bin/kubelet \
 --address=0.0.0.0 \
