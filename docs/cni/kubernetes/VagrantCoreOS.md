@@ -8,7 +8,7 @@
 
 # Deploying Calico and Kubernetes on CoreOS using Vagrant and VirtualBox
 
-These instructions allow you to set up a Kubernetes v1.1.3 cluster with [Calico networking][calico-networking] using Vagrant and the [Calico CNI plugin][calico-cni]. This guide does not setup TLS between Kubernetes components.
+These instructions allow you to set up a Kubernetes v1.1.4 cluster with [Calico networking][calico-networking] using Vagrant and the [Calico CNI plugin][calico-cni]. This guide does not setup TLS between Kubernetes components.
 
 ## 1. Deploy cluster using Vagrant 
 

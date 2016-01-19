@@ -8,7 +8,7 @@
 
 # Deploying Calico and Kubernetes on GCE 
 
-These instructions allow you to set up a Kubernetes v1.1.3 cluster with Calico networking on GCE using the [Calico CNI plugin][calico-cni]. This guide does not setup TLS between Kubernetes components.
+These instructions allow you to set up a Kubernetes cluster with Calico networking on GCE using the [Calico CNI plugin][calico-cni]. This guide does not setup TLS between Kubernetes components or on the Kubernetes API.
 
 ## 1. Getting started with GCE
 These instructions describe how to set up two CoreOS hosts on GCE.  For more general background, see 
@@ -92,7 +92,7 @@ The following steps configure remote kubectl access to your cluster.
 
 Download `kubectl`
 ```
-wget https://storage.googleapis.com/kubernetes-release/release/v1.1.3/bin/linux/amd64/kubectl
+wget https://storage.googleapis.com/kubernetes-release/release/v1.1.4/bin/linux/amd64/kubectl
 chmod +x ./kubectl
 ```
 
@@ -101,7 +101,7 @@ The following command sets up SSH forwarding of port 8080 to your master node so
 gcloud compute ssh kubernetes-master --ssh-flag="-nNT" --ssh-flag="-L 8080:localhost:8080" &
 ```
 
-Verify that you can access the Kubernetes API
+Verify that you can access the Kubernetes API.  The following command should return a list of Kubernetes nodes.
 ```
 ./kubectl get nodes
 ```
