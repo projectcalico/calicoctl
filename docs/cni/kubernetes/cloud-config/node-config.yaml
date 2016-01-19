@@ -1,17 +1,6 @@
 #cloud-config
 ---
 write_files:
-  - path: /etc/hosts 
-    owner: root
-    permissions: 0644
-    content: |
-      # Uncomment the following line when running on Vagrant, or another
-      # provider that does not contain a DNS serivce with which to 
-      # resolve the hostname `kubernetes-master`
-      #
-      # 172.18.18.101   kubernetes-master
-      127.0.0.1       localhost
-
   # Network config file for the Calico CNI plugin.
   - path: /etc/cni/net.d/10-calico.conf 
     owner: root
