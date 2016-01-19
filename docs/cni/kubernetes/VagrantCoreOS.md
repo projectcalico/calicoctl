@@ -31,12 +31,17 @@ These instructions allow you to set up a Kubernetes v1.1.4 cluster with [Calico 
     
 ### 1.3 Startup and SSH
 
-Edit `calico-containers/docs/cni/cloud-config/node-config.yaml` and uncomment the line in `/etc/hosts` so that the nodes can resolve the hostname `kubernetes-master`.  The line should look like this:
+Edit `calico-containers/docs/cni/cloud-config/node-config.yaml` and uncomment the line in `/etc/hosts` so that the nodes can resolve the hostname `kubernetes-master`.  The file should look like this after you have made the change:
 ```
+# Uncomment the following line when running on Vagrant, or another
+# provider that does not contain a DNS serivce with which to 
+# resolve the hostname `kubernetes-master`
+#
 172.18.18.101   kubernetes-master
+127.0.0.1       localhost
 ```
 
-Edit `calico-containers/docs/cni/cloud-config/master-config.yaml` and comment the following line in `calico-node.service` to disabled IP-in-IP, which is not needed for this guide.
+Edit `calico-containers/docs/cni/cloud-config/master-config.yaml` and comment the following line in `calico-node.service` to disable IP-in-IP, which is not needed for this guide.
 ```
 ExecStartPre=/opt/bin/calicoctl pool add 192.168.0.0/16 --ipip --nat-outgoing
 ```
@@ -61,17 +66,17 @@ To connect to your servers
 ### 1.4 Verify environment
 
 You should now have two CoreOS servers - one Kubernetes master and one Kubernetes node. The servers are named calico-01 and calico-02 
-and have IP addresses 172.17.8.101 and 172.17.8.102.
+and have IP addresses 172.18.18.101 and 172.18.18.102.
 
 At this point, it's worth checking that your servers can ping each other.
 
 From calico-01
 
-    ping 172.17.8.102
+    ping 172.18.18.102
 
 From calico-02
 
-    ping 172.17.8.101
+    ping 172.18.18.101
 
 If you see ping failures, the likely culprit is a problem with the VirtualBox network between the VMs.  You should 
 check that each host is connected to the same virtual network adapter in VirtualBox and rebooting the host may also 
@@ -127,7 +132,7 @@ Create the guestbook application pods and services using the provided manifest.
 kubectl create -f guestbook.yaml
 ```
 
-Check that the redis-master, redis-slave, and frontend pods and services are running correctly.
+Check that the redis-master, redis-slave, and frontend pods and services are running correctly.  After about a minute, the following command should show your pods in `Running` state.
 ```
 kubectl get pods,svc
 ```
