@@ -41,7 +41,7 @@ Edit `calico-containers/docs/cni/cloud-config/node-config.yaml` and uncomment th
 127.0.0.1       localhost
 ```
 
-Edit `calico-containers/docs/cni/cloud-config/master-config.yaml` and comment the following line in `calico-node.service` to disable IP-in-IP, which is not needed for this guide.
+Edit `calico-containers/docs/cni/cloud-config/master-config.yaml` and remove the following line in `calico-node.service` to disable IP-in-IP, which is not needed for this guide.
 ```
 ExecStartPre=/opt/bin/calicoctl pool add 192.168.0.0/16 --ipip --nat-outgoing
 ```
@@ -109,7 +109,7 @@ Deploy the SkyDNS application using the provided Kubernetes manifest.
 kubectl create -f skydns.yaml
 ```
 
-Check that the DNS pod and Service are running.
+Check that the DNS pod and Service are running. After about a minute, the following command should show the skydns pod in `Running` state.
 ```
 kubectl get pod,svc --all-namespaces
 ```

@@ -3,7 +3,7 @@
 write_files:
   - path: /etc/hosts 
     owner: root
-    permissions: 0600
+    permissions: 0644
     content: |
       # Uncomment the following line when running on Vagrant, or another
       # provider that does not contain a DNS serivce with which to 
