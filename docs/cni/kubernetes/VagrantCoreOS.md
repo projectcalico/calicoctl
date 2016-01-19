@@ -128,6 +128,7 @@ Check that the redis-master, redis-slave, and frontend pods and services are run
 ```
 kubectl get pods,svc
 ```
+> Note: The guestbook demo relies on a number of docker images which may take up to 5 minutes to download.
 
 Check that Calico endpoints have been created for the guestbook pods.
 ```
