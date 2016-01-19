@@ -101,9 +101,15 @@ Deploy the SkyDNS application using the provided Kubernetes manifest.
 kubectl create -f skydns.yaml
 ```
 
-Check that the DNS pod and Service are running. It may take up to two minutes for the pod to start, after which the following command should show the skydns pod in `Running` state.
+Check that the DNS pod is running. It may take up to two minutes for the pod to start, after which the following command should show the `kube-dns-v9-xxxx` pod in `Running` state.
 ```
-kubectl get pod,svc --all-namespaces
+kubectl get pods --all-namespaces
+```
+
+>The output of the above command should resemble the following table.  Note the `Running` status:
+```
+NAMESPACE     NAME                READY     STATUS    RESTARTS   AGE
+kube-system   kube-dns-v9-3o2rw   4/4       Running   0          2m
 ```
 
 Check that the DNS pod has been networked using Calico.  You should see a single Calico endpoint. 
@@ -124,9 +130,9 @@ Create the guestbook application pods and services using the provided manifest.
 kubectl create -f guestbook.yaml
 ```
 
-Check that the redis-master, redis-slave, and frontend pods and services are running correctly.  After about a minute, the following command should show your pods in `Running` state.
+Check that the redis-master, redis-slave, and frontend pods are running correctly.  After a few minutes, the following command should show all pods in `Running` state.
 ```
-kubectl get pods,svc
+kubectl get pods
 ```
 > Note: The guestbook demo relies on a number of docker images which may take up to 5 minutes to download.
 
@@ -135,7 +141,13 @@ Check that Calico endpoints have been created for the guestbook pods.
 calicoctl endpoint show --detailed
 ```
 
-You should now be able to access the guestbook application from a browser at `http://172.18.18.101:30001`.
+The above manifests configure a web appliation that is exposed on port 30001 on each of your nodes using the Kubernetes NodePort mechanism. 
+```
+kubectl describe svc frontend
+```
+The service is available internally via a `10.100.0.X` IP address on port `80`, and outside the cluster using the NodePort `30001`.
+
+To access the guestbook application frontend, visit `http://172.18.18.101:30001` in your favorite browser.  Because we used a NodePort service to expose it outside the cluster, it should also be available at `http://172.18.18.102:30001`.
 
 [calico-networking]: https://github.com/projectcalico/calico-containers
 [calico-cni]: https://github.com/projectcalico/calico-cni
