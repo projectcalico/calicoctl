@@ -31,15 +31,7 @@ These instructions allow you to set up a Kubernetes v1.1.4 cluster with [Calico 
     
 ### 1.3 Startup and SSH
 
-Edit `calico-containers/docs/cni/cloud-config/node-config.yaml` and uncomment the line in `/etc/hosts` so that the nodes can resolve the hostname `kubernetes-master`.  The file should look like this after you have made the change:
-```
-# Uncomment the following line when running on Vagrant, or another
-# provider that does not contain a DNS serivce with which to 
-# resolve the hostname `kubernetes-master`
-#
-172.18.18.101   kubernetes-master
-127.0.0.1       localhost
-```
+Edit `calico-containers/docs/cni/cloud-config/node-config.yaml` and replace all instances of `kubernetes-master` with the IP address `172.18.18.101`. 
 
 Edit `calico-containers/docs/cni/cloud-config/master-config.yaml` and remove the following line in `calico-node.service` to disable IP-in-IP, which is not needed for this guide.
 ```
@@ -109,7 +101,7 @@ Deploy the SkyDNS application using the provided Kubernetes manifest.
 kubectl create -f skydns.yaml
 ```
 
-Check that the DNS pod and Service are running. After about a minute, the following command should show the skydns pod in `Running` state.
+Check that the DNS pod and Service are running. It may take up to two minutes for the pod to start, after which the following command should show the skydns pod in `Running` state.
 ```
 kubectl get pod,svc --all-namespaces
 ```
