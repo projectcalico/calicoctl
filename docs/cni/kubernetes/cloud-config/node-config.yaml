@@ -98,9 +98,7 @@ coreos:
         ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v1.1.4/bin/linux/amd64/kubelet
         ExecStartPre=/usr/bin/chmod +x /opt/bin/kubelet
         ExecStartPre=/usr/bin/wget -N -P /opt/cni/bin https://github.com/projectcalico/calico-cni/releases/download/v1.0.0/calico 
-        ExecStartPre=/usr/bin/wget -N -P /opt/cni/bin https://github.com/projectcalico/calico-cni/releases/download/v1.0.0/calico-ipam 
         ExecStartPre=/usr/bin/chmod +x /opt/cni/bin/calico
-        ExecStartPre=/usr/bin/chmod +x /opt/cni/bin/calico-ipam
         ExecStart=/opt/bin/kubelet \
         --address=0.0.0.0 \
         --allow-privileged=true \
