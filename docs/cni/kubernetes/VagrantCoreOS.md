@@ -31,12 +31,9 @@ These instructions allow you to set up a Kubernetes v1.1.4 cluster with [Calico 
     
 ### 1.3 Startup and SSH
 
-Edit `calico-containers/docs/cni/cloud-config/node-config.yaml` and uncomment the line in `/etc/hosts` so that the nodes can resolve the hostname `kubernetes-master`.  The line should look like this:
-```
-172.18.18.101   kubernetes-master
-```
+Edit `calico-containers/docs/cni/cloud-config/node-config.yaml` and replace all instances of `kubernetes-master` with the IP address `172.18.18.101`. 
 
-Edit `calico-containers/docs/cni/cloud-config/master-config.yaml` and comment the following line in `calico-node.service` to disabled IP-in-IP, which is not needed for this guide.
+Edit `calico-containers/docs/cni/cloud-config/master-config.yaml` and remove the following line in `calico-node.service` to disable IP-in-IP, which is not needed for this guide.
 ```
 ExecStartPre=/opt/bin/calicoctl pool add 192.168.0.0/16 --ipip --nat-outgoing
 ```
@@ -61,17 +58,17 @@ To connect to your servers
 ### 1.4 Verify environment
 
 You should now have two CoreOS servers - one Kubernetes master and one Kubernetes node. The servers are named calico-01 and calico-02 
-and have IP addresses 172.17.8.101 and 172.17.8.102.
+and have IP addresses 172.18.18.101 and 172.18.18.102.
 
 At this point, it's worth checking that your servers can ping each other.
 
 From calico-01
 
-    ping 172.17.8.102
+    ping 172.18.18.102
 
 From calico-02
 
-    ping 172.17.8.101
+    ping 172.18.18.101
 
 If you see ping failures, the likely culprit is a problem with the VirtualBox network between the VMs.  You should 
 check that each host is connected to the same virtual network adapter in VirtualBox and rebooting the host may also 
@@ -104,7 +101,7 @@ Deploy the SkyDNS application using the provided Kubernetes manifest.
 kubectl create -f skydns.yaml
 ```
 
-Check that the DNS pod and Service are running.
+Check that the DNS pod and Service are running. It may take up to two minutes for the pod to start, after which the following command should show the skydns pod in `Running` state.
 ```
 kubectl get pod,svc --all-namespaces
 ```
@@ -127,10 +124,11 @@ Create the guestbook application pods and services using the provided manifest.
 kubectl create -f guestbook.yaml
 ```
 
-Check that the redis-master, redis-slave, and frontend pods and services are running correctly.
+Check that the redis-master, redis-slave, and frontend pods and services are running correctly.  After about a minute, the following command should show your pods in `Running` state.
 ```
 kubectl get pods,svc
 ```
+> Note: The guestbook demo relies on a number of docker images which may take up to 5 minutes to download.
 
 Check that Calico endpoints have been created for the guestbook pods.
 ```
