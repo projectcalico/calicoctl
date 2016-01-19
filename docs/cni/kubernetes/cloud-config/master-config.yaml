@@ -35,8 +35,9 @@ coreos:
         ExecStartPre=/usr/bin/chmod +x /opt/bin/kube-apiserver
         ExecStart=/opt/bin/kube-apiserver \
         --allow-privileged=true \
-        --etcd-servers=http://127.0.0.1:2379 \
+        --etcd-servers=http://$private_ipv4:2379 \
         --insecure-bind-address=0.0.0.0 \
+        --advertise-address=$private_ipv4 \
         --service-cluster-ip-range=10.100.0.0/24 \
         --logtostderr=true
         Restart=always
@@ -54,7 +55,7 @@ coreos:
         ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v1.1.4/bin/linux/amd64/kube-controller-manager
         ExecStartPre=/usr/bin/chmod +x /opt/bin/kube-controller-manager
         ExecStart=/opt/bin/kube-controller-manager \
-        --master=127.0.0.1:8080 \
+        --master=$private_ipv4:8080 \
         --logtostderr=true
         Restart=always
         RestartSec=10
@@ -70,7 +71,7 @@ coreos:
         [Service]
         ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v1.1.4/bin/linux/amd64/kube-scheduler
         ExecStartPre=/usr/bin/chmod +x /opt/bin/kube-scheduler
-        ExecStart=/opt/bin/kube-scheduler --master=127.0.0.1:8080
+        ExecStart=/opt/bin/kube-scheduler --master=$private_ipv4:8080
         Restart=always
         RestartSec=10
 
@@ -135,7 +136,7 @@ coreos:
         ExecStartPre=/usr/bin/wget -N -P /opt/bin  https://storage.googleapis.com/kubernetes-release/release/v1.1.4/bin/linux/amd64/kube-proxy
         ExecStartPre=/usr/bin/chmod +x /opt/bin/kube-proxy
         ExecStart=/opt/bin/kube-proxy \
-        --master=http://localhost:8080 \
+        --master=http://$private_ipv4:8080 \
         --proxy-mode=iptables \
         --logtostderr=true
         Restart=always
