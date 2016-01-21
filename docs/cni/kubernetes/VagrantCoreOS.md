@@ -103,8 +103,9 @@ kubectl create -f skydns.yaml
 
 Check that the DNS pod is running. It may take up to two minutes for the pod to start, after which the following command should show the `kube-dns-v9-xxxx` pod in `Running` state.
 ```
-kubectl get pods --all-namespaces
+kubectl get pods --namespace=kube-system
 ```
+> Note: The kube-dns-v9 pod is deployed in the `kube-system` namespace.  As such, we we must include the `--namespace=kube-system` option when using kubectl.
 
 >The output of the above command should resemble the following table.  Note the `Running` status:
 ```

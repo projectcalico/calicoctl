@@ -20,7 +20,7 @@ Without annotation-based policy enabled, Calico follows the [Kubernetes networki
 When Calico's annotation-based policy is enabled: 
 - Pods will be, by default, isolated by namespace boundaries. Only pods in the same Kubernetes namespace can communicate.
 - Annotations on pods can be used to expose access to pods outside of their namespace. 
-- Annotations on pods can be used to futher isolate pods within their namespace.
+- Annotations on pods can be used to further isolate pods within their namespace.
 - Pods in the `kube-system` namespace (such as SkyDNS), are accessible to the rest of the cluster.  
 
 Since pods are, by default, isolated by namespace boundaries, they will:
