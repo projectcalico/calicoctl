@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../images/warning.png) This document applies to the HEAD of the calico-containers source tree.
->
-> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.14.0/README.md).
-<!--- else
-> You are viewing the calico-containers documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-containers documentation for release v0.15.0.
 
 # RPM Install Calico + Mesos
 This tutorial will walk you through installing Calico and a fresh Mesos installation with Netmodules using a pre-built RPM. At the completion of this guide, you will have a Mesos Slave ready to launch tasks with Calico networking.

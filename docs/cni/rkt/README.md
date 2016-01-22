@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../../images/warning.png) This document applies to the HEAD of the calico-containers source tree.
->
-> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.14.0/README.md).
-<!--- else
-> You are viewing the calico-containers documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-containers documentation for release v0.15.0.
 
 # Calico Networking with rkt
 
@@ -21,16 +15,10 @@ This tutorial walks through getting a cluster set up with Vagrant.
 * [Vagrant][vagrant] 1.7.4 or greater.
 * [Git][git]
 
-<!--- master only -->
-### 1.2 Clone this project
+### 1.2 Clone this project, and checkout the v0.15.0 release
 
     git clone https://github.com/projectcalico/calico-containers.git
-<!--- else
-### 1.2 Clone this project, and checkout the **release** release
-
-    git clone https://github.com/projectcalico/calico-containers.git
-    git checkout tags/**release**
-<!--- end of master only -->
+    git checkout tags/v0.15.0
     
 ### 1.3 Startup and SSH
 Change into the directory for this guide:
@@ -96,7 +84,7 @@ You should see output like this on each node
 
     vagrant@calico-01:~$ docker ps
     CONTAINER ID        IMAGE                           COMMAND                  CREATED             STATUS              PORTS               NAMES
-    ffe6cb403e9b        calico/node:latest              "/sbin/my_init"          21 seconds ago      Up 20 seconds                           calico-node
+    ffe6cb403e9b        calico/node:v0.15.0              "/sbin/my_init"          21 seconds ago      Up 20 seconds                           calico-node
 
 ## 3. Create the networks
 
