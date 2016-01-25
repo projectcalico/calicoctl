@@ -451,14 +451,15 @@ def _start_node_container_rkt(ip, ip6, log_dir, node_image, etcd_envs,
 
     # TODO No support for SSL (etcd binds) yet
     
-    env_command = ""
+    env_commands = []
     for env_var in environment:
-        env_command += "--set-env=%s " % (env_var)
-    call("rkt run "
-         "--stage1-image=stage1-fly.aci "
-         "--insecure-options=all "
-         "%s "
-         "docker://%s" % (env_command, node_image), shell=True)
+        env_commands += ["--set-env=%s" % (env_var)]
+    rkt_command = ["rkt", "run",
+         "--stage1-image=stage1-fly.aci",
+         "--insecure-options=all"] + env_commands + ["docker://%s" % node_image]
+
+    print " ".join(rkt_command)
+    # call(rkt_command)
 
 def _start_libnetwork_container(libnetwork_image, etcd_envs, etcd_volumes,
                                 etcd_binds):
