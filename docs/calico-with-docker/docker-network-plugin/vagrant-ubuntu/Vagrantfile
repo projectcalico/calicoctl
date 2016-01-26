@@ -21,6 +21,8 @@ instance_name_prefix="calico"
 
 # The IP address of the first server
 primary_ip = "172.17.8.101"
+DOCKER_VER = "1.9.1"
+ETCD_VER = "2.2.0"
 
 Vagrant.configure(2) do |config|
   # always use Vagrants insecure key
@@ -38,11 +40,13 @@ Vagrant.configure(2) do |config|
       ip = "172.17.8.#{i+100}"
       host.vm.network :private_network, ip: ip
 
+      shell_script = ""
+      new_line = "\n"
       # Fix stdin: is not a tty error (http://foo-o-rama.com/vagrant--stdin-is-not-a-tty--fix.html)
-      config.vm.provision "fix-no-tty", type: "shell" do |s|
-        s.privileged = false
-        s.inline = "sudo sed -i '/tty/!s/mesg n/tty -s \\&\\& mesg n/' /root/.profile"
-      end
+      # config.vm.provision "fix-no-tty", type: "shell" do |s|
+      # s.privileged = false
+      shell_script += "sudo sed -i '/tty/!s/mesg n/tty -s \\&\\& mesg n/' /root/.profile" + new_line
+      # end
 
       # The docker provisioner installs docker.
       host.vm.provision :docker, images: [
@@ -52,34 +56,56 @@ Vagrant.configure(2) do |config|
       ]
 
       # Replace docker with the latest master build
-      host.vm.provision :shell, inline: "stop docker", :privileged => true
-      host.vm.provision :shell, inline: "wget -qO /usr/bin/docker https://get.docker.com/builds/Linux/x86_64/docker-1.9.1", :privileged => true
+      shell_script += "stop docker" + new_line
+      shell_script += "DOCKER_VER_CURRENT=$(docker version |grep ' Version: '|sed -e 's/ //g' | awk -F: '{print $2};')" + new_line
+      # get docker only if current version different
+      shell_script += "echo \"current docker version: $CURRENT_VER_CURRENT, target version: #{DOCKER_VER}\"" + new_line
+      shell_script += "[ \"$DOCKER_VER_CURRENT\" == \"#{DOCKER_VER}\" ] && echo \"docker #{DOCKER_VER} already installed\"" + new_line
+      shell_script += "[ \"$DOCKER_VER_CURRENT\" == \"#{DOCKER_VER}\" ] || wget -qO /usr/bin/docker https://get.docker.com/builds/Linux/x86_64/docker-#{DOCKER_VER}" + new_line
 
       # Calico uses etcd for calico and docker clustering. Install it on the first host only.
       if i == 1
-        # Download etcd and start.
-        host.vm.provision :shell, inline: <<-SHELL
-          # sudo apt-get install -y unzip
-          curl -L --silent https://github.com/coreos/etcd/releases/download/v2.2.0/etcd-v2.2.0-linux-amd64.tar.gz -o etcd-v2.2.0-linux-amd64.tar.gz
-          tar xzvf etcd-v2.2.0-linux-amd64.tar.gz
-          nohup etcd-v2.2.0-linux-amd64/etcd --addr=#{primary_ip}:2379 > etcd.log &
+        shell_script += <<-SHELL
+          if ! [ -f etcd-v#{ETCD_VER}-linux-amd64/etcd ] ; then
+             echo "downloading #{ETCD_VER}, please wait ..."
+             curl -L --silent https://github.com/coreos/etcd/releases/download/v#{ETCD_VER}/etcd-v#{ETCD_VER}-linux-amd64.tar.gz -o etcd-v#{ETCD_VER}-linux-amd64.tar.gz
+             tar xzf etcd-v#{ETCD_VER}-linux-amd64.tar.gz
+          else
+             echo etcd already installed
+          fi
+          nohup etcd-v#{ETCD_VER}-linux-amd64/etcd --addr=#{primary_ip}:2379 > etcd.log &
         SHELL
+        shell_script += new_line
       end
 
+     
       # Set Docker to use etcd for multihost.
-      host.vm.provision :shell, inline: %Q|sudo sh -c 'echo "DOCKER_OPTS=\"--cluster-store=etcd://#{primary_ip}:2379\"" > /etc/default/docker'|
+      shell_script += %Q|sudo sh -c 'echo "DOCKER_OPTS=\"--cluster-store=etcd://#{primary_ip}:2379\"" > /etc/default/docker'|
+      shell_script += new_line
 
       # Restart docker.
-      host.vm.provision :shell, inline: "sudo start docker || true"
+      shell_script += "sudo start docker"
+      shell_script += new_line
 
       # download calicoctl.
-      host.vm.provision :shell, inline: "wget -qO /usr/local/bin/calicoctl #{calicoctl_url}", :privileged => true
-
-      host.vm.provision :shell, inline: "chmod +x /usr/local/bin/calicoctl"
+      shell_script += <<-SHELL
+        if ! [ -f /usr/local/bin/calicoctl ] ; then
+          wget -qO /usr/local/bin/calicoctl #{calicoctl_url}
+        fi
+        chmod +x /usr/local/bin/calicoctl
+        echo "calicoctl version: `calicoctl version`"
+      SHELL
+      shell_script += new_line
 
       # Ensure the vagrant and root users get the ETCD_AUTHORITY environment.
-      host.vm.provision :shell, inline: %Q|echo 'export ETCD_AUTHORITY="#{primary_ip}:2379"' >> /home/vagrant/.profile|
-      host.vm.provision :shell, inline: %Q|sudo sh -c 'echo "Defaults env_keep +=\"ETCD_AUTHORITY\"" >>/etc/sudoers'|
+      shell_script += %Q|echo 'export ETCD_AUTHORITY="#{primary_ip}:2379"' >> /home/vagrant/.profile|
+      shell_script += new_line
+      shell_script += %Q|sudo sh -c 'echo "Defaults env_keep +=\"ETCD_AUTHORITY\"" >>/etc/sudoers'|
+      shell_script += new_line
+      shell_script += "echo '=== end of provision shell script ==='"
+      shell_script += new_line
+
+      host.vm.provision :shell, inline: shell_script
     end
   end
 end
