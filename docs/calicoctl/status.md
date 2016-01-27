@@ -1,9 +1,9 @@
 <!--- master only -->
-> ![warning](../images/warning.png) This document applies to the HEAD of the calico-docker source tree.
+> ![warning](../images/warning.png) This document applies to the HEAD of the calico-containers source tree.
 >
-> View the calico-docker documentation for the latest release [here](https://github.com/projectcalico/calico-docker/blob/v0.13.0/README.md).
+> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.14.0/README.md).
 <!--- else
-> You are viewing the calico-docker documentation for release **release**.
+> You are viewing the calico-containers documentation for release **release**.
 <!--- end of master only -->
 
 # User reference for 'calicoctl status' commands
@@ -62,6 +62,7 @@ $ calicoctl status
 calico-node container is running. Status: Up 5 seconds
 
 IPv4 BGP status
+IP: 172.17.8.100    AS Number: 64511 (inherited)
 +--------------+-------------------+-------+----------+-------------+
 | Peer address |     Peer type     | State |  Since   |     Info    |
 +--------------+-------------------+-------+----------+-------------+
@@ -69,9 +70,7 @@ IPv4 BGP status
 +--------------+-------------------+-------+----------+-------------+
 
 IPv6 BGP status
-+--------------+-----------+-------+-------+------+
-| Peer address | Peer type | State | Since | Info |
-+--------------+-----------+-------+-------+------+
-+--------------+-----------+-------+-------+------+
+No IPv6 address configured.
+
 ```
-[![Analytics](https://ga-beacon.appspot.com/UA-52125893-3/calico-docker/docs/calicoctl/status.md?pixel)](https://github.com/igrigorik/ga-beacon)
+[![Analytics](https://ga-beacon.appspot.com/UA-52125893-3/calico-containers/docs/calicoctl/status.md?pixel)](https://github.com/igrigorik/ga-beacon)

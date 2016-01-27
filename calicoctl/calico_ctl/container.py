@@ -32,7 +32,7 @@ from subprocess import CalledProcessError
 from netaddr import IPAddress, IPNetwork
 from calico_ctl import endpoint
 from pycalico import netns
-from pycalico.datastore_datatypes import IPPool, Endpoint
+from pycalico.datastore_datatypes import Endpoint
 from pycalico.ipam import AlreadyAssignedError
 
 from connectors import client
@@ -220,13 +220,13 @@ def container_add(container_id, ip, interface):
 
         # Check the container is actually running.
         if not info["State"]["Running"]:
-            print "%s is not currently running." % container_id
+            print_paragraph("%s is not currently running." % container_id)
             sys.exit(1)
 
         # We can't set up Calico if the container shares the host namespace.
         if info["HostConfig"]["NetworkMode"] == "host":
-            print "Can't add %s to Calico because it is " \
-                  "running NetworkMode = host." % container_id
+            print_paragraph("Can't add %s to Calico because it is "
+                            "running NetworkMode = host." % container_id)
             sys.exit(1)
 
     # Check if the container already exists
@@ -242,22 +242,23 @@ def container_add(container_id, ip, interface):
         # called with an IP address, we shouldn't just silently exit, since
         # that would confuse the user: the container would not be reachable on
         # that IP address.
-        print "%s has already been configured with Calico Networking." % \
-              container_id
+        print_paragraph("%s has already been configured with Calico "
+                        "Networking." % container_id)
         sys.exit(1)
 
     ip, pool = get_ip_and_pool(ip)
 
-    # The next hop IPs for this host are stored in etcd.
-    next_hops = client.get_default_next_hops(hostname)
     try:
+        # The next hop IPs for this host are stored in etcd.
+        next_hops = client.get_default_next_hops(hostname)
         next_hops[ip.version]
     except KeyError:
-        print "This node is not configured for IPv%d." % ip.version
+        print_paragraph("This node is not configured for IPv%d.  "
+                        "Is calico-node running?" % ip.version)
         unallocated_ips = client.release_ips({ip})
         if unallocated_ips:
-            print ("Error during cleanup. {0} was already unallocated."
-                  ).format(unallocated_ips)
+            print_paragraph("Error during cleanup. %s was already"
+                            "unallocated." % ip)
         sys.exit(1)
 
     # Get the next hop for the IP address.
@@ -292,7 +293,7 @@ def container_add(container_id, ip, interface):
     client.set_endpoint(ep)
 
     # Let the caller know what endpoint was created.
-    print "IP %s added to %s" % (str(ip), container_id)
+    print_paragraph("IP %s added to %s" % (str(ip), container_id))
     return ep
 
 
@@ -498,7 +499,7 @@ def container_ip_remove(container_id, ip, interface):
 
 def get_ip_and_pool(ip):
     if ip.lower() in ("ipv4", "ipv6"):
-        if '4' in ip:
+        if ip[-1] == '4':
             result = assign_any(1, 0)
             ip = result[0][0]
         else:
@@ -506,7 +507,8 @@ def get_ip_and_pool(ip):
             ip = result[1][0]
         pool = get_pool_or_exit(ip)
     elif ip is not None and '/' in ip:
-        pool = IPPool(ip)
+        cidr = IPNetwork(ip)
+        pool = get_pool_by_cidr_or_exit(cidr)
         if IPNetwork(ip).version == 4:
             result = assign_any(1, 0, pool=(pool, None))
             ip = result[0][0]
@@ -528,6 +530,15 @@ def get_ip_and_pool(ip):
             sys.exit(1)
 
     return (ip, pool)
+
+
+def get_pool_by_cidr_or_exit(cidr):
+    pools = client.get_ip_pools(cidr.version)
+    for pool in pools:
+        if pool.cidr == cidr:
+            return pool
+    print "%s is not found" % cidr
+    sys.exit(1)
 
 
 def get_pool_or_exit(ip):

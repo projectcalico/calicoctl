@@ -1,4 +1,4 @@
-.PHONEY: all binary node_image test_image build_image test ut ut-circle st st-ssl clean run-etcd run-etcd-ssl create-dind help
+.PHONEY: all binary node_image test_image test ut ut-circle st st-ssl clean run-etcd run-etcd-ssl create-dind help
 
 # These variables can be overridden by setting an environment variable.
 LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
@@ -9,9 +9,6 @@ HOST_CHECKOUT_DIR?=$(shell pwd)
 
 CALICOCTL_DIR=calicoctl
 CALICOCTL_FILE=$(CALICOCTL_DIR)/calicoctl.py $(wildcard $(CALICOCTL_DIR)/calico_ctl/*.py)
-
-BUILD_DIR=$(CALICOCTL_DIR)
-BUILD_FILES=$(BUILD_DIR)/Dockerfile $(BUILD_DIR)/requirements.txt
 
 TEST_CONTAINER_DIR=calico_test
 TEST_CONTAINER_FILES=$(shell find calico_test/ -type f ! -name '*.created')
@@ -25,15 +22,10 @@ default: help
 all: test                ## Run all the tests
 binary: dist/calicoctl   ## Create the calicoctl binary
 node_image: calico_node/.calico_node.created ## Create the calico/node image
-build_image: calicoctl/.calico_build.created ## Create the calico/build image
 test_image: calico_test/.calico_test.created ## Create the calico/test image
 test: st ut              ## Run all the tests
 
-calicoctl/.calico_build.created: $(BUILD_FILES)
-	cd calicoctl && docker build -t calico/build:latest .
-	touch calicoctl/.calico_build.created
-
-dist/calicoctl: $(CALICOCTL_FILE) calicoctl/.calico_build.created
+dist/calicoctl: $(CALICOCTL_FILE) 
 	mkdir -p dist
 	chmod 777 dist
 
@@ -85,7 +77,7 @@ routereflector.tar:
 
 ## Download the latest docker binary
 docker:
-	curl https://get.docker.com/builds/Linux/x86_64/docker-1.9.0 -o docker
+	curl https://get.docker.com/builds/Linux/x86_64/docker-1.9.1 -o docker
 	chmod +x docker
 
 ## Run the UTs in a container.
@@ -142,6 +134,7 @@ st: run-etcd dist/calicoctl docker calico_test/.calico_test.created busybox.tar 
 	           --net=host \
 	           --privileged \
 	           -e HOST_CHECKOUT_DIR=$(HOST_CHECKOUT_DIR) \
+	           -e DEBUG_FAILURES=$(DEBUG_FAILURES) \
 	           --rm -ti \
 	           -v /var/run/docker.sock:/var/run/docker.sock \
 	           -v `pwd`:/code \
@@ -164,6 +157,7 @@ st-ssl: run-etcd-ssl dist/calicoctl docker calico_test/.calico_test.created busy
 	           --net=host \
 	           --privileged \
 	           -e HOST_CHECKOUT_DIR=$(HOST_CHECKOUT_DIR) \
+	           -e DEBUG_FAILURES=$(DEBUG_FAILURES) \
 	           -e ETCD_SCHEME=https \
 	           -e ETCD_CA_CERT_FILE=`pwd`/certs/ca.crt \
 	           -e ETCD_CERT_FILE=`pwd`/certs/client.crt \
@@ -179,37 +173,11 @@ semaphore:
 	# Clean up unwanted files to free disk space.
 	rm -rf /home/runner/{.npm,.phpbrew,.phpunit,.kerl,.kiex,.lein,.nvm,.npm,.phpbrew,.rbenv}
 
-	# Caching - From http://tschottdorf.github.io/cockroach-docker-circleci-continuous-integration/
-	#find . -exec touch -t 201401010000 {} \;
-	#for x in $(git ls-tree --full-tree --name-only -r HEAD); do touch -t  $(date -d "$(git log -1 --format=%ci "${x}")" +%y%m%d%H%M.%S) "${x}"; done
-
-	# "Upgrade" docker
-	docker version
-	stop docker
-	curl https://get.docker.com/builds/Linux/x86_64/docker-1.9.0 -o /usr/bin/docker
-	cp /usr/bin/docker .
-	start docker
-
-	# Use the cache
-	#cp $SEMAPHORE_CACHE_DIR/busybox.tar calico_containers || true
-	#docker load --input $SEMAPHORE_CACHE_DIR/calico-node.tar || true
-	#docker load --input $SEMAPHORE_CACHE_DIR/calico-build.tar || true
-
 	# Make sure semaphore has the modules loaded that we need.
 	modprobe -a ip6_tables xt_set
 
 	# Actually run the tests (refreshing the images as required)
 	make st
-
-	# Run subset of STs with secure etcd
-	#TODO Fix secure STs
-	#ST_TO_RUN=tests/st/no_orchestrator/ make st-ssl
-	#ST_TO_RUN=tests/st/bgp/test_route_reflector_cluster.py make st-ssl
-
-	# Store off the images if the tests passed.
-	#cp calico_containers/calico-node.tar $SEMAPHORE_CACHE_DIR
-	#cp calico_containers/busybox.tar $SEMAPHORE_CACHE_DIR
-	#docker save --output $SEMAPHORE_CACHE_DIR/calico-build.tar calico/build
 
 ## Run a Docker in Docker (DinD) container.
 create-dind: docker
@@ -231,7 +199,6 @@ clean:
 	-rm -f *.tar
 	-docker rm -f calico-node
 	-docker rmi calico/node
-	-docker rmi calico/build
 	-docker rmi calico/test
 	-docker run -v /var/run/docker.sock:/var/run/docker.sock -v /var/lib/docker:/var/lib/docker --rm martin/docker-cleanup-volumes
 

@@ -1,14 +1,14 @@
 <!--- master only -->
-> ![warning](images/warning.png) This document applies to the HEAD of the calico-docker source tree.
+> ![warning](images/warning.png) This document applies to the HEAD of the calico-containers source tree.
 >
-> View the calico-docker documentation for the latest release [here](https://github.com/projectcalico/calico-docker/blob/v0.13.0/README.md).
+> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.14.0/README.md).
 <!--- else
-> You are viewing the calico-docker documentation for release **release**.
+> You are viewing the calico-containers documentation for release **release**.
 <!--- end of master only -->
 
 # Calico Repositories
 
-## The calico-docker repository
+## The calico-containers repository
 
 This respository contains the following:
 
@@ -26,7 +26,7 @@ This respository contains the following:
   Calico with Docker.  The [`calico_test` directory](../calico_test) contains 
   the Docker file and associated files for the `calico/test image`.  This 
   includes a set of utility Python files for running STs.  This image is used 
-  by the calico-docker STs and UTs.
+  by the calico-containers STs and UTs.
 - UTs testing calicoctl, STs testing single host and multihost systems
   using calicoctl and calico/node to create Calico networked containers.  These
   tests run within the `calico/test` Docker image.  See the [`tests` directory](../tests)
@@ -64,21 +64,15 @@ There are several integrations available for Calico in a containerized
 environment.  The repositories below hold the plugin code for these 
 integrations.
 
- - [calico-kubernetes](https://github.com/projectcalico/calico-kubernetes): 
-   Implements the Calico plugin for running Calico with the 
-   [kubernetes](https://github.com/kubernetes/kubernetes) orchestrator. This is 
-   used when the Calico node is started with the `--kubernetes` flag, and
-   installed as a binary downloaded from a particular release.
-
- - [calico-mesos](https://github.com/projectcalico/calico-mesos): Implements 
+ - [calico-mesos](https://github.com/projectcalico/calico-mesos): Implements
    the Calico plugin for running Calico with the [mesos](https://github.com/apache/mesos) 
    orchestrator.  This plugin may be installed manually (from a binary attached
    to a relase), or as an RPM which can be created.
 
- - [calico-rkt](https://github.com/projectcalico/calico-rkt): Implements the 
-   Calico plugin for running Calico with the [rkt](https://github.com/coreos/rkt) 
-   orchestrator. This is used when the Calico node is started with the `--rkt` 
-   flag, and installed as a binary downloaded from a particular release.
+ - [calico-cni](https://github.com/projectcalico/calico-cni): Implements the 
+   Calico plugin for running Calico with any orchestrator that uses the 
+   [Container Network Interface](https://github.com/appc/cni), including [rkt](https://github.com/coreos/rkt)
+   and [Kubernetes](https://github.com/kubernetes/kubernetes)
 
  - [libnetwork-plugin](https://github.com/projectcalico/libnetwork-plugin): 
    Implements Calico plugin support for the (libnetwork based) Docker 
@@ -87,4 +81,4 @@ integrations.
    Docker image (available on DockerHub).  When Calico node is started with the
    `--libnetwork` flag, a separate container is launched running the driver.
 
-[![Analytics](https://ga-beacon.appspot.com/UA-52125893-3/calico-docker/docs/RepoStructure.md?pixel)](https://github.com/igrigorik/ga-beacon)
+[![Analytics](https://ga-beacon.appspot.com/UA-52125893-3/calico-containers/docs/RepoStructure.md?pixel)](https://github.com/igrigorik/ga-beacon)

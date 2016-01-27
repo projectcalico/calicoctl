@@ -24,7 +24,7 @@ PATH_DOCS = "docs"
 PATH_RELEASE_DATA = ".releasedata"
 PATH_BUILDING = path.join(PATH_DOCS, "Building.md")
 
-# Regexes for calico-docker version format.
+# Regexes for calico-containers version format.
 INIT_VERSION = re.compile(r'__version__\s*=\s*"(.*)"')
 VERSION_RE = re.compile(r'^v(\d+)\.(\d+)\.(\d+)$')
 VERSION_NAME_RE = re.compile(r'^v(\d+)\.(\d+)\.(\d+)[.-](\w+)$')
@@ -33,7 +33,7 @@ VERSION_NAME_RE = re.compile(r'^v(\d+)\.(\d+)\.(\d+)[.-](\w+)$')
 MD_URL_RE = re.compile(r'\[([^\[\]]*)\]\(([^()]*)\)')
 
 # Regex for matching the main README.
-README_RE = re.compile(r'https://github\.com/projectcalico/calico\-docker/blob/.*/README\.md')
+README_RE = re.compile(r'https://github\.com/projectcalico/calico\-containers/blob/.*/README\.md')
 
 # Files to include in the list of files to automatically update.  All file
 # paths are relative to the project root.
@@ -428,21 +428,23 @@ def validate_uri(filename, uri):
         # Validating a URL.  Don't validate the shield URLs.
         if uri.startswith("https://img.shields.io"):
             return True
+        if uri.startswith("https://badge.imagelayers.io"):
+            return True
 
-        # There should no calico-docker URL except for:
+        # There should no calico-containers URL except for:
         # - The README URLs which we skip since these are auto-generated
         # - Issues (which we can validate)
         # - Releases (which we can validate)
         # Everything else should be specified with a relative path.
-        if (uri.startswith("https://github.com/projectcalico/calico-docker") or
-            uri.startswith("https://www.github.com/projectcalico/calico-docker")):
+        if (uri.startswith("https://github.com/projectcalico/calico-containers") or
+            uri.startswith("https://www.github.com/projectcalico/calico-containers")):
 
             if README_RE.match(uri):
                 return True
 
-            if ((uri.find("/calico-docker/issues") < 0) and
-                (uri.find("/calico-docker/releases") < 0)):
-                print_bullet("%s: Do not specify calico-docker file using a URL, "
+            if ((uri.find("/calico-containers/issues") < 0) and
+                (uri.find("/calico-containers/releases") < 0)):
+                print_bullet("%s: Do not specify calico-containers file using a URL, "
                              "specify using a relative path: %s" % (filename, uri))
                 return False
 
@@ -474,7 +476,7 @@ def validate_analytics_url(filename, analytics_url):
     :param url:  The analytics URL to validate.
     :return:  True if URL is valid and accessible
     """
-    expected_url = "https://ga-beacon.appspot.com/UA-52125893-3/calico-docker/%s?pixel" % filename
+    expected_url = "https://ga-beacon.appspot.com/UA-52125893-3/calico-containers/%s?pixel" % filename
     if analytics_url != expected_url:
         print_bullet("%s: Anayltics URL is incorrect, should be %s" % (filename, expected_url))
         return False

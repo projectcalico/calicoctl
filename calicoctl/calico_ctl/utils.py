@@ -26,7 +26,7 @@ from netaddr.core import AddrFormatError
 
 DOCKER_VERSION = "1.16"
 DOCKER_LIBNETWORK_VERSION = "1.21"
-# There is an issue with 2.0.9 and CAS (when using py-etcd) - https://github.com/projectcalico/calico-docker/issues/479
+# There is an issue with 2.0.9 and CAS (when using py-etcd) - https://github.com/projectcalico/calico-containers/issues/479
 ETCD_VERSION = "2.0.10"
 DOCKER_ORCHESTRATOR_ID = "docker"
 NAMESPACE_ORCHESTRATOR_ID = "namespace"
@@ -105,6 +105,31 @@ def validate_cidr(cidr):
         # Some versions of Netaddr have a bug causing them to return a
         # ValueError rather than an AddrFormatError, so catch both.
         return False
+
+
+def validate_cidr_versions(cidrs, ip_version=None):
+    """
+    Validate CIDR versions match each other and (if specified) the given IP
+    version.
+
+    :param cidrs: List of CIDRs whose versions need verification
+    :param ip_version: Expected IP version that CIDRs should use (4, 6, or None)
+                       If None, CIDRs should all have same IP version
+    :return: Boolean: True if versions match each other and ip_version,
+                      False otherwise
+    """
+    try:
+        for cidr in cidrs:
+            network = netaddr.IPNetwork(cidr)
+            if ip_version is None:
+                ip_version = network.version
+            elif ip_version != network.version:
+                return False
+    except (AddrFormatError, ValueError):
+        # Some versions of Netaddr have a bug causing them to return a
+        # ValueError rather than an AddrFormatError, so catch both.
+        return False
+    return True
 
 
 def validate_ip(ip_addr, version):

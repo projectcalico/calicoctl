@@ -18,11 +18,12 @@ import socket
 import signal
 
 import docker
+import docker.errors
+import docker.utils
 from subprocess32 import call
-from netaddr import IPAddress
+from netaddr import IPAddress, AddrFormatError
 from prettytable import PrettyTable
 
-from . import __rkt_plugin_version__, __kubernetes_plugin_version__
 from pycalico.datastore_datatypes import IPPool
 from pycalico.datastore_datatypes import BGPPeer
 from pycalico.datastore import (ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT,
@@ -46,8 +47,7 @@ __doc__ = """
 Usage:
   calicoctl node [--ip=<IP>] [--ip6=<IP6>] [--node-image=<DOCKER_IMAGE_NAME>]
     [--runtime=<RUNTIME>] [--as=<AS_NUM>] [--log-dir=<LOG_DIR>]
-    [--detach=<DETACH>] [--rkt]
-    [(--kubernetes [--kube-plugin-version=<KUBE_PLUGIN_VERSION])]
+    [--detach=<DETACH>]
     [(--libnetwork [--libnetwork-image=<LIBNETWORK_IMAGE_NAME>])]
   calicoctl node stop [--force]
   calicoctl node remove [--remove-endpoints]
@@ -81,31 +81,17 @@ Options:
   --as=<AS_NUM>             The default AS number for this node.
   --ipv4                    Show IPv4 information only.
   --ipv6                    Show IPv6 information only.
-  --kubernetes              Download and install the Kubernetes plugin.
-  --kube-plugin-version=<KUBE_PLUGIN_VERSION> Version of the Kubernetes plugin
-                            to install when using the --kubernetes option.
-                            [default: %s]
-  --rkt                     Download and install the rkt plugin.
   --libnetwork              Use the libnetwork plugin.
   --libnetwork-image=<LIBNETWORK_IMAGE_NAME>    Docker image to use for
                             Calico's libnetwork driver.
                             [default: calico/node-libnetwork:latest]
-""" % __kubernetes_plugin_version__
+"""
 
 DEFAULT_IPV4_POOL = IPPool("192.168.0.0/16")
 DEFAULT_IPV6_POOL = IPPool("fd80:24e2:f998:72d6::/64")
 
 CALICO_NETWORKING_ENV = "CALICO_NETWORKING"
 CALICO_NETWORKING_DEFAULT = "true"
-
-KUBERNETES_BINARY_URL = 'https://github.com/projectcalico/calico-kubernetes/releases/download/%s/calico_kubernetes'
-KUBERNETES_PLUGIN_DIR = '/usr/libexec/kubernetes/kubelet-plugins/net/exec/calico/'
-KUBERNETES_PLUGIN_DIR_BACKUP = '/etc/kubelet-plugins/calico/'
-
-RKT_PLUGIN_VERSION = __rkt_plugin_version__
-RKT_BINARY_URL = 'https://github.com/projectcalico/calico-rkt/releases/download/%s/calico_rkt' % RKT_PLUGIN_VERSION
-RKT_PLUGIN_DIR = '/usr/lib/rkt/plugins/net/'
-RKT_PLUGIN_DIR_BACKUP = '/etc/rkt-plugins/calico/'
 
 ETCD_KEY_NODE_FILE = "/etc/calico/certs/key.pem"
 ETCD_CERT_NODE_FILE = "/etc/calico/certs/cert.crt"
@@ -209,8 +195,6 @@ def node(arguments):
         assert arguments.get("--detach") in ["true", "false"]
         detach = arguments.get("--detach") == "true"
 
-        kubernetes_version = None if not arguments.get("--kubernetes") \
-                                else arguments.get("--kube-plugin-version")
         libnetwork_image = None if not arguments.get("--libnetwork") \
                                 else arguments.get("--libnetwork-image")
         node_start(ip=arguments.get("--ip"),
@@ -220,13 +204,11 @@ def node(arguments):
                    ip6=arguments.get("--ip6"),
                    as_num=as_num,
                    detach=detach,
-                   kubernetes_version=kubernetes_version,
-                   rkt=arguments.get("--rkt"),
                    libnetwork_image=libnetwork_image)
 
 
 def node_start(node_image, runtime, log_dir, ip, ip6, as_num, detach,
-               kubernetes_version, rkt, libnetwork_image):
+               libnetwork_image):
     """
     Create the calico-node container and establish Calico networking on this
     host.
@@ -238,17 +220,15 @@ def node_start(node_image, runtime, log_dir, ip, ip6, as_num, detach,
     the global default value will be used.
     :param detach: True to run in Docker's "detached" mode, False to run
     attached.
-    :param kubernetes_version: The version of the calico-kubernetes plugin to
-     install, or None if the plugin should not be installed.
-    :param rkt: True to install the rkt plugin, False otherwise.
     :param libnetwork_image: The name of the Calico libnetwork driver image to
     use.  None, if not using libnetwork.
     :return:  None.
     """
     # Normally, Felix will load the modules it needs, but when running inside a
-    # container it might not be able to so ensure the required modules are
+    # container it might not be able to do so. Ensure the required modules are
     # loaded each time the node starts.
-    # This is just a best error attempt, as the modules might be builtins.
+    # We only make a best effort attempt because the command may fail if the
+    # modules are built in.
     # We'll warn during the check_system() if the modules are unavailable.
     try:
         call(["modprobe", "-a"] + REQUIRED_MODULES)
@@ -273,7 +253,9 @@ def node_start(node_image, runtime, log_dir, ip, ip6, as_num, detach,
 
     # Get IP address of host, if none was specified
     if not ip:
-        ips = get_host_ips(exclude=["^docker.*", "^cbr.*"])
+        ips = get_host_ips(exclude=["^docker.*", "^cbr.*",
+                                    "virbr.*", "lxcbr.*", "veth.*",
+                                    "cali.*", "tunl.*"])
         try:
             ip = ips.pop()
         except IndexError:
@@ -292,26 +274,6 @@ def node_start(node_image, runtime, log_dir, ip, ip6, as_num, detach,
     # Warn if this hostname conflicts with an existing host
     warn_if_hostname_conflict(ip)
 
-    # Install Kubernetes plugin
-    if kubernetes_version:
-        # Build a URL based on the provided Kubernetes_version.
-        url = KUBERNETES_BINARY_URL % kubernetes_version
-        try:
-            # Attempt to install to the default Kubernetes directory
-            install_plugin(KUBERNETES_PLUGIN_DIR, url)
-        except OSError:
-            # Use the backup directory
-            install_plugin(KUBERNETES_PLUGIN_DIR_BACKUP, url)
-
-    # Install rkt plugin
-    if rkt:
-        try:
-            # Attempt to install to the default rkt directory
-            install_plugin(RKT_PLUGIN_DIR, RKT_BINARY_URL)
-        except OSError:
-            # Use the backup directory
-            install_plugin(RKT_PLUGIN_DIR_BACKUP, RKT_BINARY_URL)
-
     # Set up etcd
     ipv4_pools = client.get_ip_pools(4)
     ipv6_pools = client.get_ip_pools(6)
@@ -325,13 +287,21 @@ def node_start(node_image, runtime, log_dir, ip, ip6, as_num, detach,
     client.ensure_global_config()
     client.create_host(hostname, ip, ip6, as_num)
 
-    # Always try to convert the address(hostname) to an IP. This is a noop if
-    # the address is already an IP address.  Note that the format of the authority
-    # string has already been validated.
+    # If IPIP is enabled, the host requires an IP address for its tunnel
+    # device, which is in an IPIP pool.  Without this, a host can't originate
+    # traffic to a pool address because the response traffic would not be
+    # routed via the tunnel (likely being dropped by RPF checks in the fabric).
+    ipv4_pools = client.get_ip_pools(4)
+    ipip_pools = [p for p in ipv4_pools if p.ipip]
+    if ipip_pools:
+        # IPIP is enabled, make sure the host has an address for its tunnel.
+        _ensure_host_tunnel_addr(ipv4_pools, ipip_pools)
+    else:
+        # No IPIP pools, clean up any old address.
+        _remove_host_tunnel_addr()
+
+    # The format of the authority string has already been validated.
     etcd_authority = os.getenv(ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT)
-    etcd_authority_address, etcd_authority_port = etcd_authority.split(':')
-    etcd_authority = '%s:%s' % (socket.gethostbyname(etcd_authority_address),
-                                etcd_authority_port)
 
     # Get etcd SSL environment variables if they exist
     etcd_scheme = os.getenv(ETCD_SCHEME_ENV, ETCD_SCHEME_DEFAULT)
@@ -583,6 +553,11 @@ def node_remove(remove_endpoints):
 
     for endpoint in endpoints:
         remove_veth(endpoint.name)
+
+    # If the host had an IPIP tunnel address, release it back to the IPAM pool
+    # so that we don't leak it when we delete the config.
+    _remove_host_tunnel_addr()
+
     client.remove_host(hostname)
 
     print "Node configuration removed"
@@ -816,30 +791,108 @@ def _attach_and_stream(container):
         docker_client.stop(container)
 
 
-def install_plugin(plugin_dir, binary_url):
+def _ensure_host_tunnel_addr(ipv4_pools, ipip_pools):
     """
-    Downloads a plugin to the specified directory.
-    :param plugin_dir: Desired download destination for the plugin.
-    :param binary_url: Download the plugin from this url.
-    :return: Nothing
+    Ensure the host has a valid IP address for its IPIP tunnel device.
+
+    This must be an IP address claimed from one of the IPIP pools.
+    Handles re-allocating the address if it finds an existing address
+    that is not from an IPIP pool.
+
+    :param ipv4_pools: List of all IPv4 pools.
+    :param ipip_pools: List of IPIP-enabled pools.
     """
-    if not os.path.exists(plugin_dir):
-        os.makedirs(plugin_dir)
-    binary_path = plugin_dir + 'calico'
-    getter = URLGetter()
-    try:
-        getter.retrieve(binary_url, binary_path)
-    except IOError:
-        # We were unable to download the binary.  This may be because the
-        # user provided an invalid calico-kubernetes version.
-        print "ERROR: Couldn't download the plugin from %s" % binary_url
-        sys.exit(1)
+    ip_addr = _get_host_tunnel_ip()
+    if ip_addr:
+        # Host already has a tunnel IP assigned, verify that it's still valid.
+        pool = _find_pool(ip_addr, ipv4_pools)
+        if pool and not pool.ipip:
+            # No longer an IPIP pool. Release the IP, it's no good to us.
+            client.release_ips({ip_addr})
+            ip_addr = None
+        elif not pool:
+            # Not in any IPIP pool.  IP must be stale.  Since it's not in any
+            # pool, we can't release it.
+            ip_addr = None
+    if not ip_addr:
+        # Either there was no IP or the IP needs to be replaced.  Try to
+        # get an IP from one of the IPIP-enabled pools.
+        _assign_host_tunnel_addr(ipip_pools)
+
+
+def _find_pool(ip_addr, ipv4_pools):
+    """
+    Find the pool containing the given IP.
+
+    :param ip_addr:  IP address to find.
+    :param ipv4_pools:  iterable containing IPPools.
+    :return: The pool, or None if not found
+    """
+    for pool in ipv4_pools:
+        if ip_addr in pool.cidr:
+            return pool
     else:
-        # Download successful - change permissions to allow execution.
-        try:
-            st = os.stat(binary_path)
-            executable_permissions = st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
-            os.chmod(binary_path, executable_permissions)
-        except OSError:
-            print "ERROR: Unable to set permissions on plugin %s" % binary_path
-            sys.exit(1)
+        return None
+
+
+def _assign_host_tunnel_addr(ipip_pools):
+    """
+    Claims an IPIP-enabled IP address from the first pool with some
+    space.
+
+    Stores the result in the host's config as its tunnel address.
+
+    Exits on failure.
+    :param ipip_pools:  List of IPPools to search for an address.
+    """
+    for ipip_pool in ipip_pools:
+        v4_addrs, _ = client.auto_assign_ips(
+            num_v4=1, num_v6=0,
+            handle_id=None,
+            attributes={},
+            pool=(ipip_pool, None),
+            host=hostname
+        )
+        if v4_addrs:
+            # Successfully allocated an address.  Unpack the list.
+            [ip_addr] = v4_addrs
+            break
+    else:
+        # Failed to allocate an address, the pools must be full.
+        print_paragraph(
+            "Failed to allocate an IP address from an IPIP-enabled pool "
+            "for the host's IPIP tunnel device.  Pools are likely "
+            "exhausted."
+        )
+        sys.exit(1)
+    # If we get here, we've allocated a new IPIP-enabled address,
+    # Store it in etcd so that Felix will pick it up.
+    client.set_per_host_config(hostname, "IpInIpTunnelAddr",
+                               str(ip_addr))
+
+
+def _remove_host_tunnel_addr():
+    """
+    Remove any existing IP address for this host's IPIP tunnel device.
+
+    Idempotent; does nothing if there is no IP assigned.  Releases the
+    IP from IPAM.
+    """
+    ip_addr = _get_host_tunnel_ip()
+    if ip_addr:
+        client.release_ips({ip_addr})
+    client.remove_per_host_config(hostname, "IpInIpTunnelAddr")
+
+
+def _get_host_tunnel_ip():
+    """
+    :return: The IPAddress of the host's IPIP tunnel or None if not
+             present/invalid.
+    """
+    raw_addr = client.get_per_host_config(hostname, "IpInIpTunnelAddr")
+    try:
+        ip_addr = IPAddress(raw_addr)
+    except (AddrFormatError, ValueError, TypeError):
+        # Either there's no address or the data is bad.  Treat as missing.
+        ip_addr = None
+    return ip_addr
