@@ -19,6 +19,9 @@ This RPM installation includes and installs:
 - `calicoctl`, a command line tool for easily launching the calico-node service
 - `calico.service`, a systemd service to ensure calico is always running
 
+## Prerequisites
+Calico launches its core services in a docker container, and thus requires you have docker installed on each host. Follow [Docker's Centos Installation Guide](https://docs.docker.com/engine/installation/centos/) to install it.
+
 ## 1. Download and Install the RPMs
 Extra Packages for Enterprise Linux (EPEL) must be installed before installing Mesos + Net-Modules. You can download this package by calling:
 
@@ -29,13 +32,13 @@ sudo yum update
 
 Now, download and install the RPMs:
 ```
-wget https://github.com/projectcalico/calico-mesos/releases/download/v0.1.3/calico-mesos-rpms.tar
+wget https://github.com/projectcalico/calico-mesos/releases/download/v0.2.0/calico-mesos-rpms.tar
 tar -xvf calico-mesos-rpms.tgz
 sudo yum install -y calico-mesos-rpms/*.rpm
 ```
 
 ## 2. Start Calico Services
-A systemd unit file has been provided to start the Calico processes needed by the calico_mesos plugin binary. When starting the calico-mesos service, the environment variable `ETCD_AUTHORITY` is used to point Calico to a running instance of etcd. This variable must be set in `/etc/default/mesos-slave`.  Similarly, the `MASTER` variable should point at your ZooKeeper's IP address and port. 
+A systemd unit file has been provided to start the Calico processes needed by the `calico_mesos` plugin binary. When starting the calico-mesos service, the environment variable `ETCD_AUTHORITY` is used to point Calico to a running instance of etcd. This variable must be set in `/etc/default/mesos-slave`.  Similarly, the `MASTER` variable should point at your ZooKeeper's IP address and port. 
 
 Open `/etc/default/mesos-slave` set the`ETCD_AUTHORITY` and `MASTER` 
 variables to the correct values.  Your file should now look like this:
