@@ -39,7 +39,7 @@ coreos:
         [Service]
         User=root
         ExecStartPre=/usr/bin/mkdir -p /opt/bin
-        ExecStartPre=/usr/bin/wget -N -O /opt/bin/calicoctl http://www.projectcalico.org/builds/calicoctl
+        ExecStartPre=/usr/bin/wget -N -O /opt/bin/calicoctl http://www.projectcalico.org/builds/calicoctl?circleci-branch=v0.17.0-candidate
         ExecStartPre=/usr/bin/chmod +x /opt/bin/calicoctl
         ExecStartPre=/usr/bin/mkdir -p /etc/rkt/net.d
         ExecStartPre=/usr/bin/chmod a+w /etc/rkt/net.d
