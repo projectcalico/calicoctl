@@ -13,7 +13,7 @@ write_files:
       echo "Defaults  secure_path=/opt/bin:$PATH" >>/etc/sudoers.d/path
       mkdir -p /opt/bin
       mkdir -p /opt/bin
-      wget -N -O /opt/bin/calicoctl http://www.projectcalico.org/builds/calicoctl?circleci-branch=v0.16.1-candidate
+      wget -N -O /opt/bin/calicoctl https://github.com/projectcalico/calico-containers/releases/download/v0.16.1/calicoctl
       chmod +x /opt/bin/calicoctl
       mkdir -p /etc/rkt/net.d
       chmod a+w /etc/rkt/net.d
