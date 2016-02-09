@@ -2,7 +2,7 @@
 
 Thanks for thinking about contributing to Project Calico! The success of an
 open source project is entirely down to the efforts of its contributors, so we
-do genuinely want to thank you for even thinking of contributing.
+do genuinely want to thank you for contributing.
 
 This document contains some guidance and steps for contributing. Make sure you
 read it thoroughly, because if you miss some of these steps we will have to ask
@@ -11,8 +11,8 @@ to merge it.
 
 ## Before Contributing: The Contributor License Agreement
 
-If you plan to contribute in the form of documentation or code, before we can
-accept your contribution we need you to sign our Contributor License Agreement.
+If you plan to contribute in the form of documentation or code, we need you to
+sign our Contributor License Agreement before we can accept your contribution.
 This covers the legalities, confirming that you retain ownership of your
 contributions and that you are licensing them to us.
 
@@ -33,26 +33,107 @@ which you sign depends on on whose behalf you are contributing:
 It is important to re-iterate: until you sign the required agreements we cannot
 accept your contribution!
 
-## Contributing: code and documentation
+## Mailing lists and chat
+
+A great way to talk to us to ask questions, discuss features and bounce ideas
+is to join one of the channels listed below:
+
+* [Technical Mailing List](http://lists.projectcalico.org/mailman/listinfo/calico-tech_lists.projectcalico.org)
+* [Slack Calico Users Channel](https://calicousers.slack.com) ([Sign up](https://calicousers-slackin.herokuapp.com))
+* IRC - [#calico](https://kiwiirc.com/client/irc.freenode.net/#calico)
+
+## Reporting issues
+
+Before raising an issue with *Calico for containers*, please check for 
+duplicate issues, and check out our [Troubleshooting guide](Troubleshooting.md)
+and our [Frequently Asked Questions](FAQ.md).
+
+If you have a question, please hop on to our IRC or Slack channels as you will
+probably get a much faster turnaround and from a broader audience.
+
+If you do need to raise an issue, please include of the following that you
+believe are relevant to your problem (including too much information is never
+a bad thing):
+
+-  A detailed description of the problem
+-  The steps to reproduce the problem (e.g. the full list of `calicoctl`
+   commands that were run)
+-  The expected result.
+-  Versions of appropriate binaries and libraries.  For example the output from
+   `calicoctl version`, your version of Docker, rkt, Kubernetes etc.
+-  A link to any diagnostics (e.g. if using `calicoctl`, you can gathered
+   diagnostics using `calicoctl diags` - this provides instructions for 
+   uploading the diags bundle to transfer.sh - or alternatively if the 
+   diagnostics contains sensitive information we can set up an alternative
+   method for transfer
+-  If using `calicoctl` the output from `calicoctl status` run on each node
+   might also be useful.
+-  Details of your OS
+-  Environment details such as GCE, bare metal, VirtualBox.
+   
+
+## Contributing: Code and Documentation
 
 For contributing code and documentation we follow the GitHub pull request
-model. This means you should fork our repository on GitHub, make your changes
-in your local repository, and then open a GitHub pull request. This pull
-request will then go through a review process by one or more of the core team.
+model. 
 
-Code changes will additionally be tested by our continuous integration server.
-We will not accept changes that do not consistently pass our automated unit
-test suite. It is vital that our master branch be passing tests at all times:
-hence the restriction.
+-  Fork the repository on GitHub
+-  Make changes to your local repository in a branch for your chance
+-  Test the change
+-  Create a pull request which will then go through a review process by one or
+   more of the core team.
+   
+### Testing your changes
 
-The relevant tests are our unit tests and system tests: you can run them 
-yourself by running the `make ut` and `make st` scripts from the root of the
-repository.
+If you create a pull request, our automated UT and STs will be run over your
+change.  We will not accept changes that do not consistently pass our automated
+test suites. It is vital that our master branch be passing tests at all times.
+
+Read the [Building and testing calico-containers images guide](docs/Building.md)
+for details on running the UTs and STs.
+
+Please add any additional tests to ensure we maintain a healthy code and
+feature coverage.
+
+### Documentation
+
+If your code change requires some documentation updates, please include these
+in the pull request.
+
+In particular changes to the `calicoctl` UX will also require changes to the
+calcoctl documentation and possibly some of the sample guides.
+
+### Review and merge
 
 Assuming your code review is finished and tests are passing, your change will
 then be merged as soon as possible! Occasionally we will sit on a change, for
 instance if we are planning to tag a release shortly, but this is only to
 ensure the stability of the branch. After the release we will merge your change
 promptly.
+
+Before merging we prefer that you squash the commits into a single commit to
+ensure we have a cleaner commit history.
+
+### Coding Style
+
+The majority of the code is written in Python and we generally follow the
+[PEP-8 coding style](https://www.python.org/dev/peps/pep-0008).
+
+### Format of the Commit Message
+
+The commit message should include a short subject on what changed, and a body
+detailing why the change was necessary, and any key points about the
+implementation.
+
+Try to keep the subject line no longer than 70 characters, and the lines of the
+body no longer than 80 characters.  This improves readability in both GitHub 
+and when using git tools.
+
+If the pull request fixes an issue, please include details in the body of which
+issue was fixed.  This should be a separate line and of the following format:
+
+```
+Fixes #29
+```
 
 [![Analytics](https://ga-beacon.appspot.com/UA-52125893-3/calico-containers/CONTRIBUTING.md?pixel)](https://github.com/igrigorik/ga-beacon)
