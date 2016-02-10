@@ -16,8 +16,8 @@ sign our Contributor License Agreement before we can accept your contribution.
 This covers the legalities, confirming that you retain ownership of your
 contributions and that you are licensing them to us.
 
-For some fairly complicated legal reasons we actually have three CLAs, and
-which you sign depends on on whose behalf you are contributing:
+For some fairly complicated legal reasons we actually have three CLAs.  Which
+you sign depends on whose behalf you are contributing:
 
 - All individuals (except employees of the U.S. government – see below) should
   sign the [Individual Contributor License Agreement](http://www.projectcalico.org/community/Individual-Contributor-Agreement).
@@ -45,21 +45,20 @@ is to join one of the channels listed below:
 ## Reporting issues
 
 Before raising an issue with *Calico for containers*, please check for 
-duplicate issues, and check out our [Troubleshooting guide](Troubleshooting.md)
-and our [Frequently Asked Questions](FAQ.md).
+duplicate issues, and read our [Troubleshooting](Troubleshooting.md)
+and our [Frequently Asked Questions](FAQ.md) documents.
 
-If you have a question, please hop on to our IRC or Slack channels as you will
-probably get a much faster turnaround and from a broader audience.
+If you have a question, please hop on to our IRC or Slack channels.
 
-If you do need to raise an issue, please include of the following that you
+If you do need to raise an issue, please include any of the following that you
 believe are relevant to your problem (including too much information is never
 a bad thing):
 
--  A detailed description of the problem
+-  A detailed description of the problem.
 -  The steps to reproduce the problem (e.g. the full list of `calicoctl`
    commands that were run)
--  The expected result.
--  Versions of appropriate binaries and libraries.  For example the output from
+-  The expected result and actual result.
+-  Versions of appropriate binaries and libraries.  For example, the output from
    `calicoctl version`, your version of Docker, rkt, Kubernetes etc.
 -  A link to any diagnostics (e.g. if using `calicoctl`, you can gathered
    diagnostics using `calicoctl diags` - this provides instructions for 
@@ -78,7 +77,7 @@ For contributing code and documentation we follow the GitHub pull request
 model. 
 
 -  Fork the repository on GitHub
--  Make changes to your local repository in a branch for your chance
+-  Make changes to your local repository in a separate branch
 -  Test the change
 -  Create a pull request which will then go through a review process by one or
    more of the core team.
@@ -88,6 +87,8 @@ model.
 If you create a pull request, our automated UT and STs will be run over your
 change.  We will not accept changes that do not consistently pass our automated
 test suites. It is vital that our master branch be passing tests at all times.
+If you tests are failing the automated tests and you don't believe they should
+be, you may need to rebase your branch off the latest master.
 
 Read the [Building and testing calico-containers images guide](docs/Building.md)
 for details on running the UTs and STs.
@@ -101,7 +102,7 @@ If your code change requires some documentation updates, please include these
 in the pull request.
 
 In particular changes to the `calicoctl` UX will also require changes to the
-calcoctl documentation and possibly some of the sample guides.
+`calcoctl` documentation and possibly some of the sample guides.
 
 ### Review and merge
 
