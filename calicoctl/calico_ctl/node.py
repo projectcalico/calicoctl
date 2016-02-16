@@ -565,7 +565,7 @@ def _setup_ip_forwarding():
         with open('/proc/sys/net/ipv6/conf/all/forwarding', 'w') as f:
             f.write("1")
     except:
-        print "ERROR: Could not enable ipv4 forwarding."
+        print "ERROR: Could not enable ipv6 forwarding."
         sys.exit(1)
 
 
