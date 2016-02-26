@@ -177,6 +177,8 @@ If you repeat the above command but place the container on network `net2` then t
     
 ## Further reading
 
+For more information on managing the `calico/node` container please refer to the [rkt and systemd](systemd/README.md) documentation.
+
 For details on configuring Calico for different network topologies and to
 learn more about Calico under-the-covers please refer to the 
 [Further Reading](../../../README.md#further-reading) section on the main
