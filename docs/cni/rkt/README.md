@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../../images/warning.png) This document applies to the HEAD of the calico-containers source tree.
->
-> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.14.0/README.md).
-<!--- else
-> You are viewing the calico-containers documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-containers documentation for release v0.17.0.
 
 # Calico Networking with rkt
 
@@ -21,16 +15,10 @@ This tutorial walks through getting a cluster set up with Vagrant.
 * [Vagrant][vagrant] 1.7.4 or greater.
 * [Git][git]
 
-<!--- master only -->
-### 1.2 Clone this project
+### 1.2 Clone this project, and checkout the v0.17.0 release
 
     git clone https://github.com/projectcalico/calico-containers.git
-<!--- else
-### 1.2 Clone this project, and checkout the **release** release
-
-    git clone https://github.com/projectcalico/calico-containers.git
-    git checkout tags/**release**
-<!--- end of master only -->
+    git checkout tags/v0.17.0
     
 ### 1.3 Startup and SSH
 Change into the directory for this guide:
@@ -84,7 +72,7 @@ You can check that it's running
 
 	$ sudo rkt list
 	UUID            APP     IMAGE NAME                              STATE   NETWORKS
-	bc13af40        node    registry-1.docker.io/calico/node:latest running
+	bc13af40        node    registry-1.docker.io/calico/node:v0.17.0 running
 
 You can check the status and logs using normal systemd commands e.g. `systemctl status calico-node` and `journalctl -u calico-node`
 
@@ -141,7 +129,7 @@ We'll use `systemd-run` to create the webserver service.
   
     $ sudo rkt list
 	UUID            APP     IMAGE NAME                                      STATE   NETWORKS
-	65f026a5        node    registry-1.docker.io/calico/node:latest         running
+	65f026a5        node    registry-1.docker.io/calico/node:v0.17.0         running
 	b2dd9cff        busybox registry-1.docker.io/library/busybox:latest     running net1:ip4=192.168.0.0, default-restricted:ip4=172.16.28.2
 
  
