@@ -3,7 +3,7 @@ Usage:
   calicoctl container <CONTAINER> ip (add|remove) <IP> [--interface=<INTERFACE>]
   calicoctl container <CONTAINER> endpoint show
   calicoctl container <CONTAINER> profile (append|remove|set) [<PROFILES>...]
-  calicoctl container add <CONTAINER> <IP> [--interface=<INTERFACE>]
+  calicoctl container add <CONTAINER> <IP> [--interface=<INTERFACE>] [--mtu=<MTU>]
   calicoctl container remove <CONTAINER>
 
 Description:
@@ -129,7 +129,8 @@ def container(arguments):
                 if arguments.get("add"):
                     container_add(arguments.get("<CONTAINER>"),
                                   arguments.get("<IP>"),
-                                  arguments.get("--interface"))
+                                  arguments.get("--interface"),
+                                  arguments.get("--mtu"))
                 if arguments.get("remove"):
                     container_remove(arguments.get("<CONTAINER>"))
         elif arguments.get("endpoint"):
@@ -165,7 +166,8 @@ def container(arguments):
             if arguments.get("add"):
                 container_add(arguments.get("<CONTAINER>"),
                               arguments.get("<IP>"),
-                              arguments.get("--interface"))
+                              arguments.get("--interface"),
+                              arguments.get("--mtu"))
             if arguments.get("remove"):
                 container_remove(arguments.get("<CONTAINER>"))
     except ConnectionError as e:
@@ -200,7 +202,7 @@ def lookup_workload(container_id):
     return orchestrator_id, workload_id
 
 
-def container_add(container_id, ip, interface):
+def container_add(container_id, ip, interface, mtu=None):
     """
     Add a container (on this host) to Calico networking with the given IP.
 
@@ -254,10 +256,11 @@ def container_add(container_id, ip, interface):
     ip, pool = get_ip_and_pool(ip)
 
     # Check if IP-in-IP is enabled and use correct default MTU
-    if pool.ipip:
-        mtu = DEFAULT_IPIP_VETH_MTU
-    else:
-        mtu = DEFAULT_VETH_MTU
+    if not mtu:
+        if pool.ipip:
+            mtu = DEFAULT_IPIP_VETH_MTU
+        else:
+            mtu = DEFAULT_VETH_MTU
 
     try:
         # The next hop IPs for this host are stored in etcd.
