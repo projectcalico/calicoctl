@@ -27,10 +27,20 @@ else
 
     # Run confd twice.  Our confd TOML files are also generated from confd, so
     # running twice ensures our starting configuration is correct.
-    confd -confdir=/etc/calico/confd -onetime -node=${ETCD_SCHEME:=http}://${ETCD_AUTHORITY} \
+    case "$ETCD_ENDPOINTS" in
+        *https*) ETCD_NODE=${ETCD_ENDPOINTS}
+                 ETCD_SCHEME=https
+                 ;;
+        *http*)  ETCD_NODE=${ETCD_ENDPOINTS}
+                 ETCD_SCHEME=http
+                 ;;
+        *)       ETCD_NODE=${ETCD_SCHEME:=http}://${ETCD_AUTHORITY}
+                 ;;
+    esac
+    confd -confdir=/etc/calico/confd -onetime -node=${ETCD_NODE} \
           -client-key=${ETCD_KEY_FILE} -client-cert=${ETCD_CERT_FILE} \
           -client-ca-keys=${ETCD_CA_CERT_FILE} -scheme=${ETCD_SCHEME:=http} -keep-stage-file >/felix-startup-1.log 2>&1 || true
-    confd -confdir=/etc/calico/confd -onetime -node=${ETCD_SCHEME:=http}://${ETCD_AUTHORITY} \
+    confd -confdir=/etc/calico/confd -onetime -node=${ETCD_NODE} \
           -client-key=${ETCD_KEY_FILE} -client-cert=${ETCD_CERT_FILE} \
           -client-ca-keys=${ETCD_CA_CERT_FILE} -scheme=${ETCD_SCHEME:=http} -keep-stage-file >/felix-startup-2.log 2>&1 || true
 fi
