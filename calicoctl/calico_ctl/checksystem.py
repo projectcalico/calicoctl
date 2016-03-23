@@ -227,7 +227,7 @@ def check_etcd_version():
         detected_version_string_raw = \
             client.etcd_client.api_execute("/version", 'GET').data
     except EtcdConnectionFailed:
-        etcd_env = os.getenv(ETCD_ENDPOINTS_ENV, "")
+        etcd_env = os.getenv(ETCD_ENDPOINTS_ENV)
         if not etcd_env:
             etcd_env = os.getenv(ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT)
         print >> sys.stderr, "ERROR: Could not connect to etcd at %s" % \
