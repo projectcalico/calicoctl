@@ -265,13 +265,13 @@ def node_start(node_image, runtime, log_dir, ip, ip6, as_num, detach,
     # The format of the authority and endpoints strings have already been
     # validated.
     etcd_authority = os.getenv(ETCD_AUTHORITY_ENV, ETCD_AUTHORITY_DEFAULT)
-    etcd_endpoints = os.getenv(ETCD_ENDPOINTS_ENV, None)
+    etcd_endpoints = os.getenv(ETCD_ENDPOINTS_ENV)
 
     # Get etcd SSL environment variables if they exist
     etcd_scheme = os.getenv(ETCD_SCHEME_ENV, ETCD_SCHEME_DEFAULT)
-    etcd_key_file = os.getenv(ETCD_KEY_FILE_ENV, None)
-    etcd_cert_file = os.getenv(ETCD_CERT_FILE_ENV, None)
-    etcd_ca_cert_file = os.getenv(ETCD_CA_CERT_FILE_ENV, None)
+    etcd_key_file = os.getenv(ETCD_KEY_FILE_ENV)
+    etcd_cert_file = os.getenv(ETCD_CERT_FILE_ENV)
+    etcd_ca_cert_file = os.getenv(ETCD_CA_CERT_FILE_ENV)
 
     etcd_volumes = []
     etcd_binds = {}
