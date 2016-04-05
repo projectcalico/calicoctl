@@ -3,7 +3,7 @@ Usage:
   calicoctl container <CONTAINER> ip (add|remove) <IP> [--interface=<INTERFACE>]
   calicoctl container <CONTAINER> endpoint show
   calicoctl container <CONTAINER> profile (append|remove|set) [<PROFILES>...]
-  calicoctl container add <CONTAINER> <IP> [--interface=<INTERFACE>]
+  calicoctl container add <CONTAINER> <IP> [--interface=<INTERFACE>] [--mtu=<MTU>]
   calicoctl container remove <CONTAINER>
 
 Description:
@@ -43,6 +43,11 @@ from utils import hostname, DOCKER_ORCHESTRATOR_ID, NAMESPACE_ORCHESTRATOR_ID, \
     escape_etcd
 from utils import enforce_root
 from utils import print_paragraph
+
+
+# The default veth MTU for containers.
+DEFAULT_VETH_MTU = 1500
+DEFAULT_IPIP_VETH_MTU = 1440
 
 
 def assign_any(v4_count, v6_count, pool=(None, None)):
@@ -124,7 +129,8 @@ def container(arguments):
                 if arguments.get("add"):
                     container_add(arguments.get("<CONTAINER>"),
                                   arguments.get("<IP>"),
-                                  arguments.get("--interface"))
+                                  arguments.get("--interface"),
+                                  arguments.get("--mtu"))
                 if arguments.get("remove"):
                     container_remove(arguments.get("<CONTAINER>"))
         elif arguments.get("endpoint"):
@@ -160,7 +166,8 @@ def container(arguments):
             if arguments.get("add"):
                 container_add(arguments.get("<CONTAINER>"),
                               arguments.get("<IP>"),
-                              arguments.get("--interface"))
+                              arguments.get("--interface"),
+                              arguments.get("--mtu"))
             if arguments.get("remove"):
                 container_remove(arguments.get("<CONTAINER>"))
     except ConnectionError as e:
@@ -195,7 +202,7 @@ def lookup_workload(container_id):
     return orchestrator_id, workload_id
 
 
-def container_add(container_id, ip, interface):
+def container_add(container_id, ip, interface, mtu=None):
     """
     Add a container (on this host) to Calico networking with the given IP.
 
@@ -248,6 +255,13 @@ def container_add(container_id, ip, interface):
 
     ip, pool = get_ip_and_pool(ip)
 
+    # Check if IP-in-IP is enabled and use correct default MTU
+    if not mtu:
+        if pool.ipip:
+            mtu = DEFAULT_IPIP_VETH_MTU
+        else:
+            mtu = DEFAULT_VETH_MTU
+
     try:
         # The next hop IPs for this host are stored in etcd.
         next_hops = client.get_default_next_hops(hostname)
@@ -281,8 +295,9 @@ def container_add(container_id, ip, interface):
     # Create the veth, move into the container namespace, add the IP and
     # set up the default routes.
     netns.increment_metrics(namespace)
-    netns.create_veth(ep.name, ep.temp_interface_name)
-    netns.move_veth_into_ns(namespace, ep.temp_interface_name, interface)
+    netns.create_veth(ep.name, ep.temp_interface_name, mtu=mtu)
+    netns.move_veth_into_ns(namespace, ep.temp_interface_name, interface,
+                            mtu=mtu)
     netns.add_ip_to_ns_veth(namespace, ip, interface)
     netns.add_ns_default_route(namespace, next_hop, interface)
 
