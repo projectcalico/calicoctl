@@ -13,6 +13,8 @@
 # limitations under the License.
 import unittest
 
+from netaddr import IPNetwork, IPAddress
+
 from tests.st.test_base import TestBase, HOST_IPV6
 from tests.st.utils.docker_host import DockerHost
 
@@ -28,8 +30,8 @@ class TestAutoAssignIp(TestBase):
     def __init__(self, *args, **kwargs):
         super(TestAutoAssignIp, self).__init__(*args, **kwargs)
 
-        self.DEFAULT_IPV4_POOL = "192.168.0.0/16"
-        self.DEFAULT_IPV6_POOL = "fd80:24e2:f998:72d6::/64"
+        self.DEFAULT_IPV4_POOL = IPNetwork("192.168.0.0/16")
+        self.DEFAULT_IPV6_POOL = IPNetwork("fd80:24e2:f998:72d6::/64")
 
     def _setup_env(self, host, count=2, ip="ipv4", profile="TEST"):
         workloads = []
@@ -37,7 +39,7 @@ class TestAutoAssignIp(TestBase):
         host.calicoctl("profile add {0}".format(profile))
         for x in xrange(count):
             workloads.append(host.create_workload("workload" + str(x)))
-            host.calicoctl("container add {0} {1}".format(workloads[x], ip))
+            host.calicoctl("container add {0} {1}".format(workloads[x], str(ip)))
             host.calicoctl("container {0} profile set {1}".format(
                 workloads[x], profile))
 
@@ -51,8 +53,13 @@ class TestAutoAssignIp(TestBase):
             # Test that auto-assiging IPv4 addresses gives what we expect
             workloads = self._setup_env(host, count=2, ip="ipv4")
 
-            workloads[0].assert_can_ping("192.168.0.1", retries=3)
-            workloads[1].assert_can_ping("192.168.0.0", retries=3)
+            # IPs are assigned sequentially from the selected block.
+            first_ip = IPAddress(workloads[0].ip)
+            assert IPAddress(workloads[1].ip) == first_ip + 1
+
+            # Test each workload can ping the other
+            workloads[0].assert_can_ping(workloads[1].ip, retries=3)
+            workloads[1].assert_can_ping(workloads[0].ip, retries=3)
 
             host.calicoctl("container remove {0}".format("workload0"))
             host.calicoctl("container remove {0}".format("workload1"))
@@ -62,9 +69,12 @@ class TestAutoAssignIp(TestBase):
             # Test that recreating returns the next two IPs (IPs are not
             # reassigned automatically unless we have run out of IPs).
             workloads = self._setup_env(host, count=2, ip="ipv4")
+            assert IPAddress(workloads[0].ip) == first_ip + 2
+            assert IPAddress(workloads[1].ip) == first_ip + 3
 
-            workloads[0].assert_can_ping("192.168.0.3", retries=3)
-            workloads[1].assert_can_ping("192.168.0.2", retries=3)
+            # Test each workload can ping the other
+            workloads[0].assert_can_ping(workloads[1].ip, retries=3)
+            workloads[1].assert_can_ping(workloads[0].ip, retries=3)
 
     @unittest.skipUnless(HOST_IPV6, "Host does not have an IPv6 address")
     def test_add_autoassigned_ipv6(self):
@@ -75,8 +85,12 @@ class TestAutoAssignIp(TestBase):
             # Test that auto-assiging IPv4 addresses gives what we expect
             workloads = self._setup_env(host, count=2, ip="ipv6")
 
-            workloads[0].assert_can_ping("fd80:24e2:f998:72d6::1", retries=3)
-            workloads[1].assert_can_ping("fd80:24e2:f998:72d6::", retries=3)
+            # IPs are assigned sequentially from the selected block.
+            first_ip = IPAddress(workloads[0].ip)
+            assert IPAddress(workloads[1].ip) == first_ip + 1
+
+            workloads[0].assert_can_ping(workloads[1].ip, retries=3)
+            workloads[1].assert_can_ping(workloads[0].ip, retries=3)
 
             host.calicoctl("container remove {0}".format("workload0"))
             host.calicoctl("container remove {0}".format("workload1"))
@@ -86,9 +100,11 @@ class TestAutoAssignIp(TestBase):
             # Test that recreating returns the next two IPs (IPs are not
             # reassigned automatically unless we have run out of IPs).
             workloads = self._setup_env(host, count=2, ip="ipv6")
+            assert IPAddress(workloads[0].ip) == first_ip + 2
+            assert IPAddress(workloads[1].ip) == first_ip + 3
 
-            workloads[0].assert_can_ping("fd80:24e2:f998:72d6::3", retries=3)
-            workloads[1].assert_can_ping("fd80:24e2:f998:72d6::2", retries=3)
+            workloads[0].assert_can_ping(workloads[1].ip, retries=3)
+            workloads[1].assert_can_ping(workloads[0].ip, retries=3)
 
     def test_add_autoassigned_pool_ipv4(self):
         """
@@ -100,8 +116,11 @@ class TestAutoAssignIp(TestBase):
             workloads = self._setup_env(host, count=2,
                                         ip=self.DEFAULT_IPV4_POOL)
 
-            workloads[0].assert_can_ping("192.168.0.1", retries=3)
-            workloads[1].assert_can_ping("192.168.0.0", retries=3)
+            assert IPAddress(workloads[0].ip) in self.DEFAULT_IPV4_POOL
+            assert IPAddress(workloads[1].ip) in self.DEFAULT_IPV4_POOL
+
+            workloads[0].assert_can_ping(workloads[1].ip, retries=3)
+            workloads[1].assert_can_ping(workloads[0].ip, retries=3)
 
     @unittest.skipUnless(HOST_IPV6, "Host does not have an IPv6 address")
     def test_add_autoassigned_pool_ipv6(self):
@@ -114,5 +133,8 @@ class TestAutoAssignIp(TestBase):
             workloads = self._setup_env(host, count=2,
                                         ip=self.DEFAULT_IPV6_POOL)
 
-            workloads[0].assert_can_ping("fd80:24e2:f998:72d6::1", retries=3)
-            workloads[1].assert_can_ping("fd80:24e2:f998:72d6::", retries=3)
+            assert IPAddress(workloads[0].ip) in self.DEFAULT_IPV6_POOL
+            assert IPAddress(workloads[1].ip) in self.DEFAULT_IPV6_POOL
+
+            workloads[0].assert_can_ping(workloads[1].ip, retries=3)
+            workloads[1].assert_can_ping(workloads[0].ip, retries=3)
