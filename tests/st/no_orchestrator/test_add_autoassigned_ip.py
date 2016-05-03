@@ -55,7 +55,8 @@ class TestAutoAssignIp(TestBase):
 
             # IPs are assigned sequentially from the selected block.
             first_ip = IPAddress(workloads[0].ip)
-            assert IPAddress(workloads[1].ip) == first_ip + 1
+            assert IPAddress(workloads[1].ip) == first_ip + 1, \
+                   "Assigned %s, expected %s" % (workloads[1].ip, first_ip + 1)
 
             # Test each workload can ping the other
             workloads[0].assert_can_ping(workloads[1].ip, retries=3)
@@ -69,8 +70,10 @@ class TestAutoAssignIp(TestBase):
             # Test that recreating returns the next two IPs (IPs are not
             # reassigned automatically unless we have run out of IPs).
             workloads = self._setup_env(host, count=2, ip="ipv4")
-            assert IPAddress(workloads[0].ip) == first_ip + 2
-            assert IPAddress(workloads[1].ip) == first_ip + 3
+            assert IPAddress(workloads[0].ip) == first_ip + 2, \
+                   "Assigned %s, expected %s" % (workloads[0].ip, first_ip + 2)
+            assert IPAddress(workloads[1].ip) == first_ip + 3, \
+                   "Assigned %s, expected %s" % (workloads[1].ip, first_ip + 3)
 
             # Test each workload can ping the other
             workloads[0].assert_can_ping(workloads[1].ip, retries=3)
@@ -87,7 +90,8 @@ class TestAutoAssignIp(TestBase):
 
             # IPs are assigned sequentially from the selected block.
             first_ip = IPAddress(workloads[0].ip)
-            assert IPAddress(workloads[1].ip) == first_ip + 1
+            assert IPAddress(workloads[1].ip) == first_ip + 1, \
+                "Assigned %s, expected %s" % (workloads[1].ip, first_ip + 1)
 
             workloads[0].assert_can_ping(workloads[1].ip, retries=3)
             workloads[1].assert_can_ping(workloads[0].ip, retries=3)
@@ -100,8 +104,10 @@ class TestAutoAssignIp(TestBase):
             # Test that recreating returns the next two IPs (IPs are not
             # reassigned automatically unless we have run out of IPs).
             workloads = self._setup_env(host, count=2, ip="ipv6")
-            assert IPAddress(workloads[0].ip) == first_ip + 2
-            assert IPAddress(workloads[1].ip) == first_ip + 3
+            assert IPAddress(workloads[0].ip) == first_ip + 2, \
+                "Assigned %s, expected %s" % (workloads[0].ip, first_ip + 2)
+            assert IPAddress(workloads[1].ip) == first_ip + 3, \
+                "Assigned %s, expected %s" % (workloads[1].ip, first_ip + 3)
 
             workloads[0].assert_can_ping(workloads[1].ip, retries=3)
             workloads[1].assert_can_ping(workloads[0].ip, retries=3)
@@ -116,8 +122,12 @@ class TestAutoAssignIp(TestBase):
             workloads = self._setup_env(host, count=2,
                                         ip=self.DEFAULT_IPV4_POOL)
 
-            assert IPAddress(workloads[0].ip) in self.DEFAULT_IPV4_POOL
-            assert IPAddress(workloads[1].ip) in self.DEFAULT_IPV4_POOL
+            assert IPAddress(workloads[0].ip) in self.DEFAULT_IPV4_POOL, \
+                   "Assigned %s not in %s" % (workloads[0].ip,
+                                              self.DEFAULT_IPV4_POOL)
+            assert IPAddress(workloads[1].ip) in self.DEFAULT_IPV4_POOL, \
+                   "Assigned %s not in %s" % (workloads[1].ip,
+                                              self.DEFAULT_IPV4_POOL)
 
             workloads[0].assert_can_ping(workloads[1].ip, retries=3)
             workloads[1].assert_can_ping(workloads[0].ip, retries=3)
@@ -133,8 +143,12 @@ class TestAutoAssignIp(TestBase):
             workloads = self._setup_env(host, count=2,
                                         ip=self.DEFAULT_IPV6_POOL)
 
-            assert IPAddress(workloads[0].ip) in self.DEFAULT_IPV6_POOL
-            assert IPAddress(workloads[1].ip) in self.DEFAULT_IPV6_POOL
+            assert IPAddress(workloads[0].ip) in self.DEFAULT_IPV6_POOL, \
+                   "Assigned %s not in %s" % (workloads[0].ip,
+                                              self.DEFAULT_IPV6_POOL)
+            assert IPAddress(workloads[1].ip) in self.DEFAULT_IPV6_POOL, \
+                   "Assigned %s not in %s" % (workloads[1].ip,
+                                              self.DEFAULT_IPV6_POOL)
 
             workloads[0].assert_can_ping(workloads[1].ip, retries=3)
             workloads[1].assert_can_ping(workloads[0].ip, retries=3)
