@@ -23,6 +23,9 @@ with a number of installation dependencies.
 
 Follow the instructions in one of the tutorials below to set up a virtualized
 environment using Vagrant or a cloud service - be sure to follow the
+
+[NJ] Why would I want a 'virtualized environment', and what does that mean?  My situation is that I already have a Linux host, and that I want to use Docker to create some containers on it, and use Calico to network those.  Is there some 'environment' that I need that I do not already have?
+
 appropriate instructions for using _Calico without Docker networking_.
 
 - [Vagrant install with CoreOS](../VagrantCoreOS.md)
