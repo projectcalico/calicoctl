@@ -28,7 +28,13 @@ They must have the following software installed:
 
 - Docker v1.6 or greater: [Docker][docker]
 - etcd installed and available on each node: [etcd documentation][etcd]
+
+[NJ] What does 'available' mean?  Does this mean that I need a configured and active etcd system, such that I can do 'etcdctl ls /' on each node?  Any recommendations or restrictions on how many etcd masters, or where I can use proxies?
+
 - `ipset`, `iptables`, and `ip6tables` kernel modules.
+
+[NJ] In Linux 4.4 these are named ip_set, ip_tables and ip6_tables
+
 - The `calicoctl` binary in your path (see below)
 
 You will also need an etcd cluster which Calico uses for coordinating state
