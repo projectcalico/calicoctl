@@ -23,7 +23,7 @@ From the root directory of the checked out repository, run
 
     make node
 
-This builds the Dockerfile giving it the name `calico/node:latest`, which is the default image name 
+This builds the Dockerfile giving it the name `calico/node:latest`, which is the default image name
 of the master branch version of `calicoctl` will look for when starting Calico services.
 
 ### Building `calicoctl` CLI Tool
@@ -78,7 +78,7 @@ correct IP address.  For example:
 
     LOCAL_IP_ENV=192.168.0.23 make run-etcd
 
-If you are using the system test makefile target to run the system test, it automatically spins up an instance of 
+If you are using the system test makefile target to run the system test, it automatically spins up an instance of
 etcd so it is not necessary to explicitly run these commands.
 
 ### Running the unit tests
@@ -100,7 +100,7 @@ The Calico Docker system tests provide detailed testing of the `calicoctl` comma
 container image.  The tests cover multiple topologies and covers most of the available `calicoctl` command line
 options.
 
-The full suite of system tests takes approximately 30 minutes to complete. 
+The full suite of system tests takes approximately 30 minutes to complete.
 If you are developing code for Calico Docker and are regularly running
 the system tests, you can run a [subset of the tests](./Building.md#running-a-subset-of-system-tests) instead.
 
