@@ -1,0 +1,3 @@
+#!/bin/bash
+# Record current boot time. Helps with debugging.
+date > /tmp/boottime.txt
