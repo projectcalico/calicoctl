@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../../images/warning.png) This document applies to the HEAD of the calico-containers source tree.
->
-> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.19.0/README.md).
-<!--- else
-> You are viewing the calico-containers documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-containers documentation for release v0.20.0.
 
 # Deploying Calico and Kubernetes on AWS
 
@@ -145,16 +139,10 @@ aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID \
 ## 3. Spinning up the VMs
 Create the Kubernetes master and at least one Kubernetes nodes by passing in appropriate `cloud-config` files.
 
-<!--- master only -->
-To get the necessary 'cloud-config' files, clone this project:
+To get the necessary 'cloud-config' files, clone this project and checkout the v0.20.0 release:
 
     git clone https://github.com/projectcalico/calico-containers.git
-<!--- else
-To get the necessary 'cloud-config' files, clone this project and checkout the **release** release:
-
-    git clone https://github.com/projectcalico/calico-containers.git
-    git checkout tags/**release**
-<!--- end of master only -->
+    git checkout tags/v0.20.0
 
 Then, change into the directory for this guide.
 ```

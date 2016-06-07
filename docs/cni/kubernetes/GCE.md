@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../../images/warning.png) This document applies to the HEAD of the calico-containers source tree.
->
-> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.19.0/README.md).
-<!--- else
-> You are viewing the calico-containers documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-containers documentation for release v0.20.0.
 
 # Deploying Calico and Kubernetes on GCE
 
@@ -50,16 +44,10 @@ You can verify the rule with this command:
 gcloud compute firewall-rules list
 ```
 
-<!--- master only -->
-### 1.3 Clone this project
+### 1.3 Clone this project, and checkout the v0.20.0 release
 
     git clone https://github.com/projectcalico/calico-containers.git
-<!--- else
-### 1.3 Clone this project, and checkout the **release** release
-
-    git clone https://github.com/projectcalico/calico-containers.git
-    git checkout tags/**release**
-<!--- end of master only -->
+    git checkout tags/v0.20.0
 
 ## 2. Deploy the VMs
 Change into the directory for this guide.

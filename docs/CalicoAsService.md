@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](./images/warning.png) This document applies to the HEAD of the calico-containers source tree.
->
-> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.19.0/README.md).
-<!--- else
-> You are viewing the calico-containers documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-containers documentation for release v0.20.0.
 
 # Running Calico Node Containers as Services
 
@@ -133,7 +127,7 @@ ExecStart=/usr/bin/docker run --privileged --net=host \
  -e ETCD_CA_CERT_FILE=${ETCD_CA_CERT_FILE} \
  -e ETCD_CERT_FILE=${ETCD_CERT_FILE} \
  -e ETCD_KEY_FILE=${ETCD_KEY_FILE} \
- calico/node-libnetwork:latest
+ calico/node-libnetwork:v0.8.0
 ExecStop=-/usr/bin/docker stop calico-libnetwork
 
 [Install]

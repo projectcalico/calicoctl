@@ -28,16 +28,16 @@ dist/calicoctl: $(CALICOCTL_FILE) birdcl
 	# from the use of the --rm flag
 
 	-docker run -v `pwd`:/code --rm \
-	 calico/build:latest \
+	 calico/build:v0.15.0 \
 	 pyinstaller calicoctl.spec -ayF
 
 simple-binary:
-	pip install git+https://github.com/projectcalico/libcalico.git@master
+	pip install git+https://github.com/projectcalico/libcalico.git@v0.15.0
 	pip install -r https://raw.githubusercontent.com/projectcalico/libcalico/master/build-requirements.txt
 	pyinstaller calicoctl/calicoctl.py -ayF --clean
 
 calico_node/.calico_node.created: $(NODE_CONTAINER_FILES)
-	cd calico_node && docker build -t calico/node:latest .
+	cd calico_node && docker build -t calico/node:v0.20.0 .
 	touch calico_node/.calico_node.created
 
 ## Generate the keys and certificates for running etcd with SSL.
@@ -63,7 +63,7 @@ certs/.certificates.created:
 	touch certs/.certificates.created
 
 calico-node.tar: calico_node/.calico_node.created
-	docker save --output calico-node.tar calico/node:latest
+	docker save --output calico-node.tar calico/node:v0.20.0
 
 # Get docker2aci from https://github.com/appc/docker2aci
 calico-node-latest.aci: calico-node.tar

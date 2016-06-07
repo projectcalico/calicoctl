@@ -70,11 +70,11 @@ Options:
   --libnetwork              Use the libnetwork plugin.
   --libnetwork-image=<LIBNETWORK_IMAGE_NAME>    Docker image to use for
                             Calico's libnetwork driver.
-                            [default: calico/node-libnetwork:latest]
+                            [default: calico/node-libnetwork:v0.8.0]
   --log-dir=<LOG_DIR>       The directory for logs [default: /var/log/calico]
   --no-pull                 Prevent from pulling the Calico node Docker images.
   --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
-                            container. [default: calico/node:latest]
+                            container. [default: calico/node:v0.20.0]
   --remove-endpoints        Remove the endpoint data when deleting the node
                             from the Calico network.
   --runtime=<RUNTIME>       Specify how Calico services should be
@@ -423,9 +423,9 @@ def _start_node_container_rkt(ip, ip6, as_num, node_image, etcd_envs,
     files to mount on the container
     :return: None.
     """
-    if node_image == "calico/node:latest":
+    if node_image == "calico/node:v0.20.0":
         # The default image is being used so convert to the rkt format.
-        node_image = "registry-1.docker.io/calico/node:latest"
+        node_image = "registry-1.docker.io/calico/node:v0.20.0"
 
     calico_networking = os.getenv(CALICO_NETWORKING_ENV,
                                   CALICO_NETWORKING_DEFAULT)
