@@ -31,6 +31,18 @@ RUN apk add --update curl && \
 ADD build.sh /build.sh
 RUN /build.sh # 23MAR2016
 
+# Metadata
+ARG VCS_URL 
+ARG VCS_REF
+ARG BUILD_DATE
+LABEL org.label-schema.vcs-url=$VCS_URL \
+	  org.label-schema.vcs-ref=$VCS_REF \
+	  org.label-schema.build-date=$BUILD_DATE \
+	  org.label-schema.dockerfile="/calico_node/Dockerfile" \
+	  org.label-schema.url="http://projectcalico.org" \
+	  org.label-schema.name="Calico for containers" \
+	  org.label-schema.license="Apache-2.0"
+
 # Copy in our custom configuration files etc. We do this last to speed up
 # builds for developer, as it's the thing they're most likely to change.
 ADD start_runit /sbin/
