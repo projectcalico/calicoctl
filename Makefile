@@ -38,7 +38,7 @@ simple-binary:
 
 calico_node/.calico_node.created: $(NODE_CONTAINER_FILES)
 	cd calico_node && docker build -t calico/node:latest \
-		--build-arg VCS_URL=`git config --get remote.origin.url` \
+		--build-arg VCS_URL=https://github.com/projectcalico/calico-containers.git \
 		--build-arg VCS_REF=`git rev-parse --short HEAD` \
 		--build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` .	
 	touch calico_node/.calico_node.created
