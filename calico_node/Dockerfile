@@ -31,7 +31,7 @@ RUN apk add --update curl && \
 ADD build.sh /build.sh
 RUN /build.sh # 23MAR2016
 
-# Metadata
+# Basic build-time metadata as defined at http://label-schema.org
 ARG VCS_URL 
 ARG VCS_REF
 ARG BUILD_DATE
