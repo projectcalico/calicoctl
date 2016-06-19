@@ -38,7 +38,7 @@ ARG BUILD_DATE
 LABEL org.label-schema.vcs-url=$VCS_URL \
 	  org.label-schema.vcs-ref=$VCS_REF \
 	  org.label-schema.build-date=$BUILD_DATE \
-	  org.label-schema.dockerfile="/calico_node/Dockerfile" \
+	  org.label-schema.docker.dockerfile="/calico_node/Dockerfile" \
 	  org.label-schema.url="http://projectcalico.org" \
 	  org.label-schema.name="Calico for containers" \
 	  org.label-schema.license="Apache-2.0"
