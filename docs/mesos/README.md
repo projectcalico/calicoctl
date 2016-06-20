@@ -78,6 +78,6 @@ following guides:
 ## Contact Us
 
 Get in touch with us directly in our `#mesos` channel on
-[Slack](http://slack.projectcalico.org)
+[Slack](https://slack.projectcalico.org)
 
 [![Analytics](https://calico-ga-beacon.appspot.com/UA-52125893-3/calico-containers/docs/mesos/README.md?pixel)](https://github.com/igrigorik/ga-beacon)
