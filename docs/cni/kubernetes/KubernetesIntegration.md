@@ -71,13 +71,14 @@ WantedBy=multi-user.target
 ```
 > Replace `<ETCD_IP>:<ETCD_PORT>` with your etcd configuration.
 
-### 2. Download and configure the `calico-cni` plugin
-The Kubernetes `kubelet` calls out to the `calico-cni` plugin.
+### 2. Download and configure the CNI plugins
+The Kubernetes `kubelet` calls out to the `calico` and `calico-ipam` CNI plugins.
 
-Download it and make sure it's executable
+Download the plugins and make sure they're executable
 ```
-wget -N -P /opt/cni/bin https://github.com/projectcalico/calico-cni/releases/download/v1.0.0/calico
-chmod +x /opt/cni/bin/calico
+wget -N -P /opt/cni/bin https://github.com/projectcalico/calico-cni/releases/download/v1.3.1/calico
+wget -N -P /opt/cni/bin https://github.com/projectcalico/calico-cni/releases/download/v1.3.1/calico-ipam
+chmod +x /opt/cni/bin/*
 ```
 It's recommended that this is done as part of job that manages the `kubelet` process (see below)
 
@@ -98,6 +99,46 @@ $ cat >/etc/cni/net.d/10-calico.conf <<EOF
 EOF
 ```
 > Replace `<ETCD_IP>:<ETCD_PORT>` with your etcd configuration.
+
+### Enabling NetworkPolicy support (Optional).
+
+This section describes how to configure Calico to enforce the Kubernetes [v1beta1 NetworkPolicy API].
+
+Pre-requisites:
+- Kubernetes v1.3.0 or later
+- The extensions/v1beta1/networkpolicies API must be enabled in your apiserver.
+
+To enable extensions/v1beta1 NetworkPolicy support there are two steps that must be performed in addition to those described above.
+
+#### 1) Enable policy in the CNI network config.
+
+The following network config snippet shows how to enable Kubernetes policy.  Please refer to the [CNI plugin configuration guide](https://github.com/projectcalico/calico-cni/blob/master/configuration.md) for more details on configuration options.
+```
+{
+    "name": "calico-k8s-network",
+    "type": "calico",
+    "etcd_authority": "<ETCD_IP>:<ETCD_PORT>",
+    "log_level": "info",
+    "ipam": {
+        "type": "calico-ipam"
+    },
+    "policy": {
+        "type": "k8s"
+    },
+    "kubernetes": {
+        "kubeconfig": "path/to/kubeconfig"
+    }
+}
+```
+
+#### 2) Deploy the Calico policy controller.
+
+The policy controller implements the `NetworkPolicy` api by translating Kubernetes API objects in to Calico configuration.  It is typically run as a master component by placing a manifest file in the kubelets config directory.
+
+To install the policy controller:
+- [Download the manifest](https://raw.githubusercontent.com/projectcalico/k8s-policy/master/examples/policy-controller.yaml) to each Kubernetes master.
+- Modify `ETCD_ENDPOINTS` to match your deployment.
+- Place the manifest in the master kubelet's config directory (typically /etc/kubernetes/manifests).
 
 ## Configuring Kubernetes
 ### Configuring the Kubelet
