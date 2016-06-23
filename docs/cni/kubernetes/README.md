@@ -7,7 +7,7 @@
 <!--- end of master only -->
 
 # Kubernetes with Calico networking
-Calico can be used as a network plugin for Kubernetes using the Container Network Interface to provide connectivity for workloads in a Kubernetes cluster.  Calico is particularly suitable for large Kubernetes deployments on bare metal or private clouds, where the performance and complexity costs of overlay networks can become significant. It can also be used in public clouds.
+Calico can be used as a network plugin for Kubernetes using the Container Network Interface to provide connectivity and policy enforcement for pods in a Kubernetes cluster.
 
 To start using Calico Networking in your existing Kubernetes cluster, check out our [integration tutorial](KubernetesIntegration.md).
 
@@ -24,13 +24,9 @@ Bare-metal guides:
 - [Ubuntu bare-metal](https://github.com/kubernetes/kubernetes/blob/master/docs/getting-started-guides/ubuntu-calico.md)
 
 # Kubernetes with Calico policy
-Calico can provide network policy for Kubernetes clusters using the v1alpha1 Kubernetes network-policy API.
+Calico can provide network policy for Kubernetes clusters using the v1beta1 NetworkPolicy API on Kubernetes >= v1.3.0, and the v1alpha1 NetworkPolicy API on Kubernetes < 1.3.0.
 
-This feature is currently in alpha and disabled by default.  The following guide explains how to enable and use Calico policy on Kubernetes. 
-- [Kubernetes v1alpha1 Network Policy](NetworkPolicy.md)
-
-Calico also supports network policy using annotaions.  This method is deprecated, and as such is not recommended.
-- [Calico policy using Annotations](AnnotationPolicy.md) [Deprecated]
+For more information on network policy in Kubernetes, see [here]().
 
 # Requirements
 - The kube-proxy must be started in `iptables` proxy mode.

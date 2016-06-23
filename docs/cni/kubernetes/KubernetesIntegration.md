@@ -136,9 +136,18 @@ The following network config snippet shows how to enable Kubernetes policy.  Ple
 The policy controller implements the `NetworkPolicy` api by translating Kubernetes API objects in to Calico configuration.  It is typically run as a master component by placing a manifest file in the kubelets config directory.
 
 To install the policy controller:
+- Create the calico-system namespace: `kubectl create ns calico-system`
 - [Download the manifest](https://raw.githubusercontent.com/projectcalico/k8s-policy/master/examples/policy-controller.yaml) to each Kubernetes master.
 - Modify `ETCD_ENDPOINTS` to match your deployment.
 - Place the manifest in the master kubelet's config directory (typically /etc/kubernetes/manifests).
+
+After a few moments, you should see the calico-policy-controller pod running in the `calico-system` namespace.
+```
+$ ./kubectl get pods --namespace=calico-system
+NAME                        READY     STATUS    RESTARTS   AGE
+calico-policy-controller    2/2       Running   0          1m
+```
+
 
 ## Configuring Kubernetes
 ### Configuring the Kubelet
