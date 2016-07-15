@@ -1,0 +1,10 @@
+- apiVersion: v1
+  kind: tier
+  metadata:
+    name: tier2
+  spec:
+    order: 1000
+- apiVersion: v1
+  kind: tier
+  metadata:
+    name: tier3

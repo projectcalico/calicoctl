@@ -1,0 +1,20 @@
+package: github.com/tigera/libcalico-go
+version: ""
+import:
+- package: github.com/coreos/etcd
+  subpackages:
+  - client
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: github.com/fvbock/trie
+- package: github.com/docopt/docopt-go
+- package: gopkg.in/vmihailenco/msgpack.v2
+- package: gopkg.in/tchap/go-patricia.v2
+  subpackages:
+  - patricia
+- package: github.com/op/go-logging
+- package: github.com/onsi/gomega
+- package: gopkg.in/yaml.v2
+- package: github.com/ghodss/yaml
+- package: github.com/golang/glog
