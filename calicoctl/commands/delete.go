@@ -117,6 +117,8 @@ func (d delete) execute(client *client.Client, resource unversioned.Resource) (u
 		err = client.Profiles().Delete(r.Metadata)
 	case api.Tier:
 		err = client.Tiers().Delete(r.Metadata)
+	case api.WorkloadEndpoint:
+		err = client.WorkloadEndpoints().Delete(r.Metadata)
 	default:
 		panic(fmt.Errorf("Unhandled resource type: %v", resource))
 	}

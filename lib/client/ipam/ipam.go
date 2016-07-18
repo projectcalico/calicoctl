@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/coreos/etcd/client"
-	"github.com/golang/glog"
-	"golang.org/x/net/context"
 	"net"
 	"os"
 	"strings"
+
+	"github.com/coreos/etcd/client"
+	"github.com/golang/glog"
+	"golang.org/x/net/context"
 )
 
 const (

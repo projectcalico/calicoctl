@@ -39,49 +39,41 @@ func newTiers(c *Client) *tiers {
 	return &tiers{c}
 }
 
-// List takes a Metadata, and returns the list of tiers that match that Metadata
-// (wildcarding missing fields)
-func (h *tiers) List(metadata api.TierMetadata) (*api.TierList, error) {
-	if l, err := h.c.list(backend.Tier{}, metadata, h, nil); err != nil {
-		return nil, err
-	} else {
-		hl := api.NewTierList()
-		hl.Items = make([]api.Tier, 0, len(l))
-		for _, h := range l {
-			hl.Items = append(hl.Items, *h.(*api.Tier))
-		}
-		return hl, nil
-	}
-}
-
-// Get returns information about a particular tier.
-func (h *tiers) Get(metadata api.TierMetadata) (*api.Tier, error) {
-	if a, err := h.c.get(backend.Tier{}, metadata, h, nil); err != nil {
-		return nil, err
-	} else {
-		h := a.(*api.Tier)
-		return h, nil
-	}
-}
-
 // Create creates a new tier.
 func (h *tiers) Create(a *api.Tier) (*api.Tier, error) {
-	return a, h.c.create(*a, h, nil)
+	return a, h.c.create(*a, h)
 }
 
 // Create creates a new tier.
 func (h *tiers) Update(a *api.Tier) (*api.Tier, error) {
-	return a, h.c.update(*a, h, nil)
+	return a, h.c.update(*a, h)
 }
 
 // Create creates a new tier.
 func (h *tiers) Apply(a *api.Tier) (*api.Tier, error) {
-	return a, h.c.apply(*a, h, nil)
+	return a, h.c.apply(*a, h)
 }
 
 // Delete deletes an existing tier.
 func (h *tiers) Delete(metadata api.TierMetadata) error {
 	return h.c.delete(metadata, h)
+}
+
+// Get returns information about a particular tier.
+func (h *tiers) Get(metadata api.TierMetadata) (*api.Tier, error) {
+	if a, err := h.c.get(metadata, h); err != nil {
+		return nil, err
+	} else {
+		return a.(*api.Tier), nil
+	}
+}
+
+// List takes a Metadata, and returns the list of tiers that match that Metadata
+// (wildcarding missing fields)
+func (h *tiers) List(metadata api.TierMetadata) (*api.TierList, error) {
+	l := api.NewTierList()
+	err := h.c.list(metadata, h, l)
+	return l, err
 }
 
 // Convert a TierMetadata to a TierListInterface
@@ -103,37 +95,31 @@ func (h *tiers) convertMetadataToKeyInterface(m interface{}) (backend.KeyInterfa
 }
 
 // Convert an API Tier structure to a Backend Tier structure
-func (h *tiers) convertAPIToBackend(a interface{}) (interface{}, error) {
+func (h *tiers) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreObject, error) {
 	at := a.(api.Tier)
 	k, err := h.convertMetadataToKeyInterface(at.Metadata)
 	if err != nil {
 		return nil, err
 	}
-	tk := k.(backend.TierKey)
 
-	bt := backend.Tier{
-		TierKey: tk,
-
-		Order: at.Spec.Order,
+	d := backend.DatastoreObject{
+		Key: k,
+		Object: backend.Tier{
+			Order: at.Spec.Order,
+		},
 	}
 
-	return bt, nil
+	return &d, nil
 }
 
 // Convert a Backend Tier structure to an API Tier structure
-func (h *tiers) convertBackendToAPI(b interface{}) (interface{}, error) {
-	bt := *b.(*backend.Tier)
+func (h *tiers) convertDatastoreObjectToAPI(d *backend.DatastoreObject) (interface{}, error) {
+	bt := d.Object.(backend.Tier)
+	bk := d.Key.(backend.TierKey)
+
 	at := api.NewTier()
-
-	at.Metadata.Name = bt.Name
-
+	at.Metadata.Name = bk.Name
 	at.Spec.Order = bt.Order
 
 	return at, nil
-}
-
-func (h *tiers) copyKeyValues(kvs []backend.KeyValue, b interface{}) {
-	bp := b.(*backend.Tier)
-	k := kvs[0].Key.(backend.TierKey)
-	bp.TierKey = k
 }

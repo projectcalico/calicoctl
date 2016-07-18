@@ -3,10 +3,11 @@ package ipam
 import (
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
 	"math/big"
 	"net"
 	"reflect"
+
+	"github.com/golang/glog"
 )
 
 const (

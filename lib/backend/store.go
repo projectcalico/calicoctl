@@ -17,9 +17,10 @@ package backend
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
+
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/common"
-	"reflect"
 )
 
 // ParseKey parses a datastore key into one of the <Type>Key structs.

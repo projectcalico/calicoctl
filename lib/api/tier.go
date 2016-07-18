@@ -22,7 +22,10 @@ import (
 	"gopkg.in/go-playground/validator.v8"
 )
 
-type TierMetadata ObjectMetadata
+type TierMetadata struct {
+	ObjectMetadata
+	Name string `json:"name,omitempty" validate:"omitempty,name"`
+}
 
 type TierSpec struct {
 	Order *float32 `json:"order,omitempty"`

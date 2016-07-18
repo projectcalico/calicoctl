@@ -1,0 +1,15 @@
+- apiVersion: v1
+  kind: workloadEndpoint
+  metadata:
+    name: endpoint1
+    workloadID: workload1
+    orchestratorID: orchestrator1
+    hostname: host1
+    labels:
+      type: database
+  spec:
+    interface: eth0
+    profiles: [prof1, prof2]
+    IPNetworks: [1.2.3.4/32, "00:bb::aa/10"]
+    MAC: ee:ee:ee:ee:ee:ee
+

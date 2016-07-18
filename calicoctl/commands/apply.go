@@ -101,10 +101,14 @@ func (a apply) execute(client *client.Client, resource unversioned.Resource) (un
 		_, err = client.HostEndpoints().Apply(&r)
 	case api.Policy:
 		_, err = client.Policies().Apply(&r)
+	case api.Pool:
+		_, err = client.Pools().Apply(&r)
 	case api.Profile:
 		_, err = client.Profiles().Apply(&r)
 	case api.Tier:
 		_, err = client.Tiers().Apply(&r)
+	case api.WorkloadEndpoint:
+		_, err = client.WorkloadEndpoints().Apply(&r)
 	default:
 		panic(fmt.Errorf("Unhandled resource type: %v", resource))
 	}

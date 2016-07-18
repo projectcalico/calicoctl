@@ -15,8 +15,9 @@
 package client
 
 import (
-	"github.com/tigera/libcalico-go/lib/client/ipam"
 	"net"
+
+	"github.com/tigera/libcalico-go/lib/client/ipam"
 )
 
 // IPAMInterface has methods to perform IP address management.

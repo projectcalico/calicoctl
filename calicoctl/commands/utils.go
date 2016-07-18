@@ -117,6 +117,11 @@ func getResourceFromArguments(args map[string]interface{}) (unversioned.Resource
 		h.Metadata.Name = name
 		h.Metadata.Hostname = hostname
 		return *h, nil
+	case "workloadEndpoint":
+		h := api.NewWorkloadEndpoint()  //TODO Need to add orchestrator ID and workload ID
+		h.Metadata.Name = name
+		h.Metadata.Hostname = hostname
+		return *h, nil
 	case "tier":
 		t := api.NewTier()
 		t.Metadata.Name = name
