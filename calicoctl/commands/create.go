@@ -103,6 +103,8 @@ func (c create) execute(client *client.Client, resource unversioned.Resource) (u
 		_, err = client.HostEndpoints().Create(&r)
 	case api.Policy:
 		_, err = client.Policies().Create(&r)
+	case api.Pool:
+		_, err = client.Pools().Create(&r)
 	case api.Profile:
 		_, err = client.Profiles().Create(&r)
 	case api.Tier:

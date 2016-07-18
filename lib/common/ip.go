@@ -47,6 +47,14 @@ func (i *IP) UnmarshalJSON(b []byte) error {
 	return i.UnmarshalText([]byte(s))
 }
 
+// Version returns the IP version for an IP
+func (i IP) Version() int {
+	if i.To4() == nil {
+		return 6
+	}
+	return 4
+}
+
 // MarshalJSON interface for an IPNet
 func (i *IPNet) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.String())
@@ -66,4 +74,20 @@ func (i *IPNet) UnmarshalJSON(b []byte) error {
 
 		return nil
 	}
+}
+
+// Version returns the IP version for an IPNet
+func (i *IPNet) Version() int {
+	if i.IP.To4() == nil {
+		return 6
+	}
+	return 4
+}
+
+func ParseCIDR(c string) (*IP, *IPNet, error) {
+	netIP, netIPNet, e := net.ParseCIDR(c)
+	if netIPNet == nil {
+		return nil, nil, e
+	}
+	return &IP{netIP}, &IPNet{*netIPNet}, e
 }

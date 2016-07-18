@@ -130,6 +130,10 @@ func getResourceFromArguments(args map[string]interface{}) (unversioned.Resource
 		p.Metadata.Name = name
 		p.Metadata.Tier = tier
 		return *p, nil
+	case "pool":
+		p := api.NewPool()
+		return *p, nil
+
 	default:
 		return nil, fmt.Errorf("Resource type '%s' is not unsupported", kind)
 	}
