@@ -1,20 +1,19 @@
 package: github.com/tigera/libcalico-go
-version: ""
+homepage: https://projectcalico.org
+license: Apache-2.0
+owners:
+- name: Rob Brockbank
+  email: rob@tigera.io
 import:
 - package: github.com/coreos/etcd
   subpackages:
   - client
+  - pkg/transport
+- package: github.com/docopt/docopt-go
+- package: github.com/ghodss/yaml
+- package: github.com/golang/glog
+- package: github.com/kelseyhightower/envconfig
 - package: golang.org/x/net
   subpackages:
   - context
-- package: github.com/fvbock/trie
-- package: github.com/docopt/docopt-go
-- package: gopkg.in/vmihailenco/msgpack.v2
-- package: gopkg.in/tchap/go-patricia.v2
-  subpackages:
-  - patricia
-- package: github.com/op/go-logging
-- package: github.com/onsi/gomega
-- package: gopkg.in/yaml.v2
-- package: github.com/ghodss/yaml
-- package: github.com/golang/glog
+- package: gopkg.in/go-playground/validator.v8

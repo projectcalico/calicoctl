@@ -18,13 +18,15 @@ import (
 	"fmt"
 	"regexp"
 
+	"reflect"
+
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/common"
-	"reflect"
 )
 
 var (
 	matchTier = regexp.MustCompile("^/?calico/v1/policy/tier/([^/]+)/metadata$")
+	typeTier  = reflect.TypeOf(Tier{})
 )
 
 type TierKey struct {
@@ -45,7 +47,7 @@ func (key TierKey) asEtcdDeleteKey() (string, error) {
 }
 
 func (key TierKey) valueType() reflect.Type {
-	return reflect.TypeOf(Tier{})
+	return typeTier
 }
 
 type TierListOptions struct {
@@ -77,6 +79,5 @@ func (options TierListOptions) keyFromEtcdResult(ekey string) KeyInterface {
 }
 
 type Tier struct {
-	TierKey `json:"-"`
-	Order   *float32 `json:"order,omitempty"`
+	Order *float32 `json:"order,omitempty"`
 }

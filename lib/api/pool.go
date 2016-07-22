@@ -15,51 +15,50 @@
 package api
 
 import (
-	"reflect"
-
 	. "github.com/tigera/libcalico-go/lib/api/unversioned"
 	. "github.com/tigera/libcalico-go/lib/common"
 	"gopkg.in/go-playground/validator.v8"
 )
 
-type TierMetadata struct {
+type PoolMetadata struct {
 	ObjectMetadata
-	Name string `json:"name,omitempty" validate:"omitempty,name"`
+	CIDR IPNet `json:"cidr"`
 }
 
-type TierSpec struct {
-	Order *float32 `json:"order,omitempty"`
+type PoolSpec struct {
+	IPIP        bool `json:"ipip,omitempty"`
+	NATOutgoing bool `json:"nat-outgoing"`
+	Ipam        bool `json:"ipam"`
+	Disabled    bool `json:"disabled"`
 }
 
-type Tier struct {
+type Pool struct {
 	TypeMetadata
-	Metadata TierMetadata `json:"metadata,omitempty"`
-	Spec     TierSpec     `json:"spec,omitempty"`
+	Metadata PoolMetadata `json:"metadata,omitempty"`
+	Spec     PoolSpec     `json:"spec,omitempty"`
 }
 
-func NewTier() *Tier {
-	return &Tier{TypeMetadata: TypeMetadata{Kind: "tier", APIVersion: "v1"}}
+func NewPool() *Pool {
+	return &Pool{TypeMetadata: TypeMetadata{Kind: "pool", APIVersion: "v1"}}
 }
 
-type TierList struct {
+type PoolList struct {
 	TypeMetadata
 	Metadata ListMetadata `json:"metadata,omitempty"`
-	Items    []Tier       `json:"items" validate:"dive"`
+	Items    []Pool       `json:"items" validate:"dive"`
 }
 
-func NewTierList() *TierList {
-	return &TierList{TypeMetadata: TypeMetadata{Kind: "tierList", APIVersion: "v1"}}
+func NewPoolList() *PoolList {
+	return &PoolList{TypeMetadata: TypeMetadata{Kind: "poolList", APIVersion: "v1"}}
 }
 
 // Register v1 structure validators to validate cross-field dependencies in any of the
 // required structures.
 func init() {
-	RegisterStructValidator(validateTier, Tier{})
+	RegisterStructValidator(validatePool, Pool{})
 }
 
-func validateTier(v *validator.Validate, structLevel *validator.StructLevel) {
-	tier := structLevel.CurrentStruct.Interface().(Tier)
-	if tier.Metadata.Name == DefaultTierName {
-		structLevel.ReportError(reflect.ValueOf(tier.Metadata.Name), "Name", "name", "tierNameReserved")
-	}
+func validatePool(v *validator.Validate, structLevel *validator.StructLevel) {
+	// pool := structLevel.CurrentStruct.Interface().(Pool)
+	// TODO: Ensure that the size of the pool is valid?
 }

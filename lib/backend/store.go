@@ -17,8 +17,10 @@ package backend
 import (
 	"encoding/json"
 	"errors"
-	"github.com/golang/glog"
 	"reflect"
+
+	"github.com/golang/glog"
+	"github.com/tigera/libcalico-go/lib/common"
 )
 
 // ParseKey parses a datastore key into one of the <Type>Key structs.
@@ -51,6 +53,9 @@ func ParseKey(key string) KeyInterface {
 		return TierKey{Name: m[1]}
 	} else if m := matchHostIp.FindStringSubmatch(key); m != nil {
 		return HostIPKey{Hostname: m[1]}
+	} else if m := matchPool.FindStringSubmatch(key); m != nil {
+		_, c, _ := common.ParseCIDR(m[1])
+		return PoolKey{CIDR: *c}
 	}
 	// Not a key we know about.
 	return nil
