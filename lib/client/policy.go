@@ -15,8 +15,6 @@
 package client
 
 import (
-	"fmt"
-
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/backend"
 	"github.com/tigera/libcalico-go/lib/common"
@@ -59,7 +57,7 @@ func (h *policies) Create(a *api.Policy) (*api.Policy, error) {
 			}
 		}
 	} else if _, err := h.c.Tiers().Get(api.TierMetadata{Name: a.Metadata.Tier}); err != nil {
-		return nil, common.ErrorResourceDoesNotExist{Name: fmt.Sprintf("Tier '%s'", a.Metadata.Tier)}
+		return nil, err
 	}
 
 	return a, h.c.create(*a, h)
@@ -81,7 +79,7 @@ func (h *policies) Apply(a *api.Policy) (*api.Policy, error) {
 			}
 		}
 	} else if _, err := h.c.Tiers().Get(api.TierMetadata{Name: a.Metadata.Tier}); err != nil {
-		return nil, common.ErrorResourceDoesNotExist{Name: fmt.Sprintf("Tier '%s'", a.Metadata.Tier)}
+		return nil, err
 	}
 
 	return a, h.c.apply(*a, h)
