@@ -10,6 +10,18 @@
   spec:
     interface: eth0
     profiles: [prof1, prof2]
-    IPNetworks: [1.2.3.4/32, "00:bb::aa/10"]
-    MAC: ee:ee:ee:ee:ee:ee
-
+    ipNetworks: [1.2.3.4/32, "00:bb::aa/10"]
+    mac: "ee:ee:ee:ee:ee:ee"
+- apiVersion: v1
+  kind: workloadEndpoint
+  metadata:
+    name: endpoint2
+    workloadID: workdload1
+    orchestratorID: docker
+    hostname: host2
+    labels:
+      type: otherthing
+  spec:
+    interface: eth0
+    ipNetworks: [1.2.3.4/22]
+    mac: "ab:cd:ef:12:34:56"
