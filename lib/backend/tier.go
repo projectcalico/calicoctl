@@ -40,7 +40,7 @@ func (key TierKey) asEtcdKey() (string, error) {
 
 func (key TierKey) asEtcdDeleteKey() (string, error) {
 	if key.Name == "" {
-		return "", common.ErrorInsufficientIdentifiers{}
+		return "", common.ErrorInsufficientIdentifiers{Name: "name"}
 	}
 	e := fmt.Sprintf("/calico/v1/policy/tier/%s", key.Name)
 	return e, nil
@@ -48,6 +48,10 @@ func (key TierKey) asEtcdDeleteKey() (string, error) {
 
 func (key TierKey) valueType() reflect.Type {
 	return typeTier
+}
+
+func (key TierKey) String() string {
+	return fmt.Sprintf("Tier(name=%s)", key.Name)
 }
 
 type TierListOptions struct {

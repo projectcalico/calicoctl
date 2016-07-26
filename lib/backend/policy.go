@@ -35,8 +35,11 @@ type PolicyKey struct {
 }
 
 func (key PolicyKey) asEtcdKey() (string, error) {
-	if key.Name == "" || key.Tier == "" {
-		return "", common.ErrorInsufficientIdentifiers{}
+	if key.Tier == "" {
+		return "", common.ErrorInsufficientIdentifiers{Name: "tier"}
+	}
+	if key.Name == "" {
+		return "", common.ErrorInsufficientIdentifiers{Name: "name"}
 	}
 	e := fmt.Sprintf("/calico/v1/policy/tier/%s/policy/%s",
 		key.Tier, key.Name)
@@ -49,6 +52,10 @@ func (key PolicyKey) asEtcdDeleteKey() (string, error) {
 
 func (key PolicyKey) valueType() reflect.Type {
 	return typePolicy
+}
+
+func (key PolicyKey) String() string {
+	return fmt.Sprintf("Policy(tier=%s, name=%s)", key.Tier, key.Name)
 }
 
 type PolicyListOptions struct {
