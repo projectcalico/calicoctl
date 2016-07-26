@@ -15,9 +15,9 @@ Containerizer in Mesos.  This guide covers:
 -  Launching a Docker Task in Marathon on the created Calico Network
 
 ## Prerequisites
-This guide assumes a running Mesos Cluster that meets the following specifications:
+This guide assumes you have a running Mesos Cluster that meets the following specifications:
 
-- etcd accessible at `$ETCD_LISTEN_URL`
+- etcd
 - Marathon
 - Mesos Master
 - 1 or more Mesos Agent(s) with:
@@ -52,8 +52,10 @@ rules in the profile associated with the `my-calico-net` network.
 The network name can be supplied as the profile name and the `calicoctl` tool
 will look up the profile associated with that network.
 
+Be sure to replace `<etcd-ip:port>` with the address and port at which etcd
+is listening. 
 ```
-$ export ETCD_AUTHORITY=$ETCD_LISTEN_URL
+$ export ETCD_AUTHORITY=<etcd-ip:port>
 $ calicoctl profile my-calico-net rule show
 Inbound rules:
    1 allow from tag my-calico-net
@@ -70,7 +72,7 @@ traffic only from containers attached the "my-calico-net" network.
 For more information no how to configure your Calico profiles, see [Configuring Advanced Network Policy Guide](../calico-with-docker/docker-network-plugin/AdvancedPolicy.md#configuring-the-network-policy).
 
 ## Launching Containers
-With your networks configured, it is trivial to launch a calico-networked Docker container using the standard Marathon API. In your Marathon application definition, simply set `container.docker.network` to `USER`, and specify which network the task should join in `ipAddress.networkName`:
+With your networks configured, it is trivial to launch a calico-networked Docker container using the standard Marathon API. In your Marathon application definition, set `container.docker.network` to `USER`, and specify which network the task should join in `ipAddress.networkName`:
 ```
 {
     "id": "my-docker-task",
@@ -98,9 +100,7 @@ With your networks configured, it is trivial to launch a calico-networked Docker
 }
 ```
 
-This JSON application will start an ongoing task that will print its assigned IP address  to stdout.
-
-Additionally, it
+This JSON application will start an nginx webserver accessible via its Calico IP.
 
 You can launch this task by pasting the JSON into the "JSON Mode" editor in the Marathon UI, or by calling into the Marathon REST API
 using the command line as follows:

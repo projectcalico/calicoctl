@@ -22,7 +22,7 @@ This guide requires a host machine with:
    git clone https://github.com/projectcalico/calico-containers.git
    ```
 
-## 3. Startup and SSH
+## 3. Startup
 ```
 cd calico-containers/docs/mesos/vagrant-centos/
 vagrant up
@@ -50,11 +50,12 @@ That's it! Your Mesos Cluster is ready to use!
 '-----------------------------------------------------------------------------------'
 ```
 
+## 4. SSH
 To connect to your Vagrant boxes on OSX / Linux, see
 [Vagrant's SSH command](https://www.vagrantup.com/docs/cli/ssh.html).
 For Windows, see https://github.com/nickryand/vagrant-multi-putty.
 
-## 4. Next Steps
+## 5. Next Steps
 With your cluster deployed, you can follow the
 [Docker Containerizer Usage Guide](./UsageGuideDockerContainerizer.md).
 to learn how to launch your own Calico-networked tasks.

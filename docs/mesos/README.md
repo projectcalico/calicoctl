@@ -7,12 +7,12 @@
 <!--- end of master only -->
 
 # Calico Networking for Mesos
-Calico introduces fine-grain security policies to Mesos, while
+Calico introduces ip-per-container & fine-grained security policies to Mesos, while
 maintaining speed and scalability and rendering port-forwarding obsolete.
 
-Mesos supports several different networking interfaces depending on which
+Mesos supports several different Networking API's depending on which
 Containerizer is being used. Calico provides compatible plugins for each.
-Below, we list three guides for each networking interface:
+Below, we list three different guides for each:
 
 1. Quickstart scripts to launch a demo Mesos cluster pre-configured with Calico.
 2. Manual instructions on adding Calico to a standard Mesos Cluster.
@@ -25,7 +25,7 @@ networked by Calico's Docker-Libnetwork plugin. Once installed on each Mesos
 Agent, operators can create Docker networks up-front, then launch Docker
 tasks on them.
 
-- [Vagrant Install: Calico for Docker Tasks in Mesos](Vagrant.md)
+- [Quickstart with Vagrant Install: Calico for Docker Tasks in Mesos](Vagrant.md)
 - [Manual Install: Calico for Docker Tasks in Mesos](ManualInstallCalicoDockerContainerizer.md)
 - [Usage Guide: Launching Docker Tasks networked by Calico in Mesos](UsageGuideDockerContainerizer.md)
 
@@ -36,9 +36,12 @@ Containerizer.
 
 - [Quickstart with Docker-Compose: Calico for Mesos CNI](cni-compose-demo/)
 - [Manual Install: Calico for Mesos Tasks (CNI)](ManualInstallCalicoUnifiedContainerizer.md)
-- [Usage Guide: Launching Mesos Tasks networked with Calico CNI](#)
+- [Usage Guide: Launching Mesos Tasks networked with Calico CNI](UsageGuideUnifiedCNI.md)
 
 ### c.) Unified Containerizer with Net-Modules [Deprecated]
+
+**Note: The net-modules API is deprecated as it only currently supports Mesos 0.28.0.**
+
 Calico's net-modules plugin
 ([calico-mesos](https://github.com/projectcalico/calico-mesos))
 performs networking isolation for the Unified Containerizer by responding

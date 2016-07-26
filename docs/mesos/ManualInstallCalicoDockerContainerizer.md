@@ -31,7 +31,7 @@ Docker Containerizer.
 1. On each Mesos Agents, download the `calicoctl` command-line tool:
 
   ```
-  curl -o /usr/bin/calicoctl -L https://github.com/projectcalico/calico-containers/releases/download/v0.18.0/calicoctl
+  curl -o /usr/bin/calicoctl -L http://www.projectcalico.org/builds/calicoctl
   chmod a+x calicoctl
   ```
 
@@ -55,8 +55,8 @@ Docker Containerizer.
   ```
   $ docker ps
   CONTAINER ID        NAMES               IMAGE                           CREATED
-  19263eda1810        calico-libnetwork   calico/node-libnetwork:v0.8.0   3 seconds
-  f237fb21d357        calico-node         calico/node:v0.18.0             3 seconds
+  19263eda1810        calico-libnetwork   calico/node-libnetwork:latest   3 seconds
+  f237fb21d357        calico-node         calico/node:latest              3 seconds
   ```
 
 4. Enable Docker Containerizer in Mesos.
