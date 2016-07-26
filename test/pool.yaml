@@ -3,6 +3,9 @@
   metadata:
     cidr: 192.168.0.0/16
   spec:
+    disabled: true
+    ipip:
+      enabled: true
 
 - apiVersion: v1
   kind: pool
