@@ -170,7 +170,14 @@ func (c *EtcdClient) List(l ListInterface) ([]*DatastoreObject, error) {
 	key := l.asEtcdKeyRoot()
 	glog.V(2).Infof("List Key: %s\n", key)
 	if results, err := c.etcdKeysAPI.Get(context.Background(), key, etcdListOpts); err != nil {
-		return nil, err
+		// If the root key does not exist - that's fine, return no list entries.
+		err = convertEtcdError(err, key)
+		switch err.(type) {
+		case common.ErrorResourceDoesNotExist:
+			return []*DatastoreObject{}, nil
+		default:
+			return nil, err
+		}
 	} else {
 		list := filterEtcdList(results.Node, l)
 
