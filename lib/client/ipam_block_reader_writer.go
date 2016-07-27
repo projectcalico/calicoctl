@@ -1,3 +1,17 @@
+// Copyright (c) 2016 Tigera, Inc. All rights reserved.
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package client
 
 import (
@@ -50,8 +64,7 @@ func (rw blockReaderWriter) claimNewAffineBlock(
 	var pools []common.IPNet
 	if pool != nil {
 		// Validate the given pool is actually configured.
-		// TODO: Exact match pools check.
-		if !rw.isConfiguredPool(pool) {
+		if !rw.isConfiguredPool(*pool) {
 			estr := fmt.Sprintf("The given pool (%s) does not exist", pool.String())
 			return nil, errors.New(estr)
 		}
@@ -66,7 +79,10 @@ func (rw blockReaderWriter) claimNewAffineBlock(
 
 		// Grab all the IP networks in these pools.
 		for _, p := range allPools.Items {
-			pools = append(pools, p.Metadata.CIDR)
+			// Don't include disabled pools.
+			if !p.Spec.Disabled {
+				pools = append(pools, p.Metadata.CIDR)
+			}
 		}
 	}
 
@@ -119,7 +135,7 @@ func (rw blockReaderWriter) claimBlockAffinity(subnet common.IPNet, host string,
 	}
 	_, err = rw.client.backend.Create(&o)
 	if err != nil {
-		if _, ok := err.(casError); ok {
+		if _, ok := err.(common.ErrorResourceAlreadyExists); ok {
 			// Block already exists, check affinity.
 			glog.Warningf("Problem claiming block affinity:", err)
 			obj, err := rw.client.backend.Get(backend.BlockKey{subnet})
@@ -146,7 +162,6 @@ func (rw blockReaderWriter) claimBlockAffinity(subnet common.IPNet, host string,
 				glog.Errorf("Error cleaning up block affinity: %s", err)
 				return err
 			}
-
 			return affinityClaimedError{Block: b}
 		} else {
 			return err
@@ -198,7 +213,7 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 			obj.Object = b
 			_, err = rw.client.backend.Update(obj)
 			if err != nil {
-				if _, ok := err.(casError); ok {
+				if _, ok := err.(common.ErrorResourceUpdateConflict); ok {
 					// CASError - continue.
 					continue
 				} else {
@@ -230,7 +245,8 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 func (rw blockReaderWriter) withinConfiguredPools(ip common.IP) bool {
 	allPools, _ := rw.client.Pools().List(api.PoolMetadata{})
 	for _, p := range allPools.Items {
-		if p.Metadata.CIDR.IPNet.Contains(ip.IP) {
+		// Compare any enabled pools.
+		if !p.Spec.Disabled && p.Metadata.CIDR.Contains(ip.IP) {
 			return true
 		}
 	}
@@ -239,10 +255,11 @@ func (rw blockReaderWriter) withinConfiguredPools(ip common.IP) bool {
 
 // isConfiguredPool returns true if the given IPNet is a configured
 // Calico pool, and false otherwise.
-func (rw blockReaderWriter) isConfiguredPool(cidr *common.IPNet) bool {
+func (rw blockReaderWriter) isConfiguredPool(cidr common.IPNet) bool {
 	allPools, _ := rw.client.Pools().List(api.PoolMetadata{})
 	for _, p := range allPools.Items {
-		if reflect.DeepEqual(p.Metadata.CIDR, cidr) {
+		// Compare any enabled pools.
+		if !p.Spec.Disabled && reflect.DeepEqual(p.Metadata.CIDR, cidr) {
 			return true
 		}
 	}
