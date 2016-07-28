@@ -27,6 +27,7 @@ import (
 	"github.com/coreos/etcd/pkg/transport"
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/api"
+	. "github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/common"
 	"golang.org/x/net/context"
 )
@@ -93,10 +94,8 @@ func ConnectEtcdClient(config *api.ClientConfig) (Client, error) {
 
 // Create an entry in the datastore.  This errors if the entry already exists.
 func (c *EtcdClient) Create(d *KVPair) (*KVPair, error) {
-	// Special case the profile
-	switch t := d.Key.(type) {
-	case ProfileKey:
-		return t.Create(c, d)
+	if co, ok := d.Key.(CreateOverrider); ok {
+		return co.Create(c, d)
 	}
 	return c.set(d, etcdCreateOpts)
 }
@@ -104,9 +103,8 @@ func (c *EtcdClient) Create(d *KVPair) (*KVPair, error) {
 // Update an existing entry in the datastore.  This errors if the entry does
 // not exist.
 func (c *EtcdClient) Update(d *KVPair) (*KVPair, error) {
-	switch t := d.Key.(type) {
-	case ProfileKey:
-		return t.Update(c, d)
+	if co, ok := d.Key.(UpdateOverrider); ok {
+		return co.Update(c, d)
 	}
 
 	// If the request includes a revision, set it as the etcd previous index.
@@ -121,16 +119,15 @@ func (c *EtcdClient) Update(d *KVPair) (*KVPair, error) {
 // Set an existing entry in the datastore.  This ignores whether an entry already
 // exists.
 func (c *EtcdClient) Apply(d *KVPair) (*KVPair, error) {
-	switch t := d.Key.(type) {
-	case ProfileKey:
-		return t.Apply(c, d)
+	if co, ok := d.Key.(ApplyOverrider); ok {
+		return co.Apply(c, d)
 	}
 	return c.set(d, etcdApplyOpts)
 }
 
 // Delete an entry in the datastore.  This errors if the entry does not exists.
 func (c *EtcdClient) Delete(d *KVPair) error {
-	key, err := d.Key.defaultDeletePath()
+	key, err := d.Key.DefaultDeletePath()
 	if err != nil {
 		return err
 	}
@@ -145,12 +142,10 @@ func (c *EtcdClient) Delete(d *KVPair) error {
 
 // Get an entry from the datastore.  This errors if the entry does not exist.
 func (c *EtcdClient) Get(k Key) (*KVPair, error) {
-	switch t := k.(type) {
-	case ProfileKey:
-		return t.Get(c, k)
+	if co, ok := k.(GetOverrider); ok {
+		return co.Get(c, k)
 	}
-
-	key, err := k.defaultPath()
+	key, err := k.DefaultPath()
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +165,7 @@ func (c *EtcdClient) Get(k Key) (*KVPair, error) {
 func (c *EtcdClient) List(l ListInterface) ([]*KVPair, error) {
 	// To list entries, we enumerate from the common root based on the supplied
 	// IDs, and then filter the results.
-	key := l.defaultPathRoot()
+	key := l.DefaultPathRoot()
 	glog.V(2).Infof("List Key: %s\n", key)
 	if results, err := c.etcdKeysAPI.Get(context.Background(), key, etcdListOpts); err != nil {
 		// If the root key does not exist - that's fine, return no list entries.
@@ -195,7 +190,7 @@ func (c *EtcdClient) List(l ListInterface) ([]*KVPair, error) {
 // Set an existing entry in the datastore.  This ignores whether an entry already
 // exists.
 func (c *EtcdClient) set(d *KVPair, options *etcd.SetOptions) (*KVPair, error) {
-	key, err := d.Key.defaultPath()
+	key, err := d.Key.DefaultPath()
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +222,7 @@ func filterEtcdList(n *etcd.Node, l ListInterface) []*KVPair {
 		for _, node := range n.Nodes {
 			dos = append(dos, filterEtcdList(node, l)...)
 		}
-	} else if k := l.keyFromEtcdResult(n.Key); k != nil {
+	} else if k := l.ParseDefaultKey(n.Key); k != nil {
 		if object, err := ParseValue(k, []byte(n.Value)); err == nil {
 			if reflect.ValueOf(object).Kind() == reflect.Ptr {
 				// Unwrap any pointers.

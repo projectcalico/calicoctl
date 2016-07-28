@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backend
+package model
 
 import (
 	"fmt"
@@ -34,7 +34,7 @@ type PolicyKey struct {
 	Tier string `json:"-" validate:"required,name"`
 }
 
-func (key PolicyKey) defaultPath() (string, error) {
+func (key PolicyKey) DefaultPath() (string, error) {
 	if key.Tier == "" {
 		return "", common.ErrorInsufficientIdentifiers{Name: "tier"}
 	}
@@ -46,8 +46,8 @@ func (key PolicyKey) defaultPath() (string, error) {
 	return e, nil
 }
 
-func (key PolicyKey) defaultDeletePath() (string, error) {
-	return key.defaultPath()
+func (key PolicyKey) DefaultDeletePath() (string, error) {
+	return key.DefaultPath()
 }
 
 func (key PolicyKey) valueType() reflect.Type {
@@ -63,7 +63,7 @@ type PolicyListOptions struct {
 	Tier string
 }
 
-func (options PolicyListOptions) defaultPathRoot() string {
+func (options PolicyListOptions) DefaultPathRoot() string {
 	k := "/calico/v1/policy/tier"
 	k = k + fmt.Sprintf("/%s/policy", common.TierOrDefault(options.Tier))
 	if options.Name == "" {
@@ -73,7 +73,7 @@ func (options PolicyListOptions) defaultPathRoot() string {
 	return k
 }
 
-func (options PolicyListOptions) keyFromEtcdResult(ekey string) Key {
+func (options PolicyListOptions) ParseDefaultKey(ekey string) Key {
 	glog.V(2).Infof("Get Policy key from %s", ekey)
 	r := matchPolicy.FindAllStringSubmatch(ekey, -1)
 	if len(r) != 1 {

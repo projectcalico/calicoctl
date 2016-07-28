@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backend
+package model
 
 import (
 	"fmt"
@@ -38,7 +38,7 @@ type ProfileKey struct {
 	Name string `json:"-" validate:"required,name"`
 }
 
-func (key ProfileKey) defaultPath() (string, error) {
+func (key ProfileKey) DefaultPath() (string, error) {
 	if key.Name == "" {
 		return "", common.ErrorInsufficientIdentifiers{Name: "name"}
 	}
@@ -46,8 +46,8 @@ func (key ProfileKey) defaultPath() (string, error) {
 	return e, nil
 }
 
-func (key ProfileKey) defaultDeletePath() (string, error) {
-	return key.defaultPath()
+func (key ProfileKey) DefaultDeletePath() (string, error) {
+	return key.DefaultPath()
 }
 
 func (key ProfileKey) valueType() reflect.Type {
@@ -63,8 +63,8 @@ type ProfileRulesKey struct {
 	ProfileKey
 }
 
-func (key ProfileRulesKey) defaultPath() (string, error) {
-	e, err := key.ProfileKey.defaultPath()
+func (key ProfileRulesKey) DefaultPath() (string, error) {
+	e, err := key.ProfileKey.DefaultPath()
 	return e + "/rules", err
 }
 
@@ -77,8 +77,8 @@ type ProfileTagsKey struct {
 	ProfileKey
 }
 
-func (key ProfileTagsKey) defaultPath() (string, error) {
-	e, err := key.ProfileKey.defaultPath()
+func (key ProfileTagsKey) DefaultPath() (string, error) {
+	e, err := key.ProfileKey.DefaultPath()
 	return e + "/tags", err
 }
 
@@ -91,8 +91,8 @@ type ProfileLabelsKey struct {
 	ProfileKey
 }
 
-func (key ProfileLabelsKey) defaultPath() (string, error) {
-	e, err := key.ProfileKey.defaultPath()
+func (key ProfileLabelsKey) DefaultPath() (string, error) {
+	e, err := key.ProfileKey.DefaultPath()
 	return e + "/labels", err
 }
 
@@ -104,7 +104,7 @@ type ProfileListOptions struct {
 	Name string
 }
 
-func (options ProfileListOptions) defaultPathRoot() string {
+func (options ProfileListOptions) DefaultPathRoot() string {
 	k := "/calico/v1/policy/profile"
 	if options.Name == "" {
 		return k
@@ -113,7 +113,7 @@ func (options ProfileListOptions) defaultPathRoot() string {
 	return k
 }
 
-func (options ProfileListOptions) keyFromEtcdResult(ekey string) Key {
+func (options ProfileListOptions) ParseDefaultKey(ekey string) Key {
 	glog.V(2).Infof("Get Profile key from %s", ekey)
 	r := matchProfile.FindAllStringSubmatch(ekey, -1)
 	if len(r) != 1 {
@@ -152,7 +152,7 @@ type ProfileRules struct {
 	OutboundRules []Rule `json:"outbound_rules,omitempty" validate:"omitempty,dive"`
 }
 
-// Convert a Profile DatastoreObject to separate DatastoreObject types for Keys, Labels and Rules.
+// Convert a Profile KVPair to separate KVPair types for Keys, Labels and Rules.
 func toTagsLabelsRules(d *KVPair) (t, l, r *KVPair) {
 	p := d.Value.(Profile)
 	pk := d.Key.(ProfileKey)
@@ -174,7 +174,14 @@ func toTagsLabelsRules(d *KVPair) (t, l, r *KVPair) {
 	return t, l, r
 }
 
-func (_ ProfileKey) Create(c *EtcdClient, d *KVPair) (*KVPair, error) {
+type client interface {
+	Create(object *KVPair) (*KVPair, error)
+	Update(object *KVPair) (*KVPair, error)
+	Apply(object *KVPair) (*KVPair, error)
+	Get(key Key) (*KVPair, error)
+}
+
+func (_ ProfileKey) Create(c client, d *KVPair) (*KVPair, error) {
 	t, l, r := toTagsLabelsRules(d)
 	if t, err := c.Create(t); err != nil {
 		return nil, err
@@ -188,7 +195,7 @@ func (_ ProfileKey) Create(c *EtcdClient, d *KVPair) (*KVPair, error) {
 	}
 }
 
-func (_ ProfileKey) Update(c *EtcdClient, d *KVPair) (*KVPair, error) {
+func (_ ProfileKey) Update(c client, d *KVPair) (*KVPair, error) {
 	t, l, r := toTagsLabelsRules(d)
 	if t, err := c.Update(t); err != nil {
 		return nil, err
@@ -202,7 +209,7 @@ func (_ ProfileKey) Update(c *EtcdClient, d *KVPair) (*KVPair, error) {
 	}
 }
 
-func (_ ProfileKey) Apply(c *EtcdClient, d *KVPair) (*KVPair, error) {
+func (_ ProfileKey) Apply(c client, d *KVPair) (*KVPair, error) {
 	t, l, r := toTagsLabelsRules(d)
 	if t, err := c.Apply(t); err != nil {
 		return nil, err
@@ -216,7 +223,7 @@ func (_ ProfileKey) Apply(c *EtcdClient, d *KVPair) (*KVPair, error) {
 	}
 }
 
-func (_ ProfileKey) Get(c *EtcdClient, k Key) (*KVPair, error) {
+func (_ ProfileKey) Get(c client, k Key) (*KVPair, error) {
 	var t, l, r *KVPair
 	var err error
 	pk := k.(ProfileKey)
@@ -257,7 +264,7 @@ func (_ *ProfileListOptions) ListConvert(ds []*KVPair) []*KVPair {
 			panic(fmt.Errorf("Unexpected key type: %v", t))
 		}
 
-		// Get the DatastoreObject for the profile, initialising if just created.
+		// Get the KVPair for the profile, initialising if just created.
 		pd, ok := profiles[name]
 		if !ok {
 			glog.V(2).Infof("Initialise profile %v", name)

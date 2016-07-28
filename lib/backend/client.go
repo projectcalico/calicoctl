@@ -15,38 +15,9 @@
 package backend
 
 import (
-	"reflect"
-
 	"github.com/tigera/libcalico-go/lib/api"
+	. "github.com/tigera/libcalico-go/lib/backend/model"
 )
-
-// Key represents a parsed datastore key.
-type Key interface {
-	// defaultPath() returns a default stringified path for this object,
-	// suitable for use in most datastores (and used on the Felix API,
-	// for example).
-	defaultPath() (string, error)
-	// defaultDeletePath() returns a default stringified path for deleting
-	// this object.
-	defaultDeletePath() (string, error)
-	valueType() reflect.Type
-}
-
-// Interface used to perform datastore lookups.
-type ListInterface interface {
-	// defaultPathRoot() returns a default stringified root path, i.e. path
-	// to the directory containing all the keys to be listed.
-	defaultPathRoot() string
-	keyFromEtcdResult(key string) Key
-}
-
-// KVPair holds a parsed key and value as well as datastore specific revision
-// information.
-type KVPair struct {
-	Key      Key
-	Value    interface{}
-	Revision interface{}
-}
 
 // Client is the interface that a backend datastore must implement.
 type Client interface {
