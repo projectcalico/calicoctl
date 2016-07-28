@@ -273,7 +273,7 @@ func (c ipams) AssignIP(args AssignIPArgs) error {
 				return err
 			}
 		}
-		block := allocationBlock{obj.Object.(backend.AllocationBlock)}
+		block := allocationBlock{obj.Value.(backend.AllocationBlock)}
 		err = block.assign(args.IP, args.HandleID, args.Attrs, hostname)
 		if err != nil {
 			glog.Errorf("Failed to assign address %s: %s", args.IP, err)
@@ -287,7 +287,7 @@ func (c ipams) AssignIP(args AssignIPArgs) error {
 
 		// Update the block using the original DatastoreObject
 		// to do a CAS.
-		obj.Object = block.AllocationBlock
+		obj.Value = block.AllocationBlock
 		_, err = c.client.backend.Update(obj)
 		if err != nil {
 			glog.Warningf("Update failed on block %s", block.CIDR.String())
@@ -333,7 +333,7 @@ func (c ipams) releaseIPsFromBlock(ips []common.IP, blockCIDR common.IPNet) ([]c
 		}
 
 		// Block exists - get the allocationBlock from the DatastoreObject.
-		b := allocationBlock{obj.Object.(backend.AllocationBlock)}
+		b := allocationBlock{obj.Value.(backend.AllocationBlock)}
 
 		// Release the IPs.
 		unallocated, handles, err2 := b.release(ips)
@@ -351,12 +351,12 @@ func (c ipams) releaseIPsFromBlock(ips []common.IP, blockCIDR common.IPNet) ([]c
 		var updateErr error
 		if b.empty() && b.HostAffinity == nil {
 			glog.V(3).Infof("Deleting non-affine block '%s'", b.CIDR.String())
-			updateErr = c.client.backend.Delete(&backend.DatastoreObject{
+			updateErr = c.client.backend.Delete(&backend.KVPair{
 				Key: backend.BlockKey{CIDR: blockCIDR},
 			})
 		} else {
 			glog.V(3).Infof("Updating assignments in block '%s'", b.CIDR.String())
-			obj.Object = b.AllocationBlock
+			obj.Value = b.AllocationBlock
 			_, updateErr = c.client.backend.Update(obj)
 		}
 
@@ -395,7 +395,7 @@ func (c ipams) assignFromExistingBlock(
 		}
 
 		// Pull out the block.
-		b := allocationBlock{obj.Object.(backend.AllocationBlock)}
+		b := allocationBlock{obj.Value.(backend.AllocationBlock)}
 
 		glog.V(4).Infof("Got block: %v", b)
 		ips, err = b.autoAssign(num, handleID, host, attrs, true)
@@ -415,7 +415,7 @@ func (c ipams) assignFromExistingBlock(
 
 		// Update the block using CAS by passing back the original
 		// DatastoreObject.
-		obj.Object = b.AllocationBlock
+		obj.Value = b.AllocationBlock
 		_, err = c.client.backend.Update(obj)
 		if err != nil {
 			glog.V(2).Infof("Failed to update block '%s' - try again", b.CIDR.String())
@@ -631,7 +631,7 @@ func (c ipams) IPsByHandle(handleID string) ([]common.IP, error) {
 	if err != nil {
 		return nil, err
 	}
-	handle := allocationHandle{obj.Object.(backend.IPAMHandle)}
+	handle := allocationHandle{obj.Value.(backend.IPAMHandle)}
 
 	assignments := []common.IP{}
 	for k, _ := range handle.Block {
@@ -644,7 +644,7 @@ func (c ipams) IPsByHandle(handleID string) ([]common.IP, error) {
 
 		// Pull out the allocationBlock and get all the assignments
 		// from it.
-		b := allocationBlock{obj.Object.(backend.AllocationBlock)}
+		b := allocationBlock{obj.Value.(backend.AllocationBlock)}
 		assignments = append(assignments, b.ipsByHandle(handleID)...)
 	}
 	return assignments, nil
@@ -658,7 +658,7 @@ func (c ipams) ReleaseByHandle(handleID string) error {
 	if err != nil {
 		return err
 	}
-	handle := allocationHandle{obj.Object.(backend.IPAMHandle)}
+	handle := allocationHandle{obj.Value.(backend.IPAMHandle)}
 
 	for blockStr, _ := range handle.Block {
 		_, blockCIDR, _ := common.ParseCIDR(blockStr)
@@ -680,7 +680,7 @@ func (c ipams) releaseByHandle(handleID string, blockCIDR common.IPNet) error {
 				return err
 			}
 		}
-		block := allocationBlock{obj.Object.(backend.AllocationBlock)}
+		block := allocationBlock{obj.Value.(backend.AllocationBlock)}
 		num := block.releaseByHandle(handleID)
 		if num == 0 {
 			// Block has no addresses with this handle, so
@@ -689,7 +689,7 @@ func (c ipams) releaseByHandle(handleID string, blockCIDR common.IPNet) error {
 		}
 
 		if block.empty() && block.HostAffinity == nil {
-			err = c.client.backend.Delete(&backend.DatastoreObject{
+			err = c.client.backend.Delete(&backend.KVPair{
 				Key: backend.BlockKey{blockCIDR},
 			})
 			if err != nil {
@@ -702,7 +702,7 @@ func (c ipams) releaseByHandle(handleID string, blockCIDR common.IPNet) error {
 		} else {
 			// Compare and swap the AllocationBlock using the original
 			// DatastoreObject read from before.
-			obj.Object = block.AllocationBlock
+			obj.Value = block.AllocationBlock
 			_, err = c.client.backend.Update(obj)
 			if err != nil {
 				if _, ok := err.(common.ErrorResourceUpdateConflict); ok {
@@ -724,7 +724,7 @@ func (c ipams) releaseByHandle(handleID string, blockCIDR common.IPNet) error {
 }
 
 func (c ipams) incrementHandle(handleID string, blockCIDR common.IPNet, num int) error {
-	var obj *backend.DatastoreObject
+	var obj *backend.KVPair
 	var err error
 	for i := 0; i < ipamEtcdRetries; i++ {
 		obj, err = c.client.backend.Get(backend.IPAMHandleKey{HandleID: handleID})
@@ -736,9 +736,9 @@ func (c ipams) incrementHandle(handleID string, blockCIDR common.IPNet, num int)
 					HandleID: handleID,
 					Block:    map[string]int{},
 				}
-				obj = &backend.DatastoreObject{
-					Key:    backend.IPAMHandleKey{HandleID: handleID},
-					Object: bh,
+				obj = &backend.KVPair{
+					Key:   backend.IPAMHandleKey{HandleID: handleID},
+					Value: bh,
 				}
 			} else {
 				// Unexpected error reading handle.
@@ -747,13 +747,13 @@ func (c ipams) incrementHandle(handleID string, blockCIDR common.IPNet, num int)
 		}
 
 		// Get the handle from the DatastoreObject.
-		handle := allocationHandle{obj.Object.(backend.IPAMHandle)}
+		handle := allocationHandle{obj.Value.(backend.IPAMHandle)}
 
 		// Increment the handle for this block.
 		handle.incrementBlock(blockCIDR, num)
 
 		// Compare and swap the handle using the DatastoreObject from above.
-		obj.Object = handle.IPAMHandle
+		obj.Value = handle.IPAMHandle
 		_, err = c.client.backend.Apply(obj)
 		if err != nil {
 			continue
@@ -770,7 +770,7 @@ func (c ipams) decrementHandle(handleID string, blockCIDR common.IPNet, num int)
 		if err != nil {
 			glog.Fatalf("Can't decrement block because it doesn't exist")
 		}
-		handle := allocationHandle{obj.Object.(backend.IPAMHandle)}
+		handle := allocationHandle{obj.Value.(backend.IPAMHandle)}
 
 		_, err = handle.decrementBlock(blockCIDR, num)
 		if err != nil {
@@ -780,12 +780,12 @@ func (c ipams) decrementHandle(handleID string, blockCIDR common.IPNet, num int)
 		// Update / Delete as appropriate.
 		if handle.empty() {
 			glog.V(3).Infof("Deleting handle: %s", handleID)
-			err = c.client.backend.Delete(&backend.DatastoreObject{
+			err = c.client.backend.Delete(&backend.KVPair{
 				Key: backend.IPAMHandleKey{HandleID: handleID},
 			})
 		} else {
 			glog.V(3).Infof("Updating handle: %s", handleID)
-			obj.Object = handle.IPAMHandle
+			obj.Value = handle.IPAMHandle
 			_, err = c.client.backend.Update(obj)
 		}
 
@@ -808,7 +808,7 @@ func (c ipams) GetAssignmentAttributes(addr common.IP) (map[string]string, error
 		glog.Errorf("Error reading block %s: %s", blockCIDR, err)
 		return nil, errors.New(fmt.Sprintf("%s is not assigned", addr))
 	}
-	block := allocationBlock{obj.Object.(backend.AllocationBlock)}
+	block := allocationBlock{obj.Value.(backend.AllocationBlock)}
 	return block.attributesForIP(addr)
 }
 
@@ -826,7 +826,7 @@ func (c ipams) GetIPAMConfig() (*IPAMConfig, error) {
 		glog.Errorf("Error getting IPAMConfig: %s", err)
 		return nil, err
 	}
-	return c.convertBackendToIPAMConfig(obj.Object.(backend.IPAMConfig)), nil
+	return c.convertBackendToIPAMConfig(obj.Value.(backend.IPAMConfig)), nil
 }
 
 // SetIPAMConfig sets global IPAM configuration.  This can only
@@ -851,9 +851,9 @@ func (c ipams) SetIPAMConfig(cfg IPAMConfig) error {
 	}
 
 	// Write to datastore.
-	obj := backend.DatastoreObject{
-		Key:    backend.IPAMConfigKey{},
-		Object: c.convertIPAMConfigToBackend(cfg),
+	obj := backend.KVPair{
+		Key:   backend.IPAMConfigKey{},
+		Value: c.convertIPAMConfigToBackend(cfg),
 	}
 	_, err = c.client.backend.Apply(&obj)
 	if err != nil {

@@ -86,7 +86,7 @@ func (h *pools) convertMetadataToListInterface(m interface{}) (backend.ListInter
 }
 
 // Convert a PoolMetadata to a PoolKeyInterface
-func (h *pools) convertMetadataToKeyInterface(m interface{}) (backend.KeyInterface, error) {
+func (h *pools) convertMetadataToKeyInterface(m interface{}) (backend.Key, error) {
 	pm := m.(api.PoolMetadata)
 	k := backend.PoolKey{
 		CIDR: pm.CIDR,
@@ -95,7 +95,7 @@ func (h *pools) convertMetadataToKeyInterface(m interface{}) (backend.KeyInterfa
 }
 
 // Convert an API Pool structure to a Backend Pool structure
-func (h *pools) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreObject, error) {
+func (h *pools) convertAPIToDatastoreObject(a interface{}) (*backend.KVPair, error) {
 	ap := a.(api.Pool)
 	k, err := h.convertMetadataToKeyInterface(ap.Metadata)
 	if err != nil {
@@ -110,9 +110,9 @@ func (h *pools) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreOb
 		ipipInterface = ""
 	}
 
-	d := backend.DatastoreObject{
+	d := backend.KVPair{
 		Key: k,
-		Object: backend.Pool{
+		Value: backend.Pool{
 			CIDR:          ap.Metadata.CIDR,
 			IPIPInterface: ipipInterface,
 			Masquerade:    ap.Spec.NATOutgoing,
@@ -125,8 +125,8 @@ func (h *pools) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreOb
 }
 
 // Convert a Backend Pool structure to an API Pool structure
-func (h *pools) convertDatastoreObjectToAPI(d *backend.DatastoreObject) (interface{}, error) {
-	backendPool := d.Object.(backend.Pool)
+func (h *pools) convertDatastoreObjectToAPI(d *backend.KVPair) (interface{}, error) {
+	backendPool := d.Value.(backend.Pool)
 
 	apiPool := api.NewPool()
 	apiPool.Metadata.CIDR = backendPool.CIDR

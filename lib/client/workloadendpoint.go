@@ -90,7 +90,7 @@ func (w *workloadEndpoints) convertMetadataToListInterface(m interface{}) (backe
 }
 
 // Convert a WorkloadEndpointMetadata to a WorkloadEndpointKeyInterface
-func (w *workloadEndpoints) convertMetadataToKeyInterface(m interface{}) (backend.KeyInterface, error) {
+func (w *workloadEndpoints) convertMetadataToKeyInterface(m interface{}) (backend.Key, error) {
 	hm := m.(api.WorkloadEndpointMetadata)
 	k := backend.WorkloadEndpointKey{
 		Hostname:       hm.Hostname,
@@ -102,7 +102,7 @@ func (w *workloadEndpoints) convertMetadataToKeyInterface(m interface{}) (backen
 }
 
 // Convert an API WorkloadEndpoint structure to a Backend WorkloadEndpoint structure
-func (w *workloadEndpoints) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreObject, error) {
+func (w *workloadEndpoints) convertAPIToDatastoreObject(a interface{}) (*backend.KVPair, error) {
 	ah := a.(api.WorkloadEndpoint)
 	k, err := w.convertMetadataToKeyInterface(ah.Metadata)
 	if err != nil {
@@ -119,9 +119,9 @@ func (w *workloadEndpoints) convertAPIToDatastoreObject(a interface{}) (*backend
 		}
 	}
 
-	d := backend.DatastoreObject{
+	d := backend.KVPair{
 		Key: k,
-		Object: backend.WorkloadEndpoint{
+		Value: backend.WorkloadEndpoint{
 			Labels:     ah.Metadata.Labels,
 			State:      "active",
 			Name:       ah.Spec.InterfaceName,
@@ -136,8 +136,8 @@ func (w *workloadEndpoints) convertAPIToDatastoreObject(a interface{}) (*backend
 }
 
 // Convert a Backend WorkloadEndpoint structure to an API WorkloadEndpoint structure
-func (w *workloadEndpoints) convertDatastoreObjectToAPI(d *backend.DatastoreObject) (interface{}, error) {
-	bh := d.Object.(backend.WorkloadEndpoint)
+func (w *workloadEndpoints) convertDatastoreObjectToAPI(d *backend.KVPair) (interface{}, error) {
+	bh := d.Value.(backend.WorkloadEndpoint)
 	bk := d.Key.(backend.WorkloadEndpointKey)
 
 	n := bh.IPv4Nets

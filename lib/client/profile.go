@@ -86,7 +86,7 @@ func (h *profiles) convertMetadataToListInterface(m interface{}) (backend.ListIn
 }
 
 // Convert a ProfileMetadata to a ProfileKeyInterface
-func (h *profiles) convertMetadataToKeyInterface(m interface{}) (backend.KeyInterface, error) {
+func (h *profiles) convertMetadataToKeyInterface(m interface{}) (backend.Key, error) {
 	hm := m.(api.ProfileMetadata)
 	k := backend.ProfileKey{
 		Name: hm.Name,
@@ -95,16 +95,16 @@ func (h *profiles) convertMetadataToKeyInterface(m interface{}) (backend.KeyInte
 }
 
 // Convert an API Profile structure to a Backend Profile structure
-func (h *profiles) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreObject, error) {
+func (h *profiles) convertAPIToDatastoreObject(a interface{}) (*backend.KVPair, error) {
 	ap := a.(api.Profile)
 	k, err := h.convertMetadataToKeyInterface(ap.Metadata)
 	if err != nil {
 		return nil, err
 	}
 
-	d := backend.DatastoreObject{
+	d := backend.KVPair{
 		Key: k,
-		Object: backend.Profile{
+		Value: backend.Profile{
 			Rules: backend.ProfileRules{
 				InboundRules:  rulesAPIToBackend(ap.Spec.IngressRules),
 				OutboundRules: rulesAPIToBackend(ap.Spec.EgressRules),
@@ -118,8 +118,8 @@ func (h *profiles) convertAPIToDatastoreObject(a interface{}) (*backend.Datastor
 }
 
 // Convert a Backend Profile structure to an API Profile structure
-func (h *profiles) convertDatastoreObjectToAPI(d *backend.DatastoreObject) (interface{}, error) {
-	bp := d.Object.(backend.Profile)
+func (h *profiles) convertDatastoreObjectToAPI(d *backend.KVPair) (interface{}, error) {
+	bp := d.Value.(backend.Profile)
 	bk := d.Key.(backend.ProfileKey)
 
 	ap := api.NewProfile()

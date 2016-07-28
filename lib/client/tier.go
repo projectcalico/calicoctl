@@ -86,7 +86,7 @@ func (h *tiers) convertMetadataToListInterface(m interface{}) (backend.ListInter
 }
 
 // Convert a TierMetadata to a TierKeyInterface
-func (h *tiers) convertMetadataToKeyInterface(m interface{}) (backend.KeyInterface, error) {
+func (h *tiers) convertMetadataToKeyInterface(m interface{}) (backend.Key, error) {
 	hm := m.(api.TierMetadata)
 	k := backend.TierKey{
 		Name: hm.Name,
@@ -95,16 +95,16 @@ func (h *tiers) convertMetadataToKeyInterface(m interface{}) (backend.KeyInterfa
 }
 
 // Convert an API Tier structure to a Backend Tier structure
-func (h *tiers) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreObject, error) {
+func (h *tiers) convertAPIToDatastoreObject(a interface{}) (*backend.KVPair, error) {
 	at := a.(api.Tier)
 	k, err := h.convertMetadataToKeyInterface(at.Metadata)
 	if err != nil {
 		return nil, err
 	}
 
-	d := backend.DatastoreObject{
+	d := backend.KVPair{
 		Key: k,
-		Object: backend.Tier{
+		Value: backend.Tier{
 			Order: at.Spec.Order,
 		},
 	}
@@ -113,8 +113,8 @@ func (h *tiers) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreOb
 }
 
 // Convert a Backend Tier structure to an API Tier structure
-func (h *tiers) convertDatastoreObjectToAPI(d *backend.DatastoreObject) (interface{}, error) {
-	bt := d.Object.(backend.Tier)
+func (h *tiers) convertDatastoreObjectToAPI(d *backend.KVPair) (interface{}, error) {
+	bt := d.Value.(backend.Tier)
 	bk := d.Key.(backend.TierKey)
 
 	at := api.NewTier()

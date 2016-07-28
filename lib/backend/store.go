@@ -25,7 +25,7 @@ import (
 
 // ParseKey parses a datastore key into one of the <Type>Key structs.
 // Returns nil if the string doesn't match one of our objects.
-func ParseKey(key string) KeyInterface {
+func ParseKey(key string) Key {
 	if m := matchWorkloadEndpoint.FindStringSubmatch(key); m != nil {
 		return WorkloadEndpointKey{
 			Hostname:       m[1],
@@ -61,7 +61,7 @@ func ParseKey(key string) KeyInterface {
 	return nil
 }
 
-func ParseValue(key KeyInterface, rawData []byte) (interface{}, error) {
+func ParseValue(key Key, rawData []byte) (interface{}, error) {
 	value := reflect.New(key.valueType())
 	iface := value.Interface()
 	err := json.Unmarshal(rawData, iface)
@@ -77,7 +77,7 @@ func ParseValue(key KeyInterface, rawData []byte) (interface{}, error) {
 	return iface, nil
 }
 
-func ParseKeyValue(key string, rawData []byte) (KeyInterface, interface{}, error) {
+func ParseKeyValue(key string, rawData []byte) (Key, interface{}, error) {
 	parsedKey := ParseKey(key)
 	if parsedKey == nil {
 		return nil, nil, errors.New("Failed to parse key")

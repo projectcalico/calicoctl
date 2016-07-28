@@ -108,7 +108,7 @@ func (h *hostEndpoints) convertMetadataToListInterface(m interface{}) (backend.L
 }
 
 // Convert a HostEndpointMetadata to a HostEndpointKeyInterface
-func (h *hostEndpoints) convertMetadataToKeyInterface(m interface{}) (backend.KeyInterface, error) {
+func (h *hostEndpoints) convertMetadataToKeyInterface(m interface{}) (backend.Key, error) {
 	hm := m.(api.HostEndpointMetadata)
 	k := backend.HostEndpointKey{
 		Hostname:   hm.Hostname,
@@ -118,7 +118,7 @@ func (h *hostEndpoints) convertMetadataToKeyInterface(m interface{}) (backend.Ke
 }
 
 // Convert an API HostEndpoint structure to a Backend HostEndpoint structure
-func (h *hostEndpoints) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreObject, error) {
+func (h *hostEndpoints) convertAPIToDatastoreObject(a interface{}) (*backend.KVPair, error) {
 	ah := a.(api.HostEndpoint)
 	k, err := h.convertMetadataToKeyInterface(ah.Metadata)
 	if err != nil {
@@ -135,9 +135,9 @@ func (h *hostEndpoints) convertAPIToDatastoreObject(a interface{}) (*backend.Dat
 		}
 	}
 
-	d := backend.DatastoreObject{
+	d := backend.KVPair{
 		Key: k,
-		Object: backend.HostEndpoint{
+		Value: backend.HostEndpoint{
 			Labels: ah.Metadata.Labels,
 
 			Name:              ah.Spec.InterfaceName,
@@ -151,8 +151,8 @@ func (h *hostEndpoints) convertAPIToDatastoreObject(a interface{}) (*backend.Dat
 }
 
 // Convert a Backend HostEndpoint structure to an API HostEndpoint structure
-func (h *hostEndpoints) convertDatastoreObjectToAPI(d *backend.DatastoreObject) (interface{}, error) {
-	bh := d.Object.(backend.HostEndpoint)
+func (h *hostEndpoints) convertDatastoreObjectToAPI(d *backend.KVPair) (interface{}, error) {
+	bh := d.Value.(backend.HostEndpoint)
 	bk := d.Key.(backend.HostEndpointKey)
 
 	ips := bh.ExpectedIPv4Addrs

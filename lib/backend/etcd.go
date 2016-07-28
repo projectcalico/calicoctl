@@ -44,7 +44,7 @@ type EtcdClient struct {
 	etcdKeysAPI etcd.KeysAPI
 }
 
-func ConnectEtcdClient(config *api.ClientConfig) (DatastoreReadWriteInterface, error) {
+func ConnectEtcdClient(config *api.ClientConfig) (Client, error) {
 	// Determine the location from the authority or the endpoints.  The endpoints
 	// takes precedence if both are specified.
 	etcdLocation := []string{}
@@ -92,7 +92,7 @@ func ConnectEtcdClient(config *api.ClientConfig) (DatastoreReadWriteInterface, e
 }
 
 // Create an entry in the datastore.  This errors if the entry already exists.
-func (c *EtcdClient) Create(d *DatastoreObject) (*DatastoreObject, error) {
+func (c *EtcdClient) Create(d *KVPair) (*KVPair, error) {
 	// Special case the profile
 	switch t := d.Key.(type) {
 	case ProfileKey:
@@ -103,7 +103,7 @@ func (c *EtcdClient) Create(d *DatastoreObject) (*DatastoreObject, error) {
 
 // Update an existing entry in the datastore.  This errors if the entry does
 // not exist.
-func (c *EtcdClient) Update(d *DatastoreObject) (*DatastoreObject, error) {
+func (c *EtcdClient) Update(d *KVPair) (*KVPair, error) {
 	switch t := d.Key.(type) {
 	case ProfileKey:
 		return t.Update(c, d)
@@ -120,7 +120,7 @@ func (c *EtcdClient) Update(d *DatastoreObject) (*DatastoreObject, error) {
 
 // Set an existing entry in the datastore.  This ignores whether an entry already
 // exists.
-func (c *EtcdClient) Apply(d *DatastoreObject) (*DatastoreObject, error) {
+func (c *EtcdClient) Apply(d *KVPair) (*KVPair, error) {
 	switch t := d.Key.(type) {
 	case ProfileKey:
 		return t.Apply(c, d)
@@ -129,8 +129,8 @@ func (c *EtcdClient) Apply(d *DatastoreObject) (*DatastoreObject, error) {
 }
 
 // Delete an entry in the datastore.  This errors if the entry does not exists.
-func (c *EtcdClient) Delete(d *DatastoreObject) error {
-	key, err := d.Key.asEtcdDeleteKey()
+func (c *EtcdClient) Delete(d *KVPair) error {
+	key, err := d.Key.defaultDeletePath()
 	if err != nil {
 		return err
 	}
@@ -144,13 +144,13 @@ func (c *EtcdClient) Delete(d *DatastoreObject) error {
 }
 
 // Get an entry from the datastore.  This errors if the entry does not exist.
-func (c *EtcdClient) Get(k KeyInterface) (*DatastoreObject, error) {
+func (c *EtcdClient) Get(k Key) (*KVPair, error) {
 	switch t := k.(type) {
 	case ProfileKey:
 		return t.Get(c, k)
 	}
 
-	key, err := k.asEtcdKey()
+	key, err := k.defaultPath()
 	if err != nil {
 		return nil, err
 	}
@@ -161,23 +161,23 @@ func (c *EtcdClient) Get(k KeyInterface) (*DatastoreObject, error) {
 		return nil, err
 	} else {
 		elem := reflect.ValueOf(object).Elem().Interface()
-		return &DatastoreObject{Key: k, Object: elem, Revision: results.Node.ModifiedIndex}, nil
+		return &KVPair{Key: k, Value: elem, Revision: results.Node.ModifiedIndex}, nil
 	}
 }
 
 // List entries in the datastore.  This may return an empty list of there are
 // no entries matching the request in the ListInterface.
-func (c *EtcdClient) List(l ListInterface) ([]*DatastoreObject, error) {
+func (c *EtcdClient) List(l ListInterface) ([]*KVPair, error) {
 	// To list entries, we enumerate from the common root based on the supplied
 	// IDs, and then filter the results.
-	key := l.asEtcdKeyRoot()
+	key := l.defaultPathRoot()
 	glog.V(2).Infof("List Key: %s\n", key)
 	if results, err := c.etcdKeysAPI.Get(context.Background(), key, etcdListOpts); err != nil {
 		// If the root key does not exist - that's fine, return no list entries.
 		err = convertEtcdError(err, nil)
 		switch err.(type) {
 		case common.ErrorResourceDoesNotExist:
-			return []*DatastoreObject{}, nil
+			return []*KVPair{}, nil
 		default:
 			return nil, err
 		}
@@ -194,12 +194,12 @@ func (c *EtcdClient) List(l ListInterface) ([]*DatastoreObject, error) {
 
 // Set an existing entry in the datastore.  This ignores whether an entry already
 // exists.
-func (c *EtcdClient) set(d *DatastoreObject, options *etcd.SetOptions) (*DatastoreObject, error) {
-	key, err := d.Key.asEtcdKey()
+func (c *EtcdClient) set(d *KVPair, options *etcd.SetOptions) (*KVPair, error) {
+	key, err := d.Key.defaultPath()
 	if err != nil {
 		return nil, err
 	}
-	bytes, err := json.Marshal(d.Object)
+	bytes, err := json.Marshal(d.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -221,8 +221,8 @@ func (c *EtcdClient) set(d *DatastoreObject, options *etcd.SetOptions) (*Datasto
 
 // Process a node returned from a list to filter results based on the List type and to
 // compile and return the required results.
-func filterEtcdList(n *etcd.Node, l ListInterface) []*DatastoreObject {
-	dos := []*DatastoreObject{}
+func filterEtcdList(n *etcd.Node, l ListInterface) []*KVPair {
+	dos := []*KVPair{}
 	if n.Dir {
 		for _, node := range n.Nodes {
 			dos = append(dos, filterEtcdList(node, l)...)
@@ -233,7 +233,7 @@ func filterEtcdList(n *etcd.Node, l ListInterface) []*DatastoreObject {
 				// Unwrap any pointers.
 				object = reflect.ValueOf(object).Elem().Interface()
 			}
-			do := &DatastoreObject{Key: k, Object: object, Revision: n.ModifiedIndex}
+			do := &KVPair{Key: k, Value: object, Revision: n.ModifiedIndex}
 			dos = append(dos, do)
 		}
 	}
@@ -241,7 +241,7 @@ func filterEtcdList(n *etcd.Node, l ListInterface) []*DatastoreObject {
 	return dos
 }
 
-func convertEtcdError(err error, key KeyInterface) error {
+func convertEtcdError(err error, key Key) error {
 	if err == nil {
 		glog.V(2).Info("Comand completed without error")
 		return nil

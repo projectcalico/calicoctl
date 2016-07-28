@@ -33,7 +33,7 @@ type BlockKey struct {
 	CIDR common.IPNet `json:"-" validate:"required,name"`
 }
 
-func (key BlockKey) asEtcdKey() (string, error) {
+func (key BlockKey) defaultPath() (string, error) {
 	if key.CIDR.IP == nil {
 		return "", common.ErrorInsufficientIdentifiers{}
 	}
@@ -42,8 +42,8 @@ func (key BlockKey) asEtcdKey() (string, error) {
 	return e, nil
 }
 
-func (key BlockKey) asEtcdDeleteKey() (string, error) {
-	return key.asEtcdKey()
+func (key BlockKey) defaultDeletePath() (string, error) {
+	return key.defaultPath()
 }
 
 func (key BlockKey) valueType() reflect.Type {
@@ -54,7 +54,7 @@ type BlockListOptions struct {
 	IPVersion int `json:"-"`
 }
 
-func (options BlockListOptions) asEtcdKeyRoot() string {
+func (options BlockListOptions) defaultPathRoot() string {
 	k := "/calico/ipam/v2/assignment/"
 	if options.IPVersion != 0 {
 		k = k + fmt.Sprintf("ipv%d/", options.IPVersion)
@@ -62,7 +62,7 @@ func (options BlockListOptions) asEtcdKeyRoot() string {
 	return k
 }
 
-func (options BlockListOptions) keyFromEtcdResult(ekey string) KeyInterface {
+func (options BlockListOptions) keyFromEtcdResult(ekey string) Key {
 	glog.V(2).Infof("Get Block key from %s", ekey)
 	r := matchBlock.FindAllStringSubmatch(ekey, -1)
 	if len(r) != 1 {

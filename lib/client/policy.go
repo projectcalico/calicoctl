@@ -118,7 +118,7 @@ func (h *policies) convertMetadataToListInterface(m interface{}) (backend.ListIn
 }
 
 // Convert a PolicyMetadata to a PolicyKeyInterface
-func (h *policies) convertMetadataToKeyInterface(m interface{}) (backend.KeyInterface, error) {
+func (h *policies) convertMetadataToKeyInterface(m interface{}) (backend.Key, error) {
 	pm := m.(api.PolicyMetadata)
 	k := backend.PolicyKey{
 		Name: pm.Name,
@@ -128,16 +128,16 @@ func (h *policies) convertMetadataToKeyInterface(m interface{}) (backend.KeyInte
 }
 
 // Convert an API Policy structure to a Backend Policy structure
-func (h *policies) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreObject, error) {
+func (h *policies) convertAPIToDatastoreObject(a interface{}) (*backend.KVPair, error) {
 	ap := a.(api.Policy)
 	k, err := h.convertMetadataToKeyInterface(ap.Metadata)
 	if err != nil {
 		return nil, err
 	}
 
-	d := backend.DatastoreObject{
+	d := backend.KVPair{
 		Key: k,
-		Object: backend.Policy{
+		Value: backend.Policy{
 			Order:         ap.Spec.Order,
 			InboundRules:  rulesAPIToBackend(ap.Spec.IngressRules),
 			OutboundRules: rulesAPIToBackend(ap.Spec.EgressRules),
@@ -149,8 +149,8 @@ func (h *policies) convertAPIToDatastoreObject(a interface{}) (*backend.Datastor
 }
 
 // Convert a Backend Policy structure to an API Policy structure.
-func (h *policies) convertDatastoreObjectToAPI(d *backend.DatastoreObject) (interface{}, error) {
-	bp := d.Object.(backend.Policy)
+func (h *policies) convertDatastoreObjectToAPI(d *backend.KVPair) (interface{}, error) {
+	bp := d.Value.(backend.Policy)
 	bk := d.Key.(backend.PolicyKey)
 
 	ap := api.NewPolicy()

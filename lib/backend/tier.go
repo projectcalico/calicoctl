@@ -33,12 +33,12 @@ type TierKey struct {
 	Name string `json:"-" validate:"required,name"`
 }
 
-func (key TierKey) asEtcdKey() (string, error) {
-	k, err := key.asEtcdDeleteKey()
+func (key TierKey) defaultPath() (string, error) {
+	k, err := key.defaultDeletePath()
 	return k + "/metadata", err
 }
 
-func (key TierKey) asEtcdDeleteKey() (string, error) {
+func (key TierKey) defaultDeletePath() (string, error) {
 	if key.Name == "" {
 		return "", common.ErrorInsufficientIdentifiers{Name: "name"}
 	}
@@ -58,7 +58,7 @@ type TierListOptions struct {
 	Name string
 }
 
-func (options TierListOptions) asEtcdKeyRoot() string {
+func (options TierListOptions) defaultPathRoot() string {
 	k := "/calico/v1/policy/tier"
 	if options.Name == "" {
 		return k
@@ -67,7 +67,7 @@ func (options TierListOptions) asEtcdKeyRoot() string {
 	return k
 }
 
-func (options TierListOptions) keyFromEtcdResult(ekey string) KeyInterface {
+func (options TierListOptions) keyFromEtcdResult(ekey string) Key {
 	glog.V(2).Infof("Get Tier key from %s", ekey)
 	r := matchTier.FindAllStringSubmatch(ekey, -1)
 	if len(r) != 1 {

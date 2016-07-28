@@ -50,7 +50,7 @@ func (rw blockReaderWriter) getAffineBlocks(host string, ver ipVersion, pool *co
 	// Iterate through and extract the block CIDRs.
 	ids := []common.IPNet{}
 	for _, o := range datastoreObjs {
-		b := o.Object.(backend.AllocationBlock)
+		b := o.Value.(backend.AllocationBlock)
 		ids = append(ids, b.CIDR)
 	}
 	return ids, nil
@@ -122,9 +122,9 @@ func (rw blockReaderWriter) claimNewAffineBlock(
 func (rw blockReaderWriter) claimBlockAffinity(subnet common.IPNet, host string, config IPAMConfig) error {
 	// Claim the block affinity for this host.
 	glog.V(2).Infof("Host %s claiming block affinity for %s", host, subnet)
-	obj := backend.DatastoreObject{
-		Key:    backend.BlockAffinityKey{Host: host, CIDR: subnet},
-		Object: backend.BlockAffinity{},
+	obj := backend.KVPair{
+		Key:   backend.BlockAffinityKey{Host: host, CIDR: subnet},
+		Value: backend.BlockAffinity{},
 	}
 	_, err := rw.client.backend.Create(&obj)
 
@@ -134,9 +134,9 @@ func (rw blockReaderWriter) claimBlockAffinity(subnet common.IPNet, host string,
 	block.StrictAffinity = config.StrictAffinity
 
 	// Create the new block in the datastore.
-	o := backend.DatastoreObject{
-		Key:    backend.BlockKey{block.CIDR},
-		Object: block.AllocationBlock,
+	o := backend.KVPair{
+		Key:   backend.BlockKey{block.CIDR},
+		Value: block.AllocationBlock,
 	}
 	_, err = rw.client.backend.Create(&o)
 	if err != nil {
@@ -150,7 +150,7 @@ func (rw blockReaderWriter) claimBlockAffinity(subnet common.IPNet, host string,
 			}
 
 			// Pull out the allocationBlock object.
-			b := allocationBlock{obj.Object.(backend.AllocationBlock)}
+			b := allocationBlock{obj.Value.(backend.AllocationBlock)}
 
 			if b.HostAffinity != nil && *b.HostAffinity == host {
 				// Block has affinity to this host, meaning another
@@ -160,7 +160,7 @@ func (rw blockReaderWriter) claimBlockAffinity(subnet common.IPNet, host string,
 			}
 
 			// Some other host beat us to this block.  Cleanup and return error.
-			err = rw.client.backend.Delete(&backend.DatastoreObject{
+			err = rw.client.backend.Delete(&backend.KVPair{
 				Key: backend.BlockAffinityKey{Host: host, CIDR: b.CIDR},
 			})
 			if err != nil {
@@ -185,7 +185,7 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 			glog.Errorf("Error getting block %s: %s", blockCIDR.String(), err)
 			return err
 		}
-		b := allocationBlock{obj.Object.(backend.AllocationBlock)}
+		b := allocationBlock{obj.Value.(backend.AllocationBlock)}
 
 		// Check that the block affinity matches the given affinity.
 		if b.HostAffinity != nil && *b.HostAffinity != host {
@@ -195,7 +195,7 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 
 		if b.empty() {
 			// If the block is empty, we can delete it.
-			err := rw.client.backend.Delete(&backend.DatastoreObject{
+			err := rw.client.backend.Delete(&backend.KVPair{
 				Key: backend.BlockKey{CIDR: b.CIDR},
 			})
 			if err != nil {
@@ -215,7 +215,7 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 
 			// Pass back the original DatastoreObject with the new
 			// block information so we can do a CAS.
-			obj.Object = b
+			obj.Value = b
 			_, err = rw.client.backend.Update(obj)
 			if err != nil {
 				if _, ok := err.(common.ErrorResourceUpdateConflict); ok {
@@ -229,7 +229,7 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 
 		// We've removed / updated the block, so update the host config
 		// to remove the CIDR.
-		err = rw.client.backend.Delete(&backend.DatastoreObject{
+		err = rw.client.backend.Delete(&backend.KVPair{
 			Key: backend.BlockAffinityKey{Host: host, CIDR: b.CIDR},
 		})
 		if err != nil {

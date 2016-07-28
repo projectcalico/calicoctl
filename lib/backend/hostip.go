@@ -30,13 +30,13 @@ type HostIPKey struct {
 	Hostname string
 }
 
-func (key HostIPKey) asEtcdKey() (string, error) {
+func (key HostIPKey) defaultPath() (string, error) {
 	return fmt.Sprintf("/calico/v1/host/%s/bird_ip",
 		key.Hostname), nil
 }
 
-func (key HostIPKey) asEtcdDeleteKey() (string, error) {
-	return key.asEtcdKey()
+func (key HostIPKey) defaultDeletePath() (string, error) {
+	return key.defaultPath()
 }
 
 func (key HostIPKey) valueType() reflect.Type {

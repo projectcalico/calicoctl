@@ -26,11 +26,11 @@ var (
 type IPAMConfigKey struct {
 }
 
-func (key IPAMConfigKey) asEtcdKey() (string, error) {
+func (key IPAMConfigKey) defaultPath() (string, error) {
 	return "/calico/ipam/v2/config", nil
 }
 
-func (key IPAMConfigKey) asEtcdDeleteKey() (string, error) {
+func (key IPAMConfigKey) defaultDeletePath() (string, error) {
 	return "", common.ErrorResourceUpdateConflict{"Cannot delete IPAMConfig"}
 }
 

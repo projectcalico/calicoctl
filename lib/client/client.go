@@ -26,7 +26,7 @@ import (
 
 // Client contains
 type Client struct {
-	backend *backend.Client
+	backend backend.Client
 }
 
 // New returns a connected Client.
@@ -97,9 +97,9 @@ func LoadClientConfig(f *string) (*api.ClientConfig, error) {
 // Interface used to convert between backand and API representations of our
 // objects.
 type conversionHelper interface {
-	convertAPIToDatastoreObject(interface{}) (*backend.DatastoreObject, error)
-	convertDatastoreObjectToAPI(*backend.DatastoreObject) (interface{}, error)
-	convertMetadataToKeyInterface(interface{}) (backend.KeyInterface, error)
+	convertAPIToDatastoreObject(interface{}) (*backend.KVPair, error)
+	convertDatastoreObjectToAPI(*backend.KVPair) (interface{}, error)
+	convertMetadataToKeyInterface(interface{}) (backend.Key, error)
 	convertMetadataToListInterface(interface{}) (backend.ListInterface, error)
 }
 
@@ -147,7 +147,7 @@ func (c *Client) apply(apiObject interface{}, helper conversionHelper) error {
 func (c *Client) delete(metadata interface{}, helper conversionHelper) error {
 	if k, err := helper.convertMetadataToKeyInterface(metadata); err != nil {
 		return err
-	} else if err := c.backend.Delete(&backend.DatastoreObject{Key: k}); err != nil {
+	} else if err := c.backend.Delete(&backend.KVPair{Key: k}); err != nil {
 		return err
 	} else {
 		return nil
