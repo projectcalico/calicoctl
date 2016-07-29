@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-Package common implements a set of common function and type definitions used by
-both the northbound and southbound interfaces.
-*/
-package common
+package types
+
+type Protocol struct {
+	Int32OrString
+}

@@ -17,12 +17,13 @@ package client
 import (
 	"github.com/tigera/libcalico-go/lib/api"
 	"github.com/tigera/libcalico-go/lib/backend/model"
-	"github.com/tigera/libcalico-go/lib/common"
+	"github.com/tigera/libcalico-go/lib/errors"
 )
 
 var (
-	defaultTier = api.Tier{
-		Metadata: api.TierMetadata{Name: common.DefaultTierName},
+	defaultTierName = "default"
+	defaultTier     = api.Tier{
+		Metadata: api.TierMetadata{Name: defaultTierName},
 	}
 )
 
@@ -52,7 +53,7 @@ func (h *policies) Create(a *api.Policy) (*api.Policy, error) {
 	// default tier, create it if it doesn't.
 	if a.Metadata.Tier == "" {
 		if _, err := h.c.Tiers().Create(&defaultTier); err != nil {
-			if _, ok := err.(common.ErrorResourceAlreadyExists); !ok {
+			if _, ok := err.(errors.ErrorResourceAlreadyExists); !ok {
 				return nil, err
 			}
 		}
@@ -74,7 +75,7 @@ func (h *policies) Apply(a *api.Policy) (*api.Policy, error) {
 	// default tier, create it if it doesn't.
 	if a.Metadata.Tier == "" {
 		if _, err := h.c.Tiers().Create(&defaultTier); err != nil {
-			if _, ok := err.(common.ErrorResourceAlreadyExists); !ok {
+			if _, ok := err.(errors.ErrorResourceAlreadyExists); !ok {
 				return nil, err
 			}
 		}
@@ -122,7 +123,7 @@ func (h *policies) convertMetadataToKey(m interface{}) (model.Key, error) {
 	pm := m.(api.PolicyMetadata)
 	k := model.PolicyKey{
 		Name: pm.Name,
-		Tier: common.TierOrDefault(pm.Tier),
+		Tier: TierOrDefault(pm.Tier),
 	}
 	return k, nil
 }
@@ -155,11 +156,20 @@ func (h *policies) convertKVPairToAPI(d *model.KVPair) (interface{}, error) {
 
 	ap := api.NewPolicy()
 	ap.Metadata.Name = bk.Name
-	ap.Metadata.Tier = common.TierOrBlank(bk.Tier)
+	ap.Metadata.Tier = bk.Tier
 	ap.Spec.Order = bp.Order
 	ap.Spec.IngressRules = rulesBackendToAPI(bp.InboundRules)
 	ap.Spec.EgressRules = rulesBackendToAPI(bp.OutboundRules)
 	ap.Spec.Selector = bp.Selector
 
 	return ap, nil
+}
+
+// Return the tier name, or the default if blank.
+func TierOrDefault(tier string) string {
+	if len(tier) == 0 {
+		return DefaultTierName
+	} else {
+		return tier
+	}
 }

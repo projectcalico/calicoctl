@@ -21,7 +21,7 @@ import (
 	"reflect"
 
 	"github.com/golang/glog"
-	"github.com/tigera/libcalico-go/lib/common"
+	"github.com/tigera/libcalico-go/lib/errors"
 )
 
 var (
@@ -40,7 +40,7 @@ func (key TierKey) DefaultPath() (string, error) {
 
 func (key TierKey) DefaultDeletePath() (string, error) {
 	if key.Name == "" {
-		return "", common.ErrorInsufficientIdentifiers{Name: "name"}
+		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
 	}
 	e := fmt.Sprintf("/calico/v1/policy/tier/%s", key.Name)
 	return e, nil

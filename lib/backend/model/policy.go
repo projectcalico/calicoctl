@@ -21,7 +21,7 @@ import (
 	"reflect"
 
 	"github.com/golang/glog"
-	"github.com/tigera/libcalico-go/lib/common"
+	"github.com/tigera/libcalico-go/lib/errors"
 )
 
 var (
@@ -36,10 +36,10 @@ type PolicyKey struct {
 
 func (key PolicyKey) DefaultPath() (string, error) {
 	if key.Tier == "" {
-		return "", common.ErrorInsufficientIdentifiers{Name: "tier"}
+		return "", errors.ErrorInsufficientIdentifiers{Name: "tier"}
 	}
 	if key.Name == "" {
-		return "", common.ErrorInsufficientIdentifiers{Name: "name"}
+		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
 	}
 	e := fmt.Sprintf("/calico/v1/policy/tier/%s/policy/%s",
 		key.Tier, key.Name)
@@ -65,7 +65,7 @@ type PolicyListOptions struct {
 
 func (options PolicyListOptions) DefaultPathRoot() string {
 	k := "/calico/v1/policy/tier"
-	k = k + fmt.Sprintf("/%s/policy", common.TierOrDefault(options.Tier))
+	k = k + fmt.Sprintf("/%s/policy", options.Tier)
 	if options.Name == "" {
 		return k
 	}
@@ -80,7 +80,7 @@ func (options PolicyListOptions) ParseDefaultKey(ekey string) Key {
 		glog.V(2).Infof("Didn't match regex")
 		return nil
 	}
-	tier := common.TierOrBlank(r[0][1])
+	tier := r[0][1]
 	name := r[0][2]
 	if options.Tier != "" && tier != options.Tier {
 		glog.V(2).Infof("Didn't match tier %s != %s", options.Tier, tier)

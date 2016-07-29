@@ -123,3 +123,7 @@ func (h *tiers) convertKVPairToAPI(d *model.KVPair) (interface{}, error) {
 
 	return at, nil
 }
+
+const (
+	DefaultTierName = "default"
+)
