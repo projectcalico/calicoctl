@@ -256,8 +256,12 @@ func (c ipams) AssignIP(args AssignIPArgs) error {
 					return errors.New(estr)
 				}
 				glog.V(3).Infof("Block for IP %s does not yet exist, creating", args.IP)
-				cfg := IPAMConfig{StrictAffinity: false, AutoAllocateBlocks: true}
-				err := c.blockReaderWriter.claimBlockAffinity(blockCIDR, hostname, cfg)
+				cfg, err := c.GetIPAMConfig()
+				if err != nil {
+					glog.Errorf("Error getting IPAM Config: %s", err)
+					return err
+				}
+				err = c.blockReaderWriter.claimBlockAffinity(blockCIDR, hostname, *cfg)
 				if err != nil {
 					if _, ok := err.(*affinityClaimedError); ok {
 						glog.Warningf("Someone else claimed block %s before us", blockCIDR.String())
@@ -459,18 +463,19 @@ func (c ipams) ClaimAffinity(cidr common.IPNet, host *string) ([]common.IPNet, [
 	}
 
 	// Claim all blocks within the given cidr.
-	for _, blockCIDR := range blocks(cidr) {
-		err := c.blockReaderWriter.claimBlockAffinity(blockCIDR, hostname, *cfg)
+	blocks := blockGenerator(cidr)
+	for blockCIDR := blocks(); blockCIDR != nil; blockCIDR = blocks() {
+		err := c.blockReaderWriter.claimBlockAffinity(*blockCIDR, hostname, *cfg)
 		if err != nil {
 			if _, ok := err.(affinityClaimedError); ok {
 				// Claimed by someone else - add to failed list.
-				failed = append(failed, blockCIDR)
+				failed = append(failed, *blockCIDR)
 			} else {
 				glog.Errorf("Failed to claim block: %s", err)
 				return claimed, failed, err
 			}
 		} else {
-			claimed = append(claimed, blockCIDR)
+			claimed = append(claimed, *blockCIDR)
 		}
 	}
 	return claimed, failed, nil
@@ -493,15 +498,16 @@ func (c ipams) ReleaseAffinity(cidr common.IPNet, host *string) error {
 	hostname := decideHostname(host)
 
 	// Release all blocks within the given cidr.
-	for _, blockCIDR := range blocks(cidr) {
-		err := c.blockReaderWriter.releaseBlockAffinity(hostname, blockCIDR)
+	blocks := blockGenerator(cidr)
+	for blockCIDR := blocks(); blockCIDR != nil; blockCIDR = blocks() {
+		err := c.blockReaderWriter.releaseBlockAffinity(hostname, *blockCIDR)
 		if err != nil {
 			if _, ok := err.(affinityClaimedError); ok {
 				// Not claimed by this host - ignore.
 			} else if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
 				// Block does not exist - ignore.
 			} else {
-				glog.Errorf("Error releasing affinity for '%s': %s", blockCIDR, err)
+				glog.Errorf("Error releasing affinity for '%s': %s", *blockCIDR, err)
 				return err
 			}
 		}

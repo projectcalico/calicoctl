@@ -152,8 +152,11 @@ func (c *EtcdClient) Get(k Key) (*KVPair, error) {
 	} else if object, err := ParseValue(k, []byte(results.Node.Value)); err != nil {
 		return nil, err
 	} else {
-		elem := reflect.ValueOf(object).Elem().Interface()
-		return &KVPair{Key: k, Value: elem, Revision: results.Node.ModifiedIndex}, nil
+		if reflect.ValueOf(object).Kind() == reflect.Ptr {
+			// Unwrap any pointers.
+			object = reflect.ValueOf(object).Elem().Interface()
+		}
+		return &KVPair{Key: k, Value: object, Revision: results.Node.ModifiedIndex}, nil
 	}
 }
 
@@ -214,10 +217,10 @@ func (c *EtcdClient) set(d *KVPair, options *etcd.SetOptions) (*KVPair, error) {
 // Process a node returned from a list to filter results based on the List type and to
 // compile and return the required results.
 func filterEtcdList(n *etcd.Node, l ListInterface) []*KVPair {
-	dos := []*KVPair{}
+	kvs := []*KVPair{}
 	if n.Dir {
 		for _, node := range n.Nodes {
-			dos = append(dos, filterEtcdList(node, l)...)
+			kvs = append(kvs, filterEtcdList(node, l)...)
 		}
 	} else if k := l.ParseDefaultKey(n.Key); k != nil {
 		if object, err := ParseValue(k, []byte(n.Value)); err == nil {
@@ -226,11 +229,11 @@ func filterEtcdList(n *etcd.Node, l ListInterface) []*KVPair {
 				object = reflect.ValueOf(object).Elem().Interface()
 			}
 			do := &KVPair{Key: k, Value: object, Revision: n.ModifiedIndex}
-			dos = append(dos, do)
+			kvs = append(kvs, do)
 		}
 	}
-	glog.V(2).Infof("Returning: %v", dos)
-	return dos
+	glog.V(2).Infof("Returning: %#v", kvs)
+	return kvs
 }
 
 func convertEtcdError(err error, key Key) error {
