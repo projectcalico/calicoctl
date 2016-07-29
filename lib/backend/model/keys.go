@@ -24,8 +24,10 @@ import (
 
 // RawString is used a value type to indicate that the value is a bare non-JSON string
 type rawString string
+type rawBool bool
 
 var rawStringType = reflect.TypeOf(rawString(""))
+var rawBoolType = reflect.TypeOf(rawBool(true))
 
 // Key represents a parsed datastore key.
 type Key interface {
@@ -92,6 +94,8 @@ func ParseKey(key string) Key {
 		return GlobalConfigKey{Name: m[1]}
 	} else if m := matchHostConfig.FindStringSubmatch(key); m != nil {
 		return HostConfigKey{Hostname: m[1], Name: m[2]}
+	} else if matchReadyFlag.MatchString(key) {
+		return ReadyFlagKey{}
 	}
 	// Not a key we know about.
 	return nil
@@ -101,6 +105,9 @@ func ParseValue(key Key, rawData []byte) (interface{}, error) {
 	valueType := key.valueType()
 	if valueType == rawStringType {
 		return string(rawData), nil
+	}
+	if valueType == rawBoolType {
+		return string(rawData) == "true", nil
 	}
 	value := reflect.New(valueType)
 	iface := value.Interface()
