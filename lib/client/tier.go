@@ -86,7 +86,7 @@ func (h *tiers) convertMetadataToListInterface(m interface{}) (model.ListInterfa
 }
 
 // Convert a TierMetadata to a TierKeyInterface
-func (h *tiers) convertMetadataToKeyInterface(m interface{}) (model.Key, error) {
+func (h *tiers) convertMetadataToKey(m interface{}) (model.Key, error) {
 	hm := m.(api.TierMetadata)
 	k := model.TierKey{
 		Name: hm.Name,
@@ -97,7 +97,7 @@ func (h *tiers) convertMetadataToKeyInterface(m interface{}) (model.Key, error) 
 // Convert an API Tier structure to a Backend Tier structure
 func (h *tiers) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
 	at := a.(api.Tier)
-	k, err := h.convertMetadataToKeyInterface(at.Metadata)
+	k, err := h.convertMetadataToKey(at.Metadata)
 	if err != nil {
 		return nil, err
 	}
