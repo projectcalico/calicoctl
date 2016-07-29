@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backend
+package model
 
 import (
 	"fmt"
@@ -34,7 +34,7 @@ type PolicyKey struct {
 	Tier string `json:"-" validate:"required,name"`
 }
 
-func (key PolicyKey) asEtcdKey() (string, error) {
+func (key PolicyKey) DefaultPath() (string, error) {
 	if key.Tier == "" {
 		return "", common.ErrorInsufficientIdentifiers{Name: "tier"}
 	}
@@ -46,8 +46,8 @@ func (key PolicyKey) asEtcdKey() (string, error) {
 	return e, nil
 }
 
-func (key PolicyKey) asEtcdDeleteKey() (string, error) {
-	return key.asEtcdKey()
+func (key PolicyKey) DefaultDeletePath() (string, error) {
+	return key.DefaultPath()
 }
 
 func (key PolicyKey) valueType() reflect.Type {
@@ -63,7 +63,7 @@ type PolicyListOptions struct {
 	Tier string
 }
 
-func (options PolicyListOptions) asEtcdKeyRoot() string {
+func (options PolicyListOptions) DefaultPathRoot() string {
 	k := "/calico/v1/policy/tier"
 	k = k + fmt.Sprintf("/%s/policy", common.TierOrDefault(options.Tier))
 	if options.Name == "" {
@@ -73,7 +73,7 @@ func (options PolicyListOptions) asEtcdKeyRoot() string {
 	return k
 }
 
-func (options PolicyListOptions) keyFromEtcdResult(ekey string) KeyInterface {
+func (options PolicyListOptions) ParseDefaultKey(ekey string) Key {
 	glog.V(2).Infof("Get Policy key from %s", ekey)
 	r := matchPolicy.FindAllStringSubmatch(ekey, -1)
 	if len(r) != 1 {
@@ -94,8 +94,8 @@ func (options PolicyListOptions) keyFromEtcdResult(ekey string) KeyInterface {
 }
 
 type Policy struct {
-	Order         *float32 `json:"order"`
-	InboundRules  []Rule   `json:"inbound_rules" validate:"omitempty,dive"`
-	OutboundRules []Rule   `json:"outbound_rules" validate:"omitempty,dive"`
+	Order         *float32 `json:"order,omitempty" validate:"omitempty"`
+	InboundRules  []Rule   `json:"inbound_rules,omitempty" validate:"omitempty,dive"`
+	OutboundRules []Rule   `json:"outbound_rules,omitempty" validate:"omitempty,dive"`
 	Selector      string   `json:"selector" validate:"selector"`
 }

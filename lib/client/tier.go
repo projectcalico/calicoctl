@@ -16,7 +16,7 @@ package client
 
 import (
 	"github.com/tigera/libcalico-go/lib/api"
-	"github.com/tigera/libcalico-go/lib/backend"
+	"github.com/tigera/libcalico-go/lib/backend/model"
 )
 
 // TierInterface has methods to work with Tier resources.
@@ -77,34 +77,34 @@ func (h *tiers) List(metadata api.TierMetadata) (*api.TierList, error) {
 }
 
 // Convert a TierMetadata to a TierListInterface
-func (h *tiers) convertMetadataToListInterface(m interface{}) (backend.ListInterface, error) {
+func (h *tiers) convertMetadataToListInterface(m interface{}) (model.ListInterface, error) {
 	hm := m.(api.TierMetadata)
-	l := backend.TierListOptions{
+	l := model.TierListOptions{
 		Name: hm.Name,
 	}
 	return l, nil
 }
 
 // Convert a TierMetadata to a TierKeyInterface
-func (h *tiers) convertMetadataToKeyInterface(m interface{}) (backend.KeyInterface, error) {
+func (h *tiers) convertMetadataToKey(m interface{}) (model.Key, error) {
 	hm := m.(api.TierMetadata)
-	k := backend.TierKey{
+	k := model.TierKey{
 		Name: hm.Name,
 	}
 	return k, nil
 }
 
 // Convert an API Tier structure to a Backend Tier structure
-func (h *tiers) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreObject, error) {
+func (h *tiers) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
 	at := a.(api.Tier)
-	k, err := h.convertMetadataToKeyInterface(at.Metadata)
+	k, err := h.convertMetadataToKey(at.Metadata)
 	if err != nil {
 		return nil, err
 	}
 
-	d := backend.DatastoreObject{
+	d := model.KVPair{
 		Key: k,
-		Object: backend.Tier{
+		Value: model.Tier{
 			Order: at.Spec.Order,
 		},
 	}
@@ -113,9 +113,9 @@ func (h *tiers) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreOb
 }
 
 // Convert a Backend Tier structure to an API Tier structure
-func (h *tiers) convertDatastoreObjectToAPI(d *backend.DatastoreObject) (interface{}, error) {
-	bt := d.Object.(backend.Tier)
-	bk := d.Key.(backend.TierKey)
+func (h *tiers) convertKVPairToAPI(d *model.KVPair) (interface{}, error) {
+	bt := d.Value.(model.Tier)
+	bk := d.Key.(model.TierKey)
 
 	at := api.NewTier()
 	at.Metadata.Name = bk.Name

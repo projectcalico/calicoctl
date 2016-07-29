@@ -16,7 +16,7 @@ package client
 
 import (
 	"github.com/tigera/libcalico-go/lib/api"
-	"github.com/tigera/libcalico-go/lib/backend"
+	"github.com/tigera/libcalico-go/lib/backend/model"
 	"github.com/tigera/libcalico-go/lib/common"
 )
 
@@ -108,9 +108,9 @@ func (h *policies) List(metadata api.PolicyMetadata) (*api.PolicyList, error) {
 }
 
 // Convert a PolicyMetadata to a PolicyListInterface
-func (h *policies) convertMetadataToListInterface(m interface{}) (backend.ListInterface, error) {
+func (h *policies) convertMetadataToListInterface(m interface{}) (model.ListInterface, error) {
 	pm := m.(api.PolicyMetadata)
-	l := backend.PolicyListOptions{
+	l := model.PolicyListOptions{
 		Name: pm.Name,
 		Tier: pm.Tier,
 	}
@@ -118,9 +118,9 @@ func (h *policies) convertMetadataToListInterface(m interface{}) (backend.ListIn
 }
 
 // Convert a PolicyMetadata to a PolicyKeyInterface
-func (h *policies) convertMetadataToKeyInterface(m interface{}) (backend.KeyInterface, error) {
+func (h *policies) convertMetadataToKey(m interface{}) (model.Key, error) {
 	pm := m.(api.PolicyMetadata)
-	k := backend.PolicyKey{
+	k := model.PolicyKey{
 		Name: pm.Name,
 		Tier: common.TierOrDefault(pm.Tier),
 	}
@@ -128,16 +128,16 @@ func (h *policies) convertMetadataToKeyInterface(m interface{}) (backend.KeyInte
 }
 
 // Convert an API Policy structure to a Backend Policy structure
-func (h *policies) convertAPIToDatastoreObject(a interface{}) (*backend.DatastoreObject, error) {
+func (h *policies) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
 	ap := a.(api.Policy)
-	k, err := h.convertMetadataToKeyInterface(ap.Metadata)
+	k, err := h.convertMetadataToKey(ap.Metadata)
 	if err != nil {
 		return nil, err
 	}
 
-	d := backend.DatastoreObject{
+	d := model.KVPair{
 		Key: k,
-		Object: backend.Policy{
+		Value: model.Policy{
 			Order:         ap.Spec.Order,
 			InboundRules:  rulesAPIToBackend(ap.Spec.IngressRules),
 			OutboundRules: rulesAPIToBackend(ap.Spec.EgressRules),
@@ -149,9 +149,9 @@ func (h *policies) convertAPIToDatastoreObject(a interface{}) (*backend.Datastor
 }
 
 // Convert a Backend Policy structure to an API Policy structure.
-func (h *policies) convertDatastoreObjectToAPI(d *backend.DatastoreObject) (interface{}, error) {
-	bp := d.Object.(backend.Policy)
-	bk := d.Key.(backend.PolicyKey)
+func (h *policies) convertKVPairToAPI(d *model.KVPair) (interface{}, error) {
+	bp := d.Value.(model.Policy)
+	bk := d.Key.(model.PolicyKey)
 
 	ap := api.NewPolicy()
 	ap.Metadata.Name = bk.Name

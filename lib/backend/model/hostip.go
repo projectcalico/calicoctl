@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backend
+package model
 
 import (
 	"fmt"
@@ -30,13 +30,13 @@ type HostIPKey struct {
 	Hostname string
 }
 
-func (key HostIPKey) asEtcdKey() (string, error) {
+func (key HostIPKey) DefaultPath() (string, error) {
 	return fmt.Sprintf("/calico/v1/host/%s/bird_ip",
 		key.Hostname), nil
 }
 
-func (key HostIPKey) asEtcdDeleteKey() (string, error) {
-	return key.asEtcdKey()
+func (key HostIPKey) DefaultDeletePath() (string, error) {
+	return key.DefaultPath()
 }
 
 func (key HostIPKey) valueType() reflect.Type {

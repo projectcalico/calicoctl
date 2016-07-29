@@ -1,5 +1,5 @@
 // Copyright (c) 2016 Tigera, Inc. All rights reserved.
-
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -12,33 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package backend
+package api
 
 import (
-	"github.com/tigera/libcalico-go/lib/common"
-	"reflect"
+	. "github.com/tigera/libcalico-go/lib/backend/model"
 )
 
-var (
-	typeIPAMConfig = reflect.TypeOf(IPAMConfig{})
-)
-
-type IPAMConfigKey struct {
-}
-
-func (key IPAMConfigKey) asEtcdKey() (string, error) {
-	return "/calico/ipam/v2/config", nil
-}
-
-func (key IPAMConfigKey) asEtcdDeleteKey() (string, error) {
-	return "", common.ErrorResourceUpdateConflict{"Cannot delete IPAMConfig"}
-}
-
-func (key IPAMConfigKey) valueType() reflect.Type {
-	return typeIPAMConfig
-}
-
-type IPAMConfig struct {
-	StrictAffinity     bool `json:"strict_affinity,omitempty"`
-	AutoAllocateBlocks bool `json:"auto_allocate_blocks,omitempty"`
+type Client interface {
+	Create(object *KVPair) (*KVPair, error)
+	Update(object *KVPair) (*KVPair, error)
+	Apply(object *KVPair) (*KVPair, error)
+	Delete(object *KVPair) error
+	Get(key Key) (*KVPair, error)
+	List(list ListInterface) ([]*KVPair, error)
 }
