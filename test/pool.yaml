@@ -3,12 +3,11 @@
   metadata:
     cidr: 192.168.0.0/16
   spec:
-    disabled: true
     ipip:
       enabled: true
 
 - apiVersion: v1
   kind: pool
   metadata:
-    cidr: fe80::00/64
+    cidr: fe80::00/120
   spec:

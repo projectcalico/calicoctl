@@ -17,8 +17,11 @@ package client
 import (
 	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 	"net"
 	"reflect"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/tigera/libcalico-go/lib/api"
@@ -202,9 +205,8 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 				Key: model.BlockKey{CIDR: b.CIDR},
 			})
 			if err != nil {
-				if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
-					// Block already deleted.  Carry on.
-				} else {
+				// Return the error unless the block didn't exist.
+				if _, ok := err.(common.ErrorResourceDoesNotExist); !ok {
 					glog.Errorf("Error deleting block: %s", err)
 					return err
 				}
@@ -236,10 +238,10 @@ func (rw blockReaderWriter) releaseBlockAffinity(host string, blockCIDR common.I
 			Key: model.BlockAffinityKey{Host: host, CIDR: b.CIDR},
 		})
 		if err != nil {
-			if _, ok := err.(common.ErrorResourceDoesNotExist); ok {
-				// Already deleted - carry on.
-			} else {
+			// Return the error unless the affinity didn't exist.
+			if _, ok := err.(common.ErrorResourceDoesNotExist); !ok {
 				glog.Errorf("Error deleting block affinity: %s", err)
+				return err
 			}
 		}
 		return nil
@@ -291,5 +293,39 @@ func blockGenerator(pool common.IPNet) func() *common.IPNet {
 		} else {
 			return nil
 		}
+	}
+}
+
+// Returns a generator that, when called, returns a random
+// block from the given pool.  When there are no blocks left,
+// the it returns nil.
+func randomBlockGenerator(pool common.IPNet) func() *common.IPNet {
+	// Determine the IP type to use.
+	version := getIPVersion(common.IP{pool.IP})
+	baseIP := common.IP{pool.IP}
+
+	// Determine the number of blocks within this pool.
+	ones, size := pool.Mask.Size()
+	prefixLen := size - ones
+	numBlocks := int(math.Exp2(float64(prefixLen))) / blockSize
+
+	// Generate a randomly ordered slice of block indexes.
+	source := rand.NewSource(time.Now().UnixNano())
+	randm := rand.New(source)
+	idxs := randm.Perm(numBlocks)
+	i := 0
+	return func() *common.IPNet {
+		// Pop a block index off of the indexes slice.
+		if len(idxs) != 0 {
+			i, idxs = idxs[len(idxs)-1], idxs[:len(idxs)-1]
+		} else {
+			// Used all of the blocks in this pool.
+			return nil
+		}
+
+		// Return the block from this pool that corresponds with the index.
+		ip := incrementIP(baseIP, i*blockSize)
+		ipnet := net.IPNet{ip.IP, version.BlockPrefixMask}
+		return &common.IPNet{ipnet}
 	}
 }
