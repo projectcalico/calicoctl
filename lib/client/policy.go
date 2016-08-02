@@ -110,7 +110,7 @@ func (h *policies) List(metadata api.PolicyMetadata) (*api.PolicyList, error) {
 }
 
 // Convert a PolicyMetadata to a PolicyListInterface
-func (h *policies) convertMetadataToListInterface(m interface{}) (model.ListInterface, error) {
+func (h *policies) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	pm := m.(api.PolicyMetadata)
 	l := model.PolicyListOptions{
 		Name: pm.Name,
@@ -120,7 +120,7 @@ func (h *policies) convertMetadataToListInterface(m interface{}) (model.ListInte
 }
 
 // Convert a PolicyMetadata to a PolicyKeyInterface
-func (h *policies) convertMetadataToKey(m interface{}) (model.Key, error) {
+func (h *policies) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	pm := m.(api.PolicyMetadata)
 	k := model.PolicyKey{
 		Name: pm.Name,
