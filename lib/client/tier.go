@@ -16,6 +16,7 @@ package client
 
 import (
 	"github.com/tigera/libcalico-go/lib/api"
+	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/backend/model"
 )
 
@@ -95,7 +96,7 @@ func (h *tiers) convertMetadataToKey(m interface{}) (model.Key, error) {
 }
 
 // Convert an API Tier structure to a Backend Tier structure
-func (h *tiers) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
+func (h *tiers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	at := a.(api.Tier)
 	k, err := h.convertMetadataToKey(at.Metadata)
 	if err != nil {
@@ -113,7 +114,7 @@ func (h *tiers) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
 }
 
 // Convert a Backend Tier structure to an API Tier structure
-func (h *tiers) convertKVPairToAPI(d *model.KVPair) (interface{}, error) {
+func (h *tiers) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	bt := d.Value.(model.Tier)
 	bk := d.Key.(model.TierKey)
 
