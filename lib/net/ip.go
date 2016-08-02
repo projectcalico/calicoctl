@@ -12,34 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+package net
 
 import (
-	"reflect"
-
-	"github.com/tigera/libcalico-go/lib/errors"
+	"encoding/json"
+	"net"
 )
 
-var (
-	typeIPAMConfig = reflect.TypeOf(IPAMConfig{})
-)
-
-type IPAMConfigKey struct {
+// Sub class net.IP so that we can add JSON marshalling and unmarshalling.
+type IP struct {
+	net.IP
 }
 
-func (key IPAMConfigKey) DefaultPath() (string, error) {
-	return "/calico/ipam/v2/config", nil
+// MarshalJSON interface for an IP
+func (i IP) MarshalJSON() ([]byte, error) {
+	s, err := i.MarshalText()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(string(s))
 }
 
-func (key IPAMConfigKey) DefaultDeletePath() (string, error) {
-	return "", errors.ErrorResourceUpdateConflict{"Cannot delete IPAMConfig"}
+// UnmarshalJSON interface for an IP
+func (i *IP) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	return i.UnmarshalText([]byte(s))
 }
 
-func (key IPAMConfigKey) valueType() reflect.Type {
-	return typeIPAMConfig
-}
-
-type IPAMConfig struct {
-	StrictAffinity     bool `json:"strict_affinity,omitempty"`
-	AutoAllocateBlocks bool `json:"auto_allocate_blocks,omitempty"`
+// Version returns the IP version for an IP
+func (i IP) Version() int {
+	if i.To4() == nil {
+		return 6
+	}
+	return 4
 }

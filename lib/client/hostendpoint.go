@@ -16,8 +16,9 @@ package client
 
 import (
 	"github.com/tigera/libcalico-go/lib/api"
+	"github.com/tigera/libcalico-go/lib/api/unversioned"
 	"github.com/tigera/libcalico-go/lib/backend/model"
-	. "github.com/tigera/libcalico-go/lib/common"
+	"github.com/tigera/libcalico-go/lib/net"
 )
 
 // HostEndpointInterface has methods to work with host endpoint resources.
@@ -29,15 +30,15 @@ type HostEndpointInterface interface {
 
 	// Get returns the host endpoint resource matching the supplied metadata.  The metadata
 	// should contain all identifiers to uniquely identify a single resource.  If the
-	// resource does not exist, a common.ErrorResourceNotFound error is returned.
+	// resource does not exist, a errors.ErrorResourceNotFound error is returned.
 	Get(api.HostEndpointMetadata) (*api.HostEndpoint, error)
 
 	// Create will create a new host endpoint resource.  If the resource already exists,
-	// a common.ErrorResourceAlreadyExists error is returned.
+	// a errors.ErrorResourceAlreadyExists error is returned.
 	Create(*api.HostEndpoint) (*api.HostEndpoint, error)
 
 	// Update will update an existing host endpoint resource.  If the resource does not exist,
-	// a common.ErrorResourceDoesNotExist error is returned.
+	// a errors.ErrorResourceDoesNotExist error is returned.
 	Update(*api.HostEndpoint) (*api.HostEndpoint, error)
 
 	// Apply with update an existing host endpoint resource, or create a new one if it does
@@ -46,7 +47,7 @@ type HostEndpointInterface interface {
 
 	// Delete will delete a host endpoint resource.  The metadata should contain all identifiers
 	// to uniquely identify a single resource.  If the resource does not exist, a
-	// common.ErrorResourceDoesNotExist error is returned.
+	// errors.ErrorResourceDoesNotExist error is returned.
 	Delete(api.HostEndpointMetadata) error
 }
 
@@ -118,15 +119,15 @@ func (h *hostEndpoints) convertMetadataToKey(m interface{}) (model.Key, error) {
 }
 
 // Convert an API HostEndpoint structure to a Backend HostEndpoint structure
-func (h *hostEndpoints) convertAPIToKVPair(a interface{}) (*model.KVPair, error) {
+func (h *hostEndpoints) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	ah := a.(api.HostEndpoint)
 	k, err := h.convertMetadataToKey(ah.Metadata)
 	if err != nil {
 		return nil, err
 	}
 
-	var ipv4Addrs []IP
-	var ipv6Addrs []IP
+	var ipv4Addrs []net.IP
+	var ipv6Addrs []net.IP
 	for _, ip := range ah.Spec.ExpectedIPs {
 		if ip.Version() == 4 {
 			ipv4Addrs = append(ipv4Addrs, ip)
@@ -151,7 +152,7 @@ func (h *hostEndpoints) convertAPIToKVPair(a interface{}) (*model.KVPair, error)
 }
 
 // Convert a Backend HostEndpoint structure to an API HostEndpoint structure
-func (h *hostEndpoints) convertKVPairToAPI(d *model.KVPair) (interface{}, error) {
+func (h *hostEndpoints) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	bh := d.Value.(model.HostEndpoint)
 	bk := d.Key.(model.HostEndpointKey)
 

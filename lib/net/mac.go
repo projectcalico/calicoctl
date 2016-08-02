@@ -12,27 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package net
 
-const (
-	DefaultTierName = ".default"
-	blank           = ""
+import (
+	"encoding/json"
+	"net"
 )
 
-// Return the tier name, or the default if blank.
-func TierOrDefault(tier string) string {
-	if tier == blank {
-		return DefaultTierName
-	} else {
-		return tier
-	}
+// Sub class net.HardwareAddr so that we can add JSON marshalling and unmarshalling.
+type MAC struct {
+	net.HardwareAddr
 }
 
-// Return the tier name, or blank if the default.
-func TierOrBlank(tier string) string {
-	if tier == DefaultTierName {
-		return blank
+// MarshalJSON interface for a MAC
+func (m MAC) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.String())
+}
+
+// UnmarshalJSON interface for a MAC
+func (m *MAC) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	if mac, err := net.ParseMAC(s); err != nil {
+		return err
 	} else {
-		return tier
+		m.HardwareAddr = mac
+		return nil
 	}
 }

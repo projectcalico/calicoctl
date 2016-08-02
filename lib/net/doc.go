@@ -13,7 +13,8 @@
 // limitations under the License.
 
 /*
-Package common implements a set of common function and type definitions used by
-both the northbound and southbound interfaces.
+Package net implements a set of net types that are extensions to the built-in
+net package.  The extensions provide additional function such as JSON marshaling
+and unmarshaling.
 */
-package common
+package net
