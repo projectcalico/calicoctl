@@ -78,7 +78,7 @@ func (h *tiers) List(metadata api.TierMetadata) (*api.TierList, error) {
 }
 
 // Convert a TierMetadata to a TierListInterface
-func (h *tiers) convertMetadataToListInterface(m interface{}) (model.ListInterface, error) {
+func (h *tiers) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	hm := m.(api.TierMetadata)
 	l := model.TierListOptions{
 		Name: hm.Name,
@@ -87,7 +87,7 @@ func (h *tiers) convertMetadataToListInterface(m interface{}) (model.ListInterfa
 }
 
 // Convert a TierMetadata to a TierKeyInterface
-func (h *tiers) convertMetadataToKey(m interface{}) (model.Key, error) {
+func (h *tiers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	hm := m.(api.TierMetadata)
 	k := model.TierKey{
 		Name: hm.Name,
