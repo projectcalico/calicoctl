@@ -62,9 +62,16 @@
       THING4: VALUE10/2-F
   spec:
     tags: [a, b, c, a1, update]
-    rules:
-      ingress:
-        - action: deny
-      egress:
-        - action: deny
+    ingress:
+      - action: deny
+    egress:
+      - action: deny
+- apiVersion: v1
+  kind: profile
+  metadata:
+    name: empty
+  spec:
+    ingress:
+      - action: deny
+ 
 
