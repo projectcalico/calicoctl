@@ -25,3 +25,8 @@ checkout:
 test:
   override:
     - cd ${GOPATH}/src/github.com/tigera/libcalico-go && ./run-uts
+    - cd ${GOPATH}/src/github.com/tigera/libcalico-go && make bin/calicoctl
+
+general:
+  artifacts:
+    - "${GOPATH}/src/github.com/tigera/libcalico-go/bin"
