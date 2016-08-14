@@ -36,9 +36,8 @@ curl -L https://github.com/projectcalico/calico-bird/releases/download/v0.1.0/bi
 chmod +x /sbin/*
 
 # Install Felix and libcalico
-pip install git+https://github.com/projectcalico/calico.git
-pip install git+https://github.com/projectcalico/libcalico.git
-
+pip install git+https://github.com/projectcalico/calico.git@1.4.1b1
+pip install git+https://github.com/projectcalico/libcalico.git@v0.16.0
 # Output the python library list
 pip list > libraries.txt
 

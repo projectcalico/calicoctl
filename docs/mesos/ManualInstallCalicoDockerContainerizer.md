@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../images/warning.png) This document applies to the HEAD of the calico-containers source tree.
->
-> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.20.0/README.md).
-<!--- else
-> You are viewing the calico-containers documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-containers documentation for release v0.21.0.
 
 # Calico with Docker Containerizer - Manual Install Guide
 
@@ -31,7 +25,7 @@ Docker Containerizer.
 1. On each Mesos Agents, download the `calicoctl` command-line tool:
 
   ```
-  curl -o /usr/bin/calicoctl -L http://www.projectcalico.org/builds/calicoctl
+  curl -o /usr/bin/calicoctl -L http://www.projectcalico.org/builds/calicoctl?circleci-branch=v0.21.0-candidate
   chmod a+x calicoctl
   ```
 
@@ -55,8 +49,8 @@ Docker Containerizer.
   ```
   $ docker ps
   CONTAINER ID        NAMES               IMAGE                           CREATED
-  19263eda1810        calico-libnetwork   calico/node-libnetwork:latest   3 seconds
-  f237fb21d357        calico-node         calico/node:latest              3 seconds
+  19263eda1810        calico-libnetwork   calico/node-libnetwork:v0.9.0   3 seconds
+  f237fb21d357        calico-node         calico/node:v0.21.0              3 seconds
   ```
 
 4. Enable Docker Containerizer in Mesos.
