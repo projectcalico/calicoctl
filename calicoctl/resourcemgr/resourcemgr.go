@@ -74,6 +74,8 @@ func init() {
 	registerHelper(api.NewHostEndpointList())
 	registerHelper(api.NewWorkloadEndpoint())
 	registerHelper(api.NewWorkloadEndpointList())
+	registerHelper(api.NewBGPPeer())
+	registerHelper(api.NewBGPPeerList())
 }
 
 // Create a new concrete resource structure based on the type.  If the type is

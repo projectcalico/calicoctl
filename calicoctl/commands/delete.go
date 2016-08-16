@@ -30,7 +30,9 @@ func Delete(args []string) error {
 	doc := EtcdIntro + `Delete a resource identified by file, stdin or resource type and name.
 
 Usage:
-  calicoctl delete [--skip-not-exists] (([--tier=<TIER>] [--hostname=<HOSTNAME>] <KIND> <NAME>) | --filename=<FILE>) [--config=<CONFIG>]
+  calicoctl delete (([--tier=<TIER>] [--hostname=<HOSTNAME>] [--scope=<SCOPE>] <KIND> <NAME>) |
+                    --filename=<FILE>)
+                   [--skip-not-exists] [--config=<CONFIG>]
 
 Examples:
   # Delete a policy using the type and name specified in policy.yaml.
@@ -52,6 +54,9 @@ Options:
   -n --hostname=<HOSTNAME>     The hostname.
   -c --config=<CONFIG>         Filename containing connection configuration in YAML or JSON format.
                                [default: /etc/calico/calicoctl.cfg]
+  --scope=<SCOPE>              The scope of the resource type.  One of global, node.  This is only valid
+                               for BGP peers and is used to indicate whether the peer is a global peer
+                               or node-specific.
 `
 	parsedArgs, err := docopt.Parse(doc, args, true, "calicoctl", false, false)
 	if err != nil {
@@ -119,6 +124,8 @@ func (d delete) execute(client *client.Client, resource unversioned.Resource) (u
 		err = client.Tiers().Delete(r.Metadata)
 	case api.WorkloadEndpoint:
 		err = fmt.Errorf("Workload endpoints cannot be managed directly")
+	case api.BGPPeer:
+		err = client.BGPPeers().Delete(r.Metadata)
 	default:
 		panic(fmt.Errorf("Unhandled resource type: %v", resource))
 	}
