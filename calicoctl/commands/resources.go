@@ -17,7 +17,6 @@ package commands
 import (
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
@@ -29,29 +28,6 @@ import (
 	"github.com/tigera/libcalico-go/lib/client"
 	"github.com/tigera/libcalico-go/lib/net"
 )
-
-// Create a new CalicoClient using connection information in the specified
-// filename (if it exists), dropping back to environment variables for any
-// parameter not loaded from file.
-func newClient(cf string) (*client.Client, error) {
-	if _, err := os.Stat(cf); err != nil {
-		glog.V(2).Infof("Config file cannot be read - reading config from environment")
-		cf = ""
-	}
-
-	cfg, err := client.LoadClientConfig(cf)
-	if err != nil {
-		return nil, err
-	}
-	glog.V(2).Infof("Loaded client config: type=%v %#v", cfg.BackendType, cfg.BackendConfig)
-
-	c, err := client.New(*cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return c, err
-}
 
 // Convert loaded resources to a slice of resources for easier processing.
 // The loaded resources may be a slice containing resources and resource lists, or
@@ -182,7 +158,7 @@ type commandResults struct {
 	resources []unversioned.Resource
 }
 
-// Common function for configuration commands create, replace and delete.  All
+// Common function for configuration commands apply, create, replace, get and delete.  All
 // these commands:
 // 	-  Load resources from file (or if not specified determine the resource from
 // 	   the command line options).
@@ -204,7 +180,11 @@ func executeConfigCommand(args map[string]interface{}, cmd commandInterface) com
 
 		resources = convertToSliceOfResources(r)
 	} else if r, err := getResourceFromArguments(args); err != nil {
-		return commandResults{err: err, fileInvalid: true}
+		// Filename is not specific so extract the resource from the arguments.  This
+		// is only useful for delete and get functions - but we don't need to check that
+		// here since the command syntax requires a filename for the other resource
+		// management commands.
+		return commandResults{err: err}
 	} else {
 		// We extracted a single resource type with identifiers from the CLI, convert to
 		// a list for simpler handling.
