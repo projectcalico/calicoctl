@@ -19,6 +19,8 @@ import (
 	"github.com/tigera/libcalico-go/lib/backend/model"
 )
 
+// ruleActionAPIToBackend converts the rule action field value from the API
+// value to the equivalent backend value.
 func ruleActionAPIToBackend(action string) string {
 	if action == "nextTier" {
 		return "next-tier"
@@ -26,6 +28,8 @@ func ruleActionAPIToBackend(action string) string {
 	return action
 }
 
+// ruleActionBackendToAPI converts the rule action field value from the backend
+// value to the equivalent API value.
 func ruleActionBackendToAPI(action string) string {
 	if action == "next-tier" {
 		return "nextTier"
@@ -33,7 +37,7 @@ func ruleActionBackendToAPI(action string) string {
 	return action
 }
 
-// Convert an API Rule structure to a Backend Rule structure
+// ruleAPIToBackend converts an API Rule structure to a Backend Rule structure.
 func ruleAPIToBackend(ar api.Rule) model.Rule {
 	return model.Rule{
 		Action:      ruleActionAPIToBackend(ar.Action),
@@ -64,7 +68,7 @@ func ruleAPIToBackend(ar api.Rule) model.Rule {
 	}
 }
 
-// Convert a Backend Rule structure to an API Rule structure
+// ruleBackendToAPI convert a Backend Rule structure to an API Rule structure.
 func ruleBackendToAPI(br model.Rule) api.Rule {
 	return api.Rule{
 		Action:      ruleActionBackendToAPI(br.Action),
@@ -99,7 +103,7 @@ func ruleBackendToAPI(br model.Rule) api.Rule {
 	}
 }
 
-// Convert an API Rule structure slice to a Backend Rule structure slice
+// rulesAPIToBackend converts an API Rule structure slice to a Backend Rule structure slice.
 func rulesAPIToBackend(ars []api.Rule) []model.Rule {
 	if ars == nil {
 		return []model.Rule{}
@@ -112,7 +116,7 @@ func rulesAPIToBackend(ars []api.Rule) []model.Rule {
 	return brs
 }
 
-// Convert a Backend Rule structure slice to an API Rule structure slice
+// rulesBackendToAPI converts a Backend Rule structure slice to an API Rule structure slice.
 func rulesBackendToAPI(brs []model.Rule) []api.Rule {
 	if brs == nil {
 		return nil

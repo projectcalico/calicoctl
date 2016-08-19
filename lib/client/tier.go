@@ -20,6 +20,10 @@ import (
 	"github.com/tigera/libcalico-go/lib/backend/model"
 )
 
+const (
+	DefaultTierName = "default"
+)
+
 // TierInterface has methods to work with Tier resources.
 type TierInterface interface {
 	List(api.TierMetadata) (*api.TierList, error)
@@ -35,8 +39,8 @@ type tiers struct {
 	c *Client
 }
 
-// newTiers returns a tiers
-func newTiers(c *Client) *tiers {
+// newTiers returns a new TierInterface bound to the supplied client.
+func newTiers(c *Client) TierInterface {
 	return &tiers{c}
 }
 
@@ -45,12 +49,12 @@ func (h *tiers) Create(a *api.Tier) (*api.Tier, error) {
 	return a, h.c.create(*a, h)
 }
 
-// Create creates a new tier.
+// Update updates an existing tier.
 func (h *tiers) Update(a *api.Tier) (*api.Tier, error) {
 	return a, h.c.update(*a, h)
 }
 
-// Create creates a new tier.
+// Apply updates a tier if it exists, or creates a new tier if it does not exist.
 func (h *tiers) Apply(a *api.Tier) (*api.Tier, error) {
 	return a, h.c.apply(*a, h)
 }
@@ -69,15 +73,16 @@ func (h *tiers) Get(metadata api.TierMetadata) (*api.Tier, error) {
 	}
 }
 
-// List takes a Metadata, and returns the list of tiers that match that Metadata
-// (wildcarding missing fields)
+// List takes a Metadata, and returns a TierList that contains the list of tiers
+// that match the Metadata (wildcarding missing fields).
 func (h *tiers) List(metadata api.TierMetadata) (*api.TierList, error) {
 	l := api.NewTierList()
 	err := h.c.list(metadata, h, l)
 	return l, err
 }
 
-// Convert a TierMetadata to a TierListInterface
+// convertMetadataToListInterface converts a TierMetadata to a TierListOptions.
+// This is part of the conversionHelper interface.
 func (h *tiers) convertMetadataToListInterface(m unversioned.ResourceMetadata) (model.ListInterface, error) {
 	hm := m.(api.TierMetadata)
 	l := model.TierListOptions{
@@ -86,7 +91,8 @@ func (h *tiers) convertMetadataToListInterface(m unversioned.ResourceMetadata) (
 	return l, nil
 }
 
-// Convert a TierMetadata to a TierKeyInterface
+// convertMetadataToKey converts a TierMetadata to a TierKey
+// This is part of the conversionHelper interface.
 func (h *tiers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key, error) {
 	hm := m.(api.TierMetadata)
 	k := model.TierKey{
@@ -95,7 +101,9 @@ func (h *tiers) convertMetadataToKey(m unversioned.ResourceMetadata) (model.Key,
 	return k, nil
 }
 
-// Convert an API Tier structure to a Backend Tier structure
+// convertAPIToKVPair converts an API Tier structure to a KVPair containing a
+// backend Tier and TierKey.
+// This is part of the conversionHelper interface.
 func (h *tiers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error) {
 	at := a.(api.Tier)
 	k, err := h.convertMetadataToKey(at.Metadata)
@@ -113,7 +121,9 @@ func (h *tiers) convertAPIToKVPair(a unversioned.Resource) (*model.KVPair, error
 	return &d, nil
 }
 
-// Convert a Backend Tier structure to an API Tier structure
+// convertKVPairToAPI converts a KVPair containing a backend Tier and TierKey
+// to an API Tier structure.
+// This is part of the conversionHelper interface.
 func (h *tiers) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error) {
 	bt := d.Value.(model.Tier)
 	bk := d.Key.(model.TierKey)
@@ -124,7 +134,3 @@ func (h *tiers) convertKVPairToAPI(d *model.KVPair) (unversioned.Resource, error
 
 	return at, nil
 }
-
-const (
-	DefaultTierName = "default"
-)
