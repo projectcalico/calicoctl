@@ -14,8 +14,9 @@
     ingress:
       - action: nextTier
         protocol: udp
-        icmpType: 10
-        icmpCode: 100
+        icmp:
+          type: 10
+          code: 100
         source:
           tag: web
           net: 1.2.3.4/10
