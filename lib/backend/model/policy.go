@@ -67,6 +67,9 @@ type PolicyListOptions struct {
 
 func (options PolicyListOptions) DefaultPathRoot() string {
 	k := "/calico/v1/policy/tier"
+	if options.Tier == "" {
+		return k
+	}
 	k = k + fmt.Sprintf("/%s/policy", options.Tier)
 	if options.Name == "" {
 		return k
