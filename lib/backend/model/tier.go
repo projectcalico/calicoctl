@@ -67,9 +67,9 @@ func (options TierListOptions) defaultPathRoot() string {
 	return k
 }
 
-func (options TierListOptions) KeyFromDefaultPath(ekey string) Key {
-	glog.V(2).Infof("Get Tier key from %s", ekey)
-	r := matchTier.FindAllStringSubmatch(ekey, -1)
+func (options TierListOptions) KeyFromDefaultPath(path string) Key {
+	glog.V(2).Infof("Get Tier key from %s", path)
+	r := matchTier.FindAllStringSubmatch(path, -1)
 	if len(r) != 1 {
 		glog.V(2).Infof("Didn't match regex")
 		return nil
