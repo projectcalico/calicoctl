@@ -33,12 +33,12 @@ type TierKey struct {
 	Name string `json:"-" validate:"required,name"`
 }
 
-func (key TierKey) DefaultPath() (string, error) {
-	k, err := key.DefaultDeletePath()
+func (key TierKey) defaultPath() (string, error) {
+	k, err := key.defaultDeletePath()
 	return k + "/metadata", err
 }
 
-func (key TierKey) DefaultDeletePath() (string, error) {
+func (key TierKey) defaultDeletePath() (string, error) {
 	if key.Name == "" {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
 	}
@@ -58,7 +58,7 @@ type TierListOptions struct {
 	Name string
 }
 
-func (options TierListOptions) DefaultPathRoot() string {
+func (options TierListOptions) defaultPathRoot() string {
 	k := "/calico/v1/policy/tier"
 	if options.Name == "" {
 		return k
@@ -67,9 +67,9 @@ func (options TierListOptions) DefaultPathRoot() string {
 	return k
 }
 
-func (options TierListOptions) ParseDefaultKey(ekey string) Key {
-	glog.V(2).Infof("Get Tier key from %s", ekey)
-	r := matchTier.FindAllStringSubmatch(ekey, -1)
+func (options TierListOptions) KeyFromDefaultPath(path string) Key {
+	glog.V(2).Infof("Get Tier key from %s", path)
+	r := matchTier.FindAllStringSubmatch(path, -1)
 	if len(r) != 1 {
 		glog.V(2).Infof("Didn't match regex")
 		return nil

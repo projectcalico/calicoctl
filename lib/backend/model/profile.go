@@ -38,7 +38,7 @@ type ProfileKey struct {
 	Name string `json:"-" validate:"required,name"`
 }
 
-func (key ProfileKey) DefaultPath() (string, error) {
+func (key ProfileKey) defaultPath() (string, error) {
 	if key.Name == "" {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "name"}
 	}
@@ -46,8 +46,8 @@ func (key ProfileKey) DefaultPath() (string, error) {
 	return e, nil
 }
 
-func (key ProfileKey) DefaultDeletePath() (string, error) {
-	return key.DefaultPath()
+func (key ProfileKey) defaultDeletePath() (string, error) {
+	return key.defaultPath()
 }
 
 func (key ProfileKey) valueType() reflect.Type {
@@ -63,8 +63,8 @@ type ProfileRulesKey struct {
 	ProfileKey
 }
 
-func (key ProfileRulesKey) DefaultPath() (string, error) {
-	e, err := key.ProfileKey.DefaultPath()
+func (key ProfileRulesKey) defaultPath() (string, error) {
+	e, err := key.ProfileKey.defaultPath()
 	return e + "/rules", err
 }
 
@@ -77,8 +77,8 @@ type ProfileTagsKey struct {
 	ProfileKey
 }
 
-func (key ProfileTagsKey) DefaultPath() (string, error) {
-	e, err := key.ProfileKey.DefaultPath()
+func (key ProfileTagsKey) defaultPath() (string, error) {
+	e, err := key.ProfileKey.defaultPath()
 	return e + "/tags", err
 }
 
@@ -91,8 +91,8 @@ type ProfileLabelsKey struct {
 	ProfileKey
 }
 
-func (key ProfileLabelsKey) DefaultPath() (string, error) {
-	e, err := key.ProfileKey.DefaultPath()
+func (key ProfileLabelsKey) defaultPath() (string, error) {
+	e, err := key.ProfileKey.defaultPath()
 	return e + "/labels", err
 }
 
@@ -104,7 +104,7 @@ type ProfileListOptions struct {
 	Name string
 }
 
-func (options ProfileListOptions) DefaultPathRoot() string {
+func (options ProfileListOptions) defaultPathRoot() string {
 	k := "/calico/v1/policy/profile"
 	if options.Name == "" {
 		return k
@@ -113,9 +113,9 @@ func (options ProfileListOptions) DefaultPathRoot() string {
 	return k
 }
 
-func (options ProfileListOptions) ParseDefaultKey(ekey string) Key {
-	glog.V(2).Infof("Get Profile key from %s", ekey)
-	r := matchProfile.FindAllStringSubmatch(ekey, -1)
+func (options ProfileListOptions) KeyFromDefaultPath(path string) Key {
+	glog.V(2).Infof("Get Profile key from %s", path)
+	r := matchProfile.FindAllStringSubmatch(path, -1)
 	if len(r) != 1 {
 		glog.V(2).Infof("Didn't match regex")
 		return nil

@@ -35,7 +35,7 @@ type BlockAffinityKey struct {
 	Host string    `json:"-"`
 }
 
-func (key BlockAffinityKey) DefaultPath() (string, error) {
+func (key BlockAffinityKey) defaultPath() (string, error) {
 	if key.CIDR.IP == nil || key.Host == "" {
 		return "", errors.ErrorInsufficientIdentifiers{}
 	}
@@ -44,8 +44,8 @@ func (key BlockAffinityKey) DefaultPath() (string, error) {
 	return e, nil
 }
 
-func (key BlockAffinityKey) DefaultDeletePath() (string, error) {
-	return key.DefaultPath()
+func (key BlockAffinityKey) defaultDeletePath() (string, error) {
+	return key.defaultPath()
 }
 
 func (key BlockAffinityKey) valueType() reflect.Type {
@@ -57,7 +57,7 @@ type BlockAffinityListOptions struct {
 	IPVersion int
 }
 
-func (options BlockAffinityListOptions) DefaultPathRoot() string {
+func (options BlockAffinityListOptions) defaultPathRoot() string {
 	k := "/calico/ipam/v2/host/"
 	if options.Host != "" {
 		k = k + options.Host
@@ -69,11 +69,11 @@ func (options BlockAffinityListOptions) DefaultPathRoot() string {
 	return k
 }
 
-func (options BlockAffinityListOptions) ParseDefaultKey(ekey string) Key {
-	glog.V(2).Infof("Get Block affinity key from %s", ekey)
-	r := matchBlockAffinity.FindAllStringSubmatch(ekey, -1)
+func (options BlockAffinityListOptions) KeyFromDefaultPath(path string) Key {
+	glog.V(2).Infof("Get Block affinity key from %s", path)
+	r := matchBlockAffinity.FindAllStringSubmatch(path, -1)
 	if len(r) != 1 {
-		glog.V(2).Infof("%s didn't match regex", ekey)
+		glog.V(2).Infof("%s didn't match regex", path)
 		return nil
 	}
 	cidrStr := strings.Replace(r[0][2], "-", "/", 1)

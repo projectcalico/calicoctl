@@ -35,7 +35,7 @@ type PoolKey struct {
 	CIDR net.IPNet `json:"-" validate:"required,name"`
 }
 
-func (key PoolKey) DefaultPath() (string, error) {
+func (key PoolKey) defaultPath() (string, error) {
 	if key.CIDR.IP == nil {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "cidr"}
 	}
@@ -44,8 +44,8 @@ func (key PoolKey) DefaultPath() (string, error) {
 	return e, nil
 }
 
-func (key PoolKey) DefaultDeletePath() (string, error) {
-	return key.DefaultPath()
+func (key PoolKey) defaultDeletePath() (string, error) {
+	return key.defaultPath()
 }
 
 func (key PoolKey) valueType() reflect.Type {
@@ -60,7 +60,7 @@ type PoolListOptions struct {
 	CIDR net.IPNet
 }
 
-func (options PoolListOptions) DefaultPathRoot() string {
+func (options PoolListOptions) defaultPathRoot() string {
 	k := "/calico/v1/ipam/"
 	if options.CIDR.IP == nil {
 		return k
@@ -70,11 +70,11 @@ func (options PoolListOptions) DefaultPathRoot() string {
 	return k
 }
 
-func (options PoolListOptions) ParseDefaultKey(ekey string) Key {
-	glog.V(2).Infof("Get Pool key from %s", ekey)
-	r := matchPool.FindAllStringSubmatch(ekey, -1)
+func (options PoolListOptions) KeyFromDefaultPath(path string) Key {
+	glog.V(2).Infof("Get Pool key from %s", path)
+	r := matchPool.FindAllStringSubmatch(path, -1)
 	if len(r) != 1 {
-		glog.V(2).Infof("%s didn't match regex", ekey)
+		glog.V(2).Infof("%s didn't match regex", path)
 		return nil
 	}
 	cidrStr := strings.Replace(r[0][1], "-", "/", 1)

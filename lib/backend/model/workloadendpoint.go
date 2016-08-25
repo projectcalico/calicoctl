@@ -37,7 +37,7 @@ type WorkloadEndpointKey struct {
 	EndpointID     string `json:"-"`
 }
 
-func (key WorkloadEndpointKey) DefaultPath() (string, error) {
+func (key WorkloadEndpointKey) defaultPath() (string, error) {
 	if key.Hostname == "" {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "hostname"}
 	}
@@ -54,7 +54,7 @@ func (key WorkloadEndpointKey) DefaultPath() (string, error) {
 		key.Hostname, key.OrchestratorID, key.WorkloadID, key.EndpointID), nil
 }
 
-func (key WorkloadEndpointKey) DefaultDeletePath() (string, error) {
+func (key WorkloadEndpointKey) defaultDeletePath() (string, error) {
 	if key.Hostname == "" {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "hostname"}
 	}
@@ -88,7 +88,7 @@ type WorkloadEndpointListOptions struct {
 	EndpointID     string
 }
 
-func (options WorkloadEndpointListOptions) DefaultPathRoot() string {
+func (options WorkloadEndpointListOptions) defaultPathRoot() string {
 	k := "/calico/v1/host"
 	if options.Hostname == "" {
 		return k
@@ -109,9 +109,9 @@ func (options WorkloadEndpointListOptions) DefaultPathRoot() string {
 	return k
 }
 
-func (options WorkloadEndpointListOptions) ParseDefaultKey(ekey string) Key {
-	glog.V(2).Infof("Get WorkloadEndpoint key from %s", ekey)
-	r := matchWorkloadEndpoint.FindAllStringSubmatch(ekey, -1)
+func (options WorkloadEndpointListOptions) KeyFromDefaultPath(path string) Key {
+	glog.V(2).Infof("Get WorkloadEndpoint key from %s", path)
+	r := matchWorkloadEndpoint.FindAllStringSubmatch(path, -1)
 	if len(r) != 1 {
 		glog.V(2).Infof("Didn't match regex")
 		return nil

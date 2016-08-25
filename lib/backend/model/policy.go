@@ -36,7 +36,7 @@ type PolicyKey struct {
 	Tier string `json:"-" validate:"required,name"`
 }
 
-func (key PolicyKey) DefaultPath() (string, error) {
+func (key PolicyKey) defaultPath() (string, error) {
 	if key.Tier == "" {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "tier"}
 	}
@@ -48,8 +48,8 @@ func (key PolicyKey) DefaultPath() (string, error) {
 	return e, nil
 }
 
-func (key PolicyKey) DefaultDeletePath() (string, error) {
-	return key.DefaultPath()
+func (key PolicyKey) defaultDeletePath() (string, error) {
+	return key.defaultPath()
 }
 
 func (key PolicyKey) valueType() reflect.Type {
@@ -65,7 +65,7 @@ type PolicyListOptions struct {
 	Tier string
 }
 
-func (options PolicyListOptions) DefaultPathRoot() string {
+func (options PolicyListOptions) defaultPathRoot() string {
 	k := "/calico/v1/policy/tier"
 	if options.Tier == "" {
 		return k
@@ -78,9 +78,9 @@ func (options PolicyListOptions) DefaultPathRoot() string {
 	return k
 }
 
-func (options PolicyListOptions) ParseDefaultKey(ekey string) Key {
-	glog.V(2).Infof("Get Policy key from %s", ekey)
-	r := matchPolicy.FindAllStringSubmatch(ekey, -1)
+func (options PolicyListOptions) KeyFromDefaultPath(path string) Key {
+	glog.V(2).Infof("Get Policy key from %s", path)
+	r := matchPolicy.FindAllStringSubmatch(path, -1)
 	if len(r) != 1 {
 		glog.V(2).Infof("Didn't match regex")
 		return nil

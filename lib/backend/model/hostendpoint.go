@@ -36,7 +36,7 @@ type HostEndpointKey struct {
 	EndpointID string `json:"-" validate:"required,hostname"`
 }
 
-func (key HostEndpointKey) DefaultPath() (string, error) {
+func (key HostEndpointKey) defaultPath() (string, error) {
 	if key.Hostname == "" {
 		return "", errors.ErrorInsufficientIdentifiers{Name: "hostname"}
 	}
@@ -48,8 +48,8 @@ func (key HostEndpointKey) DefaultPath() (string, error) {
 	return e, nil
 }
 
-func (key HostEndpointKey) DefaultDeletePath() (string, error) {
-	return key.DefaultPath()
+func (key HostEndpointKey) defaultDeletePath() (string, error) {
+	return key.defaultPath()
 }
 
 func (key HostEndpointKey) valueType() reflect.Type {
@@ -65,7 +65,7 @@ type HostEndpointListOptions struct {
 	EndpointID string
 }
 
-func (options HostEndpointListOptions) DefaultPathRoot() string {
+func (options HostEndpointListOptions) defaultPathRoot() string {
 	k := "/calico/v1/host"
 	if options.Hostname == "" {
 		return k
@@ -78,9 +78,9 @@ func (options HostEndpointListOptions) DefaultPathRoot() string {
 	return k
 }
 
-func (options HostEndpointListOptions) ParseDefaultKey(ekey string) Key {
-	glog.V(2).Infof("Get HostEndpoint key from %s", ekey)
-	r := matchHostEndpoint.FindAllStringSubmatch(ekey, -1)
+func (options HostEndpointListOptions) KeyFromDefaultPath(path string) Key {
+	glog.V(2).Infof("Get HostEndpoint key from %s", path)
+	r := matchHostEndpoint.FindAllStringSubmatch(path, -1)
 	if len(r) != 1 {
 		glog.V(2).Infof("Didn't match regex")
 		return nil
