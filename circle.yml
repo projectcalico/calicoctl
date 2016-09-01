@@ -1,32 +1,30 @@
-machine:
-  environment:
-    GODIST: "go1.6.linux-amd64.tar.gz"
-    PATH: "/usr/local/go/bin:/usr/local/go_workspace/bin:~/.go_workspace/bin:${PATH}"
-    GOPATH: "${HOME}/.go_project"
-  post:
-    - mkdir -p download
-    - test -e download/$GODIST || curl -o download/$GODIST https://storage.googleapis.com/golang/$GODIST
-    - sudo rm -rf /usr/local/go
-    - sudo tar -C /usr/local -xzf download/$GODIST
-
 dependencies:
-  cache_directories:
-    - ~/download
+  override:
+    - mkdir -p $HOME/.go_project/src/github.com/$CIRCLE_PROJECT_USERNAME
+    - ln -fs $HOME/$CIRCLE_PROJECT_REPONAME $HOME/.go_project/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+    - |
+      echo 'export GOPATH=$GOPATH:$HOME/.go_project' >> ~/.circlerc:
+    - go get -t -v -d ./calicoctl
+    - go build -v -o ./dist/calicoctl ./calicoctl 
 
-checkout:
-  post:
-    - mkdir -p ${HOME}/.go_project/src/github.com/tigera/
-    - mv ${HOME}/libcalico-go ${HOME}/.go_project/src/github.com/tigera/
-    - go get "github.com/Masterminds/glide"
-    - go get "github.com/onsi/ginkgo/ginkgo"
-    - go get "github.com/onsi/gomega"
-    - cd ${GOPATH}/src/github.com/tigera/libcalico-go && glide up
+experimental:
+  notify:
+    branches:
+      only:
+        - master
 
 test:
   override:
-    - cd ${GOPATH}/src/github.com/tigera/libcalico-go && ./run-uts
-    - cd ${GOPATH}/src/github.com/tigera/libcalico-go && make bin/calicoctl
+    - echo tested, i swear.
+
+machine:
+  environment:
+    # GOROOT is not set by default
+    GOROOT: ""
+    PATH: "/usr/local/go/bin:/usr/local/go_workspace/bin:~/.go_workspace/bin:${PATH}"
+    GOPATH: "${HOME}/.go_workspace:/usr/local/go_workspace:${HOME}/.go_project"
 
 general:
   artifacts:
-    - "${GOPATH}/src/github.com/tigera/libcalico-go/bin"
+    # Can't use environment variables here, unfortunately...
+    - "dist"
