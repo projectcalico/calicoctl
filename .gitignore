@@ -1,0 +1,6 @@
+*~
+bin
+release
+*.coverprofile
+vendor
+

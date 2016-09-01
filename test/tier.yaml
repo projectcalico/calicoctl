@@ -1,0 +1,18 @@
+# this is a comment
+- apiVersion: v1 # so is this
+  kind: tier   
+  # and this
+  metadata:
+    name: tier1
+  spec:
+    order: 12.345
+- apiVersion: v1
+  kind: tier
+  metadata:
+    name: tier2
+  spec:
+    order: 100
+- apiVersion: v1
+  kind: tier
+  metadata:
+    name: tier3
