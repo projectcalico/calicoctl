@@ -28,7 +28,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
-	"github.com/tigera/libcalico-go/calicoctl/resourcemgr"
+	"github.com/projectcalico/calico-containers/calicoctl/resourcemgr"
 	"github.com/tigera/libcalico-go/lib/api/unversioned"
 )
 

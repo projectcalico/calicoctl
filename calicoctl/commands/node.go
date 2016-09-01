@@ -19,7 +19,7 @@ import (
 	"os"
 
 	"github.com/docopt/docopt-go"
-	"github.com/tigera/libcalico-go/calicoctl/commands/node"
+	"github.com/projectcalico/calico-containers/calicoctl/commands/node"
 )
 
 // Node function is a switch to node related sub-commands
