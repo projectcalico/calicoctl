@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../../images/warning.png) This document applies to the HEAD of the calico-containers source tree.
->
-> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.21.0/README.md).
-<!--- else
-> You are viewing the calico-containers documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-containers documentation for release v0.22.0.
 
 # Kubernetes with Calico networking
 Calico can be used as a network plugin for Kubernetes to provide connectivity and network policy in a Kubernetes cluster. 

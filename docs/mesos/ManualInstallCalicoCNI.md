@@ -1,10 +1,4 @@
-<!--- master only -->
-> ![warning](../images/warning.png) This document applies to the HEAD of the calico-containers source tree.
->
-> View the calico-containers documentation for the latest release [here](https://github.com/projectcalico/calico-containers/blob/v0.21.0/README.md).
-<!--- else
-> You are viewing the calico-containers documentation for release **release**.
-<!--- end of master only -->
+> You are viewing the calico-containers documentation for release v0.22.0.
 
 # Installing Calico-CNI for the Unified Containerizer
 This guide details how to add Calico networking to a Mesos Agent with CNI enabled.
@@ -17,7 +11,7 @@ This guide details how to add Calico networking to a Mesos Agent with CNI enable
 
   When enabling CNI in Mesos, you will have specified a `network_cni_config_dir` and `network_cni_plugins_dir`. We'll refer to these going forward as `$NETWORK_CNI_CONFIG_DIR` and `$NETWORK_CNI_PLUGINS_DIR`, respectively.
 
-- **Docker** must be installed and running on each agent in order to run `calico/node`. Follow the relevant [docker installation guide](https://docs.docker.com/engine/installation/).
+- **Docker** must be installed and running on each agent in order to run `calico/node`. Follow the relevant [docker installation guide](https://docs.docker.com/engine/installation).
 - **etcd** is used by Calico to store network configurations. See [etcd's docker standalone guide](https://coreos.com/etcd/docs/latest/docker_guide.html) for information on how to quickly get an instance running.
 
 ## Installation
