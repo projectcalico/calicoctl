@@ -25,7 +25,7 @@ Docker Containerizer.
 1. On each Mesos Agents, download the `calicoctl` command-line tool:
 
   ```
-  curl -o /usr/bin/calicoctl -L http://www.projectcalico.org/builds/calicoctl?circleci-branch=v0.22.0-candidate
+  curl -o /usr/bin/calicoctl -L https://github.com/projectcalico/calico-containers/releases/download/v0.22.0/calicoctl
   chmod a+x calicoctl
   ```
 
