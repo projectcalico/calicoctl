@@ -1,6 +1,13 @@
 *~
+.idea
 dist
 release
 *.coverprofile
 vendor
-
+*.pyc
+*.tar
+birdcl
+gobgp
+build/*
+calico_node/.calico_node.created
+calico_node/bin

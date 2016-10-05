@@ -18,8 +18,37 @@ binary: dist/calicoctl
 ut: binary
 	./run-uts
 
-st:
-	true
+#st:
+#	true
+st: run-etcd dist/calicoctl busybox.tar routereflector.tar calico-node.tar
+	# Use the host, PID and network namespaces from the host.
+	# Privileged is needed since 'calico node' write to /proc (to enable ip_forwarding)
+	# Map the docker socket in so docker can be used from inside the container
+	# HOST_CHECKOUT_DIR is used for volume mounts on containers started by this one.
+	# All of code under test is mounted into the container.
+	#   - This also provides access to calicoctl and the docker client
+	docker run --uts=host \
+	           --pid=host \
+	           --net=host \
+	           --privileged \
+	           -e HOST_CHECKOUT_DIR=$(HOST_CHECKOUT_DIR) \
+	           -e DEBUG_FAILURES=$(DEBUG_FAILURES) \
+	           --rm -ti \
+	           -v /var/run/docker.sock:/var/run/docker.sock \
+	           -v `pwd`:/code \
+	           calico/test \
+	           sh -c 'cp -ra tests/st/* /tests/st && cd / && nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer $(ST_OPTIONS)'
+
+calico-node.tar: $(NODE_CONTAINER_CREATED)
+	docker save --output $@ calico/node:latest
+
+busybox.tar:
+	docker pull busybox:latest
+	docker save --output busybox.tar busybox:latest
+
+routereflector.tar:
+	docker pull calico/routereflector:latest
+	docker save --output routereflector.tar calico/routereflector:latest
 
 semaphore: st
 
@@ -86,3 +115,9 @@ help: # Some kind of magic from https://gist.github.com/rcmachado/af3db315e31383
 	{ helpMsg = $$0 }'                                             \
 	width=$$(grep -o '^[a-zA-Z_0-9]\+:' $(MAKEFILE_LIST) | wc -L)  \
 	$(MAKEFILE_LIST)
+
+# Install or update the tools used by the build
+.PHONY: update-tools
+update-tools:
+	go get -u github.com/Masterminds/glide
+	go get -u github.com/onsi/ginkgo/ginkgo
