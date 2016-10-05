@@ -26,24 +26,6 @@ write tests for them (yet)
 
 """
 
-ipv4_yaml = """
-- apiVersion: v1
-  kind: pool
-  metadata:
-    cidr: 10.0.1.0/24
-  spec:
-    ipip:
-      enabled: true
-"""
-
-ipv6_yaml = """
-- apiVersion: v1
-  kind: pool
-  metadata:
-    cidr: fed0:8001::/64
-  spec:
-"""
-
 
 class TestPool(TestBase):
     def test_pool_crud(self):
@@ -55,34 +37,23 @@ class TestPool(TestBase):
             ipv4_pool = "10.0.1.0/24"
             ipv6_pool = "fed0:8001::/64"
 
-            # Run pool commands to add the ipv4 pool and show the pools
-            host.calicoctl("pool add %s" % ipv4_pool)
-            pool_out = host.calicoctl("pool show")
+            ipv4_yaml = """
+- apiVersion: v1
+  kind: pool
+  metadata:
+    cidr: %s
+  spec:
+    ipip:
+      enabled: true
+            """ % ipv4_pool
 
-            # Assert output contains the ipv4 pool, but not the ipv6
-            self.assertIn(ipv4_pool, pool_out)
-            self.assertNotIn(ipv6_pool, pool_out)
-
-            # Run pool commands to add the ipv6 pool and show the pools
-            host.calicoctl("pool add %s" % ipv6_pool)
-            pool_out = host.calicoctl("pool show")
-
-            # Assert output contains both the ipv4 pool and the ipv6
-            self.assertIn(ipv4_pool, pool_out)
-            self.assertIn(ipv6_pool, pool_out)
-
-            # Remove both the ipv4 pool and ipv6 pool
-            host.calicoctl("pool remove %s" % ipv4_pool)
-            host.calicoctl("pool remove %s" % ipv6_pool)
-            pool_out = host.calicoctl("pool show")
-
-            # Assert the pool show output does not contain either pool
-            self.assertNotIn(ipv4_pool, pool_out)
-            self.assertNotIn(ipv6_pool, pool_out)
-
-            # Assert that deleting the pool again fails.
-            self.assertRaises(CommandExecError,
-                              host.calicoctl, "pool remove %s" % ipv4_pool)
+            ipv6_yaml = """
+- apiVersion: v1
+  kind: pool
+  metadata:
+    cidr: %s
+  spec:
+            """ % ipv6_pool
 
             # Write out some yaml files to load in through calicoctl-go
             # We could have sent these via stdout into calicoctl, but this
@@ -122,7 +93,6 @@ class TestPool(TestBase):
             self.assertIn(ipv4_pool, pool_out)
             self.assertIn(ipv6_pool, pool_out)
 
-
             # Remove both the ipv4 pool and ipv6 pool
             host.calicoctl("delete -f ipv6.yaml", new=True)
             host.calicoctl("delete -f ipv4.yaml", new=True)
@@ -136,3 +106,7 @@ class TestPool(TestBase):
             self.assertNotIn(ipv4_pool, pool_out)
             self.assertNotIn(ipv6_pool, pool_out)
             self.assertNotIn("ipip", pool_out)
+
+            # Assert that deleting the pool again fails.
+            self.assertRaises(CommandExecError,
+                              host.calicoctl, "delete -f ipv4.yaml", new=True)
