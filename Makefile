@@ -18,8 +18,6 @@ binary: dist/calicoctl
 ut: binary
 	./run-uts
 
-#st:
-#	true
 st: run-etcd dist/calicoctl busybox.tar routereflector.tar calico-node.tar
 	# Use the host, PID and network namespaces from the host.
 	# Privileged is needed since 'calico node' write to /proc (to enable ip_forwarding)
@@ -70,7 +68,7 @@ release/calicoctl: force
 		CGO_ENABLED=0 go build -o /release/calicoctl ./calicoctl'
 
 # Build calicoctl in a container.
-build-containerized: $(BUILD_CONTAINER_MARKER) 	
+build-containerized: $(BUILD_CONTAINER_MARKER)
 	docker run -ti --rm --privileged --net=host \
 	-e PLUGIN=calico \
 	-v ${PWD}:/go/src/github.com/tigera/libcalico-go:rw \
@@ -82,7 +80,7 @@ test-containerized: $(BUILD_CONTAINER_MARKER)
 	-e PLUGIN=calico \
 	-v ${PWD}:/go/src/github.com/tigera/libcalico-go:rw \
 	$(BUILD_CONTAINER_NAME) make ut
-	
+
 $(BUILD_CONTAINER_MARKER): Dockerfile.build
 	docker build -f Dockerfile.build -t $(BUILD_CONTAINER_NAME) .
 	touch $@
