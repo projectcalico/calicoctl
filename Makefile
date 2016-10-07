@@ -79,7 +79,11 @@ clean_calico_node:
 ###############################################################################
 CALICOCTL_DIR=calicoctl
 CALICOCTL_FILE=$(CALICOCTL_DIR)/calicoctl.py $(wildcard $(CALICOCTL_DIR)/calico_ctl/*.py) calicoctl.spec
+CALICOCTL_URL?=http://www.projectcalico.org/builds/calicoctl
 CTL_CONTAINER_CREATED=$(CALICOCTL_DIR)/.calico_ctl.created
+# set to REBUILD_CALICOCTL=1 if you need to rebuild calicoctl binary for calico/ctl image
+# otherwise this binary will be downloaded from CALICOCTL_URL
+REBUILD_CALICOCTL?=0
 
 dist/calicoctl: $(CALICOCTL_FILE) birdcl gobgp
 	# Ignore errors on docker command. CircleCI throws a benign error
@@ -123,9 +127,13 @@ $(CTL_CONTAINER_CREATED): $(CALICOCTL_DIR)/Dockerfile $(CALICOCTL_DIR)/calicoctl
 	docker build -t calico/ctl:latest $(CALICOCTL_DIR)
 	touch $@
 
+ifeq (1,$(strip $(REBUILD_CALICOCTL)))
 $(CALICOCTL_DIR)/calicoctl: dist/calicoctl
 	cp $< $@
-
+else
+$(CALICOCTL_DIR)/calicoctl:
+	curl -L $(CALICOCTL_URL) -o $@
+endif
 ###############################################################################
 # Tests
 # - Support for running etcd (both securely and insecurely)
