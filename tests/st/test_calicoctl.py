@@ -26,7 +26,31 @@ logging.basicConfig(level=logging.DEBUG, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 
-class TestPool(TestBase):
+class TestUtils(TestBase):
+    def check_data_in_datastore(self, host, data, resource, yaml_format=True):
+        if yaml_format:
+            out = host.calicoctl(
+                "get %s --output=yaml" % resource, new=True)
+            output = yaml.safe_load(out)
+        else:
+            out = host.calicoctl(
+                "get %s --output=json" % resource, new=True)
+            output = json.loads(out)
+        self.assert_same(data, output)
+
+    @staticmethod
+    def writeyaml(filename, data):
+        with open(filename, 'w') as f:
+            f.write(yaml.dump(data, default_flow_style=False))
+
+    @staticmethod
+    def writejson(filename, data):
+        with open(filename, 'w') as f:
+            f.write(json.dumps(data, sort_keys=True, indent=2,
+                               separators=(',', ': ')))
+
+
+class TestPool(TestUtils):
     """
     Test calicoctl pool
 
@@ -62,10 +86,9 @@ class TestPool(TestBase):
             # Write out some yaml files to load in through calicoctl-go
             # We could have sent these via stdout into calicoctl, but this
             # seemed easier.
-            with open('ipv4.yaml', 'w') as f:
-                f.write(yaml.dump(ipv4_pool_dict, default_flow_style=False))
-            with open('ipv6.yaml', 'w') as f:
-                f.write(yaml.dump(ipv6_pool_dict, default_flow_style=False))
+            self.writeyaml('ipv4.yaml', ipv4_pool_dict)
+            self.writeyaml('ipv6.yaml', ipv6_pool_dict)
+
             # Create the ipv6 network using the Go calicoctl
             host.calicoctl("create -f ipv6.yaml", new=True)
             # And read it back out using the python calicoctl
@@ -76,10 +99,7 @@ class TestPool(TestBase):
             self.assertNotIn("ipip", pool_out)
 
             # Now read it out (yaml format) with the Go calicoctl too:
-            pool_out = host.calicoctl("get pool --output=yaml", new=True)
-            output = yaml.safe_load(pool_out)
-            # Assert output is the same as the input
-            self.assert_same([ipv6_pool_dict], output)
+            self.check_data_in_datastore(host, [ipv6_pool_dict], "pool")
 
             # Add in the ipv4 network with Go calicoctl
             host.calicoctl("create -f ipv4.yaml", new=True)
@@ -91,10 +111,8 @@ class TestPool(TestBase):
             self.assertIn("ipip", pool_out)
 
             # Now read it out with the Go calicoctl too:
-            pool_out = host.calicoctl("get pool --output=yaml", new=True)
-            output = yaml.safe_load(pool_out)
-            # Assert output is a list: ipv4 pool followed by the ipv6 pool
-            self.assert_same([ipv4_pool_dict, ipv6_pool_dict], output)
+            self.check_data_in_datastore(
+                host, [ipv4_pool_dict, ipv6_pool_dict], "pool")
 
             # Remove both the ipv4 pool and ipv6 pool
             host.calicoctl("delete -f ipv6.yaml", new=True)
@@ -105,16 +123,14 @@ class TestPool(TestBase):
             self.assertNotIn(str(ipv6_net), pool_out)
             self.assertNotIn("ipip", pool_out)
             # Now read it out with the Go calicoctl too:
-            pool_out = host.calicoctl("get pool --output=yaml", new=True)
-            output = yaml.safe_load(pool_out)
-            self.assert_same([], output)
+            self.check_data_in_datastore(host, [], "pool")
 
             # Assert that deleting the pool again fails.
             self.assertRaises(CommandExecError,
                               host.calicoctl, "delete -f ipv4.yaml", new=True)
 
 
-class TestCommand(TestBase):
+class TestCommand(TestUtils):
     """
     Test calicoctl create command
     """
@@ -329,25 +345,4 @@ class TestCommand(TestBase):
             # Check it deleted
             self.check_data_in_datastore(host, [], "bgpPeer")
 
-    def check_data_in_datastore(self, host, data, resource, yaml_format=True):
-        if yaml_format:
-            out = host.calicoctl(
-                "get %s --output=yaml" % resource, new=True)
-            output = yaml.safe_load(out)
-        else:
-            out = host.calicoctl(
-                "get %s --output=json" % resource, new=True)
-            output = json.loads(out)
-        self.assert_same(data, output)
-
-    @staticmethod
-    def writeyaml(filename, data):
-        with open(filename, 'w') as f:
-            f.write(yaml.dump(data, default_flow_style=False))
-
-    @staticmethod
-    def writejson(filename, data):
-        with open(filename, 'w') as f:
-            f.write(json.dumps(data, sort_keys=True, indent=2,
-                               separators=(',', ': ')))
 
