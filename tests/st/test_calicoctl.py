@@ -130,12 +130,12 @@ class TestPool(TestUtils):
                               host.calicoctl, "delete -f ipv4.yaml", new=True)
 
 
-class TestCommand(TestUtils):
+class TestCreateFromFile(TestUtils):
     """
     Test calicoctl create command
     """
 
-    def test_create_from_file(self):
+    def test_create_bgppeer_from_file(self):
         """
         Test that json and yaml files can be used to create
         bgpPeer, hostEndpoint, policy, pool, profile objects.
@@ -159,87 +159,101 @@ class TestCommand(TestUtils):
                                  'scope': 'node'},
                     'spec': {'asNumber': 64590}
                 }
+            )
+        }
+        self._create_runner(testdata)
+        self._apply_create_replace(testdata)
+
+    def test_create_hostendpoint_from_file(self):
+        testdata = {
+            "hostEndpoint": (
+                {
+                    'apiVersion': 'v1',
+                    'kind': 'hostEndpoint',
+                    'metadata': {'hostname': 'host1',
+                                 'labels': {'type': 'database'},
+                                 'name': 'endpoint1'},
+                    'spec': {'interfaceName': 'eth0',
+                             'profiles': ['prof1',
+                                          'prof2']}
+                },
+                {
+                    'apiVersion': 'v1',
+                    'kind': 'hostEndpoint',
+                    'metadata': {'hostname': 'host2',
+                                 'labels': {'type': 'frontend'},
+                                 'name': 'endpoint2'},
+                    'spec': {'interfaceName': 'cali7',
+                             'profiles': ['prof1',
+                                          'prof2']}
+                },
             ),
-            # "hostEndpoint": (
-            #    {
-            #        'apiVersion': 'v1',
-            #        'kind': 'hostEndpoint',
-            #        'metadata': {'hostname': 'host1',
-            #                     'labels': {'type': 'database'},
-            #                     'name': 'endpoint1'},
-            #        'spec': {'interface': 'eth0',
-            #                 'profiles': ['prof1',
-            #                              'prof2']}
-            #    },
-            #    {
-            #        'apiVersion': 'v1',
-            #        'kind': 'hostEndpoint',
-            #        'metadata': {'hostname': 'host2',
-            #                     'labels': {'type': 'frontend'},
-            #                     'name': 'endpoint2'},
-            #        'spec': {'interface': 'cali7',
-            #                 'profiles': ['prof1',
-            #                              'prof2']}
-            #    },
-            # ),
-            # "policy": (
-            #     {'apiVersion': 'v1',
-            #      'kind': 'policy',
-            #      'metadata': {'name': 'policy1',
-            #                   #'tier': 'tier1'
-            #                   },
-            #      'spec': {'egress': [{'action': 'deny',
-            #                           'protocol': 'tcp',
-            #                           'source': {
-            #                               '!net': 'aa:bb:cc:ff::/100',
-            #                               '!ports': [100],
-            #                               '!selector': '',
-            #                               '!tag': 'abcd'}}],
-            #               'ingress': [{'action': 'nextTier',
-            #                            'destination': {
-            #                                'net': '10.20.30.40/32',
-            #                                'ports': None,
-            #                                'selector': '',
-            #                                'tag': 'database'},
-            #                            'icmp': {'code': 100,
-            #                                     'type': 10},
-            #                            'protocol': 'udp',
-            #                            'source': {
-            #                                'net': '1.2.0.0/16',
-            #                                'ports': [1, 2, 3, 4],
-            #                                'selector': '',
-            #                                'tag': 'web'}}],
-            #               'order': 6543215.321,
-            #               'selector': ''}},
-            #     {'apiVersion': 'v1',
-            #      'kind': 'policy',
-            #      'metadata': {'name': 'policy2',
-            #                   #'tier': 'tier1'
-            #                   },
-            #      'spec': {'egress': [{'action': 'deny',
-            #                           'protocol': 'tcp',
-            #                           'source': {
-            #                               '!net': 'aa:bb:cc::/100',
-            #                               '!ports': [100],
-            #                               '!selector': "",
-            #                               '!tag': 'abcd'}}],
-            #               'ingress': [{'action': 'nextTier',
-            #                            'destination': {
-            #                                'net': '10.20.30.40/32',
-            #                                'ports': None,
-            #                                'selector': "",
-            #                                'tag': 'database'},
-            #                            'icmp': {'code': 100,
-            #                                     'type': 10},
-            #                            'protocol': 'udp',
-            #                            'source': {
-            #                                'net': '1.2.3.0/24',
-            #                                'ports': [1, 2, 3, 4],
-            #                                'selector': "",
-            #                                'tag': 'web'}}],
-            #               'order': 100000,
-            #               'selector': ""}},
-            # ),
+        }
+        self._create_runner(testdata)
+        self._apply_create_replace(testdata)
+
+    def test_create_policy_from_file(self):
+        testdata = {
+            "policy": (
+                {'apiVersion': 'v1',
+                 'kind': 'policy',
+                 'metadata': {'name': 'policy1'},
+                 'spec': {'egress': [{'action': 'deny',
+                                      'protocol': 'tcp',
+                                      'source': {
+                                          '!net': 'aa:bb:cc:ff::/100',
+                                          '!ports': [100],
+                                          '!selector': '',
+                                          '!tag': 'abcd'}}],
+                          'ingress': [{'action': 'nextTier',
+                                       'destination': {
+                                           'net': '10.20.30.40/32',
+                                           'ports': None,
+                                           'selector': '',
+                                           'tag': 'database'},
+                                       'icmp': {'code': 100,
+                                                'type': 10},
+                                       'protocol': 'udp',
+                                       'source': {
+                                           'net': '1.2.0.0/16',
+                                           'ports': [1, 2, 3, 4],
+                                           'selector': '',
+                                           'tag': 'web'}}],
+                          'order': 6543215.321,
+                          'selector': ''}},
+                {'apiVersion': 'v1',
+                 'kind': 'policy',
+                 'metadata': {'name': 'policy2'},
+                 'spec': {'egress': [{'action': 'deny',
+                                      'protocol': 'tcp',
+                                      'source': {
+                                          '!net': 'aa:bb:cc::/100',
+                                          '!ports': [100],
+                                          '!selector': "",
+                                          '!tag': 'abcd'}}],
+                          'ingress': [{'action': 'nextTier',
+                                       'destination': {
+                                           'net': '10.20.30.40/32',
+                                           'ports': None,
+                                           'selector': "",
+                                           'tag': 'database'},
+                                       'icmp': {'code': 100,
+                                                'type': 10},
+                                       'protocol': 'udp',
+                                       'source': {
+                                           'net': '1.2.3.0/24',
+                                           'ports': [1, 2, 3, 4],
+                                           'selector': "",
+                                           'tag': 'web'}}],
+                          'order': 100000,
+                          'selector': ""}},
+            ),
+        }
+        self._create_runner(testdata)
+        self._apply_create_replace(testdata)
+
+    def test_create_pool_from_file(self):
+        testdata = {
             "pool": (
                 {'apiVersion': 'v1',
                  'kind': 'pool',
@@ -252,97 +266,92 @@ class TestCommand(TestUtils):
                  'spec': {'ipip': {'enabled': True}}
                  },
             ),
-            # "profile": (
-            #     {'apiVersion': 'v1',
-            #      'kind': 'profile',
-            #      'metadata': {'name': 'profile1'},
-            #      'spec': {'labels': {'type': 'database'},
-            #               'rules': {
-            #                   'egress': [{'action': 'deny'}],
-            #                   'ingress': [{'action': 'deny'}]},
-            #               'tags': ['a', 'b', 'c', 'a1']}
-            #      },
-            #     {'apiVersion': 'v1',
-            #      'kind': 'profile',
-            #      'metadata': {'name': 'profile2'},
-            #      'spec': {'labels': {'type': 'frontend'},
-            #               'rules': {
-            #                   'egress': [{'action': 'deny'}],
-            #                   'ingress': [{'action': 'deny'}]},
-            #               'tags': ['a', 'b', 'c', 'a1']}
-            #      },
-            # )
         }
+        self._create_runner(testdata)
+        self._apply_create_replace(testdata)
+
+    def test_create_pool_from_file(self):
+        testdata = {
+            "profile": (
+                {'apiVersion': 'v1',
+                 'kind': 'profile',
+                 'metadata': {'name': 'profile1'},
+                 'spec': {'labels': {'type': 'database'},
+                          'rules': {
+                              'egress': [{'action': 'deny'}],
+                              'ingress': [{'action': 'deny'}]},
+                          'tags': ['a', 'b', 'c', 'a1']}
+                 },
+                {'apiVersion': 'v1',
+                 'kind': 'profile',
+                 'metadata': {'name': 'profile2'},
+                 'spec': {'labels': {'type': 'frontend'},
+                          'rules': {
+                              'egress': [{'action': 'deny'}],
+                              'ingress': [{'action': 'deny'}]},
+                          'tags': ['a', 'b', 'c', 'a1']}
+                 },
+            )
+        }
+        self._create_runner(testdata)
+        self._apply_create_replace(testdata)
+
+    def _create_runner(self, testdata):
         with DockerHost('host', dind=False, start_calico=False) as host:
-            for res in testdata.keys():
-                logger.debug("Testing %s" % res)
-                data1, data2 = testdata[res]
-                # Write out the files to load later
-                self.writeyaml('data1.yaml', data1)
-                self.writejson('data2.json', data2)
+            res = testdata.keys()[0]
+            logger.debug("Testing %s" % res)
+            data1, data2 = testdata[res]
+            # Write out the files to load later
+            self.writeyaml('%s-1.yaml' % res, data1)
+            self.writejson('%s-2.json' % res, data2)
 
-                host.calicoctl("create -f data1.yaml", new=True)
-                # Test use of create with stdin
-                host.execute(
-                    "cat data2.json | /code/dist/calicoctl create -f -")
+            host.calicoctl("create -f %s-1.yaml" % res, new=True)
+            # Test use of create with stdin
+            host.execute(
+                "cat %s-2.json | /code/dist/calicoctl create -f -" % res)
 
-                # Check both come out OK in yaml:
-                self.check_data_in_datastore(
-                    host, [data1, data2], res)
+            # Check both come out OK in yaml:
+            self.check_data_in_datastore(
+                host, [data1, data2], res)
 
-                # Check both come out OK in json:
-                self.check_data_in_datastore(
-                    host, [data1, data2], res, yaml_format=False)
+            # Check both come out OK in json:
+            self.check_data_in_datastore(
+                host, [data1, data2], res, yaml_format=False)
 
-    def test_apply_create_replace(self):
+    def _apply_create_replace(self, testdata):
         """
         Basic check that apply, create and replace commands work correctly.
         """
         with DockerHost('host', dind=False, start_calico=False) as host:
-            bgp_peer1 = {
-                'apiVersion': 'v1',
-                'kind': 'bgpPeer',
-                'metadata': {'hostname': 'Node1',
-                             'peerIP': '192.168.0.250',
-                             'scope': 'node'},
-                'spec': {'asNumber': 64514}
-            }
-            bgp_peer2 = {
-                'apiVersion': 'v1',
-                'kind': 'bgpPeer',
-                'metadata': {'hostname': 'Node1',
-                             'peerIP': '192.168.0.250',
-                             'scope': 'node'},
-                'spec': {'asNumber': 64590}
-            }
+            res = testdata.keys()[0]
+            logger.debug("Testing %s" % res)
+            data1, data2 = testdata[res]
 
             # Write test data files for loading later
-            self.writeyaml('data1.yaml', bgp_peer1)
-            self.writejson('data2.json', bgp_peer2)
+            self.writeyaml('data1.yaml', data1)
+            self.writejson('data2.json', data2)
 
             # apply - create when not present
             host.calicoctl("apply -f data1.yaml", new=True)
             # Check it went in OK
-            self.check_data_in_datastore(host, [bgp_peer1], "bgpPeer")
+            self.check_data_in_datastore(host, [data1], "bgpPeer")
 
-            # create - skip overwrite with bgp_peer2
+            # create - skip overwrite with data2
             host.calicoctl("create -f data2.json -s", new=True)
             # Check that nothing's changed
-            self.check_data_in_datastore(host, [bgp_peer1], "bgpPeer")
+            self.check_data_in_datastore(host, [data1], "bgpPeer")
 
-            # replace - overwrite with bgp_peer2
+            # replace - overwrite with data2
             host.calicoctl("replace -f data2.json", new=True)
-            # Check that we now have bgp_peer2 in the datastore
-            self.check_data_in_datastore(host, [bgp_peer2], "bgpPeer")
+            # Check that we now have data2 in the datastore
+            self.check_data_in_datastore(host, [data2], "bgpPeer")
 
-            # apply - overwrite with bgp_peer1
+            # apply - overwrite with data1
             host.calicoctl("apply -f data1.yaml", new=True)
-            # Check that we now have bgp_peer1 in the datastore
-            self.check_data_in_datastore(host, [bgp_peer1], "bgpPeer")
+            # Check that we now have data1 in the datastore
+            self.check_data_in_datastore(host, [data1], "bgpPeer")
 
             # delete
-            host.calicoctl("delete -f data1.yaml", new=True)
+            host.calicoctl("delete --filename=data1.yaml", new=True)
             # Check it deleted
-            self.check_data_in_datastore(host, [], "bgpPeer")
-
-
+            self.check_data_in_datastore(host, [], res)
