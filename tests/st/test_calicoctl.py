@@ -270,7 +270,7 @@ class TestCreateFromFile(TestUtils):
         self._create_runner(testdata)
         self._apply_create_replace(testdata)
 
-    def test_create_pool_from_file(self):
+    def test_create_profile_from_file(self):
         testdata = {
             "profile": (
                 {'apiVersion': 'v1',
