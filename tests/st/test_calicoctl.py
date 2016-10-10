@@ -15,6 +15,8 @@ import simplejson as json
 import yaml
 import logging
 from netaddr import IPNetwork
+from deepdiff import DeepDiff
+from pprint import pformat
 
 from tests.st.test_base import TestBase
 from tests.st.utils.docker_host import DockerHost
@@ -26,31 +28,40 @@ logging.basicConfig(level=logging.DEBUG, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 
-class TestUtils(TestBase):
-    def check_data_in_datastore(self, host, data, resource, yaml_format=True):
-        if yaml_format:
-            out = host.calicoctl(
-                "get %s --output=yaml" % resource, new=True)
-            output = yaml.safe_load(out)
-        else:
-            out = host.calicoctl(
-                "get %s --output=json" % resource, new=True)
-            output = json.loads(out)
-        self.assert_same(data, output)
-
-    @staticmethod
-    def writeyaml(filename, data):
-        with open(filename, 'w') as f:
-            f.write(yaml.dump(data, default_flow_style=False))
-
-    @staticmethod
-    def writejson(filename, data):
-        with open(filename, 'w') as f:
-            f.write(json.dumps(data, sort_keys=True, indent=2,
-                               separators=(',', ': ')))
+def check_data_in_datastore(host, data, resource, yaml_format=True):
+    if yaml_format:
+        out = host.calicoctl(
+            "get %s --output=yaml" % resource, new=True)
+        output = yaml.safe_load(out)
+    else:
+        out = host.calicoctl(
+            "get %s --output=json" % resource, new=True)
+        output = json.loads(out)
+    assert_same(data, output)
 
 
-class TestPool(TestUtils):
+def assert_same(thing1, thing2):
+    """
+    Compares two things.  Debug logs the differences between them before
+    asserting that they are the same.
+    """
+    assert cmp(thing1, thing2) == 0, \
+        "Items are not the same.  Difference is:\n %s" % \
+        pformat(DeepDiff(thing1, thing2), indent=2)
+
+
+def writeyaml(filename, data):
+    with open(filename, 'w') as f:
+        f.write(yaml.dump(data, default_flow_style=False))
+
+
+def writejson(filename, data):
+    with open(filename, 'w') as f:
+        f.write(json.dumps(data, sort_keys=True, indent=2,
+                           separators=(',', ': ')))
+
+
+class TestPool(TestBase):
     """
     Test calicoctl pool
 
@@ -64,7 +75,7 @@ class TestPool(TestUtils):
 
     def test_pool_crud(self):
         """
-        Test that a basic CRUD flow for pool commands.
+        Test that a basic CRUD flow for pool commands works.
         """
         with DockerHost('host', dind=False, start_calico=False) as host:
             # Set up the ipv4 and ipv6 pools to use
@@ -86,8 +97,8 @@ class TestPool(TestUtils):
             # Write out some yaml files to load in through calicoctl-go
             # We could have sent these via stdout into calicoctl, but this
             # seemed easier.
-            self.writeyaml('ipv4.yaml', ipv4_pool_dict)
-            self.writeyaml('ipv6.yaml', ipv6_pool_dict)
+            writeyaml('ipv4.yaml', ipv4_pool_dict)
+            writeyaml('ipv6.yaml', ipv6_pool_dict)
 
             # Create the ipv6 network using the Go calicoctl
             host.calicoctl("create -f ipv6.yaml", new=True)
@@ -99,7 +110,7 @@ class TestPool(TestUtils):
             self.assertNotIn("ipip", pool_out)
 
             # Now read it out (yaml format) with the Go calicoctl too:
-            self.check_data_in_datastore(host, [ipv6_pool_dict], "pool")
+            check_data_in_datastore(host, [ipv6_pool_dict], "pool")
 
             # Add in the ipv4 network with Go calicoctl
             host.calicoctl("create -f ipv4.yaml", new=True)
@@ -111,7 +122,7 @@ class TestPool(TestUtils):
             self.assertIn("ipip", pool_out)
 
             # Now read it out with the Go calicoctl too:
-            self.check_data_in_datastore(
+            check_data_in_datastore(
                 host, [ipv4_pool_dict, ipv6_pool_dict], "pool")
 
             # Remove both the ipv4 pool and ipv6 pool
@@ -123,24 +134,19 @@ class TestPool(TestUtils):
             self.assertNotIn(str(ipv6_net), pool_out)
             self.assertNotIn("ipip", pool_out)
             # Now read it out with the Go calicoctl too:
-            self.check_data_in_datastore(host, [], "pool")
+            check_data_in_datastore(host, [], "pool")
 
             # Assert that deleting the pool again fails.
             self.assertRaises(CommandExecError,
                               host.calicoctl, "delete -f ipv4.yaml", new=True)
 
 
-class TestCreateFromFile(TestUtils):
+class TestCreateFromFile(object):
     """
     Test calicoctl create command
     """
 
-    def test_create_bgppeer_from_file(self):
-        """
-        Test that json and yaml files can be used to create
-        bgpPeer, hostEndpoint, policy, pool, profile objects.
-        """
-        # Define two bits of test data per type:
+    def test_create_from_file(self):
         testdata = {
             "bgpPeer": (
                 {
@@ -159,13 +165,7 @@ class TestCreateFromFile(TestUtils):
                                  'scope': 'node'},
                     'spec': {'asNumber': 64590}
                 }
-            )
-        }
-        self._create_runner(testdata)
-        self._apply_create_replace(testdata)
-
-    def test_create_hostendpoint_from_file(self):
-        testdata = {
+            ),
             "hostEndpoint": (
                 {
                     'apiVersion': 'v1',
@@ -188,12 +188,6 @@ class TestCreateFromFile(TestUtils):
                                           'prof2']}
                 },
             ),
-        }
-        self._create_runner(testdata)
-        self._apply_create_replace(testdata)
-
-    def test_create_policy_from_file(self):
-        testdata = {
             "policy": (
                 {'apiVersion': 'v1',
                  'kind': 'policy',
@@ -248,12 +242,6 @@ class TestCreateFromFile(TestUtils):
                           'order': 100000,
                           'selector': ""}},
             ),
-        }
-        self._create_runner(testdata)
-        self._apply_create_replace(testdata)
-
-    def test_create_pool_from_file(self):
-        testdata = {
             "pool": (
                 {'apiVersion': 'v1',
                  'kind': 'pool',
@@ -266,12 +254,6 @@ class TestCreateFromFile(TestUtils):
                  'spec': {'ipip': {'enabled': True}}
                  },
             ),
-        }
-        self._create_runner(testdata)
-        self._apply_create_replace(testdata)
-
-    def test_create_profile_from_file(self):
-        testdata = {
             "profile": (
                 {'apiVersion': 'v1',
                  'kind': 'profile',
@@ -293,17 +275,27 @@ class TestCreateFromFile(TestUtils):
                  },
             )
         }
-        self._create_runner(testdata)
-        self._apply_create_replace(testdata)
 
-    def _create_runner(self, testdata):
+        for res in testdata.keys():
+            def testcase(): self._create_runner(res, testdata[res])
+
+            testcase.description = "Create %s from file" % res
+            yield testcase
+
+        for res in testdata.keys():
+            def testcase(): self._apply_create_replace(res, testdata[res])
+
+            testcase.description = "apply/create/replace %s from file" % res
+            yield testcase
+
+    @staticmethod
+    def _create_runner(res, testdata):
         with DockerHost('host', dind=False, start_calico=False) as host:
-            res = testdata.keys()[0]
             logger.debug("Testing %s" % res)
-            data1, data2 = testdata[res]
+            data1, data2 = testdata
             # Write out the files to load later
-            self.writeyaml('%s-1.yaml' % res, data1)
-            self.writejson('%s-2.json' % res, data2)
+            writeyaml('%s-1.yaml' % res, data1)
+            writejson('%s-2.json' % res, data2)
 
             host.calicoctl("create -f %s-1.yaml" % res, new=True)
             # Test use of create with stdin
@@ -311,47 +303,51 @@ class TestCreateFromFile(TestUtils):
                 "cat %s-2.json | /code/dist/calicoctl create -f -" % res)
 
             # Check both come out OK in yaml:
-            self.check_data_in_datastore(
+            check_data_in_datastore(
                 host, [data1, data2], res)
 
             # Check both come out OK in json:
-            self.check_data_in_datastore(
+            check_data_in_datastore(
                 host, [data1, data2], res, yaml_format=False)
 
-    def _apply_create_replace(self, testdata):
+            # Tidy up
+            host.calicoctl("delete -f data1.yaml", new=True)
+            host.calicoctl("delete -f data2.json", new=True)
+
+    @staticmethod
+    def _apply_create_replace(res, testdata):
         """
         Basic check that apply, create and replace commands work correctly.
         """
         with DockerHost('host', dind=False, start_calico=False) as host:
-            res = testdata.keys()[0]
             logger.debug("Testing %s" % res)
-            data1, data2 = testdata[res]
+            data1, data2 = testdata
 
             # Write test data files for loading later
-            self.writeyaml('data1.yaml', data1)
-            self.writejson('data2.json', data2)
+            writeyaml('data1.yaml', data1)
+            writejson('data2.json', data2)
 
             # apply - create when not present
             host.calicoctl("apply -f data1.yaml", new=True)
             # Check it went in OK
-            self.check_data_in_datastore(host, [data1], "bgpPeer")
+            check_data_in_datastore(host, [data1], res)
 
             # create - skip overwrite with data2
             host.calicoctl("create -f data2.json -s", new=True)
             # Check that nothing's changed
-            self.check_data_in_datastore(host, [data1], "bgpPeer")
+            check_data_in_datastore(host, [data1], res)
 
             # replace - overwrite with data2
             host.calicoctl("replace -f data2.json", new=True)
             # Check that we now have data2 in the datastore
-            self.check_data_in_datastore(host, [data2], "bgpPeer")
+            check_data_in_datastore(host, [data2], res)
 
             # apply - overwrite with data1
             host.calicoctl("apply -f data1.yaml", new=True)
             # Check that we now have data1 in the datastore
-            self.check_data_in_datastore(host, [data1], "bgpPeer")
+            check_data_in_datastore(host, [data1], res)
 
             # delete
             host.calicoctl("delete --filename=data1.yaml", new=True)
             # Check it deleted
-            self.check_data_in_datastore(host, [], res)
+            check_data_in_datastore(host, [], res)
