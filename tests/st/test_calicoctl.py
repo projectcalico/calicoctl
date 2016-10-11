@@ -17,7 +17,10 @@ import logging
 from netaddr import IPNetwork
 from deepdiff import DeepDiff
 from pprint import pformat
+import subprocess
 
+from tests.st.utils.utils import (get_ip, ETCD_SCHEME, ETCD_CA, ETCD_CERT,
+                                  ETCD_KEY, ETCD_HOSTNAME_SSL)
 from tests.st.test_base import TestBase
 from tests.st.utils.docker_host import DockerHost
 from tests.st.utils.exceptions import CommandExecError
@@ -61,6 +64,53 @@ def writejson(filename, data):
                            separators=(',', ': ')))
 
 
+def set_up():
+    """
+    Clean up before every test.
+    """
+
+    # Delete /calico if it exists. This ensures each test has an empty data
+    # store at start of day.
+    logger.warning("Clearing /calico")
+    curl_etcd("calico", options=["-XDELETE"])
+
+    # Disable Usage Reporting to usage.projectcalico.org
+    # We want to avoid polluting analytics data with unit test noise
+    curl_etcd("calico/v1/config/UsageReportingEnabled",
+              options=["-XPUT -d value=False"])
+
+    # Log a newline to ensure that the first log appears on its own line.
+    logger.info("")
+
+
+def curl_etcd(path, options=None, recursive=True):
+    """
+    Perform a curl to etcd, returning JSON decoded response.
+    :param path:  The key path to query
+    :param options:  Additional options to include in the curl
+    :param recursive:  Whether we want recursive query or not
+    :return:  The JSON decoded response.
+    """
+    if options is None:
+        options = []
+    if ETCD_SCHEME == "https":
+        # Etcd is running with SSL/TLS, require key/certificates
+        rc = subprocess.check_output(
+            "curl --cacert %s --cert %s --key %s "
+            "-sL https://%s:2379/v2/keys/%s?recursive=%s %s"
+            % (ETCD_CA, ETCD_CERT, ETCD_KEY, ETCD_HOSTNAME_SSL,
+               path, str(recursive).lower(), " ".join(options)),
+            shell=True)
+    else:
+        rc = subprocess.check_output(
+            "curl -sL http://%s:2379/v2/keys/%s?recursive=%s %s"
+            % (get_ip(), path, str(recursive).lower(), " ".join(options)),
+            shell=True)
+
+    return json.loads(rc.strip())
+
+
+@skip("LR2: remove this skip")
 class TestPool(TestBase):
     """
     Test calicoctl pool
@@ -144,6 +194,11 @@ class TestPool(TestBase):
 class TestCreateFromFile(object):
     """
     Test calicoctl create command
+
+    Test data is a pair of different resource objects of each type.
+    Test creates one using json and the other using yaml, then we retrieve
+    them and check the output objects are the same as we input when retrieved
+    in both yaml and json formats.
     """
 
     def test_create_from_file(self):
@@ -282,6 +337,143 @@ class TestCreateFromFile(object):
             testcase.description = "Create %s from file" % res
             yield testcase
 
+    def test_apply_create_replace(self):
+        """
+        Test calicoctl create/apply/replace/delete commands.
+
+        Test data is a pair of resource objects - both are the same object,
+        but the details differ in some way to simulate a user updating the
+        object.
+        """
+        testdata = {
+            "bgpPeer": (
+                {
+                    'apiVersion': 'v1',
+                    'kind': 'bgpPeer',
+                    'metadata': {'hostname': 'Node1',
+                                 'peerIP': '192.168.0.250',
+                                 'scope': 'node'},
+                    'spec': {'asNumber': 64514}
+                },
+                {
+                    'apiVersion': 'v1',
+                    'kind': 'bgpPeer',
+                    'metadata': {'hostname': 'Node1',
+                                 'peerIP': '192.168.0.250',
+                                 'scope': 'node'},
+                    'spec': {'asNumber': 64590}
+                }
+            ),
+            "hostEndpoint": (
+                {
+                    'apiVersion': 'v1',
+                    'kind': 'hostEndpoint',
+                    'metadata': {'hostname': 'host1',
+                                 'labels': {'type': 'database'},
+                                 'name': 'endpoint1'},
+                    'spec': {'interfaceName': 'eth0',
+                             'profiles': ['prof1',
+                                          'prof2']}
+                },
+                {
+                    'apiVersion': 'v1',
+                    'kind': 'hostEndpoint',
+                    'metadata': {'hostname': 'host1',
+                                 'labels': {'type': 'frontend'},
+                                 'name': 'endpoint1'},
+                    'spec': {'interfaceName': 'cali7',
+                             'profiles': ['prof1',
+                                          'prof2']}
+                },
+            ),
+            "policy": (
+                {'apiVersion': 'v1',
+                 'kind': 'policy',
+                 'metadata': {'name': 'policy1'},
+                 'spec': {'egress': [{'action': 'deny',
+                                      'protocol': 'tcp',
+                                      'source': {
+                                          '!net': 'aa:bb:cc:ff::/100',
+                                          '!ports': [100],
+                                          '!selector': '',
+                                          '!tag': 'abcd'}}],
+                          'ingress': [{'action': 'nextTier',
+                                       'destination': {
+                                           'net': '10.20.30.40/32',
+                                           'ports': None,
+                                           'selector': '',
+                                           'tag': 'database'},
+                                       'icmp': {'code': 100,
+                                                'type': 10},
+                                       'protocol': 'udp',
+                                       'source': {
+                                           'net': '1.2.0.0/16',
+                                           'ports': [1, 2, 3, 4],
+                                           'selector': '',
+                                           'tag': 'web'}}],
+                          'order': 6543215.321,
+                          'selector': ''}},
+                {'apiVersion': 'v1',
+                 'kind': 'policy',
+                 'metadata': {'name': 'policy1'},
+                 'spec': {'egress': [{'action': 'deny',
+                                      'protocol': 'tcp',
+                                      'source': {
+                                          '!net': 'aa:bb:cc::/100',
+                                          '!ports': [100],
+                                          '!selector': "",
+                                          '!tag': 'abcd'}}],
+                          'ingress': [{'action': 'nextTier',
+                                       'destination': {
+                                           'net': '10.20.30.40/32',
+                                           'ports': None,
+                                           'selector': "",
+                                           'tag': 'database'},
+                                       'icmp': {'code': 100,
+                                                'type': 10},
+                                       'protocol': 'udp',
+                                       'source': {
+                                           'net': '1.2.3.0/24',
+                                           'ports': [1, 2, 3, 4],
+                                           'selector': "",
+                                           'tag': 'web'}}],
+                          'order': 100000,
+                          'selector': ""}},
+            ),
+            "pool": (
+                {'apiVersion': 'v1',
+                 'kind': 'pool',
+                 'metadata': {'cidr': "10.0.1.0/24"},
+                 'spec': {}
+                 },
+                {'apiVersion': 'v1',
+                 'kind': 'pool',
+                 'metadata': {'cidr': "10.0.1.0/24"},
+                 'spec': {'ipip': {'enabled': True}}
+                 },
+            ),
+            "profile": (
+                {'apiVersion': 'v1',
+                 'kind': 'profile',
+                 'metadata': {'name': 'profile1'},
+                 'spec': {'labels': {'type': 'database'},
+                          'rules': {
+                              'egress': [{'action': 'deny'}],
+                              'ingress': [{'action': 'deny'}]},
+                          'tags': ['a', 'b', 'c', 'a1']}
+                 },
+                {'apiVersion': 'v1',
+                 'kind': 'profile',
+                 'metadata': {'name': 'profile1'},
+                 'spec': {'labels': {'type': 'frontend'},
+                          'rules': {
+                              'egress': [{'action': 'deny'}],
+                              'ingress': [{'action': 'deny'}]},
+                          'tags': ['d', 'e', 'f', 'a1']}
+                 },
+            )
+        }
+
         for res in testdata.keys():
             def testcase(): self._apply_create_replace(res, testdata[res])
 
@@ -292,6 +484,7 @@ class TestCreateFromFile(object):
     def _create_runner(res, testdata):
         with DockerHost('host', dind=False, start_calico=False) as host:
             logger.debug("Testing %s" % res)
+            set_up()
             data1, data2 = testdata
             # Write out the files to load later
             writeyaml('%s-1.yaml' % res, data1)
@@ -311,8 +504,8 @@ class TestCreateFromFile(object):
                 host, [data1, data2], res, yaml_format=False)
 
             # Tidy up
-            host.calicoctl("delete -f data1.yaml", new=True)
-            host.calicoctl("delete -f data2.json", new=True)
+            host.calicoctl("delete -f %s-1.yaml" % res, new=True)
+            host.calicoctl("delete -f %s-2.json" % res, new=True)
 
     @staticmethod
     def _apply_create_replace(res, testdata):
@@ -321,6 +514,7 @@ class TestCreateFromFile(object):
         """
         with DockerHost('host', dind=False, start_calico=False) as host:
             logger.debug("Testing %s" % res)
+            set_up()
             data1, data2 = testdata
 
             # Write test data files for loading later
