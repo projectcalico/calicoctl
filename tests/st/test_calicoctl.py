@@ -507,6 +507,9 @@ class TestCreateFromFile(object):
             host.calicoctl("delete -f %s-1.yaml" % res, new=True)
             host.calicoctl("delete -f %s-2.json" % res, new=True)
 
+            # Check it deleted
+            check_data_in_datastore(host, [], res)
+
     @staticmethod
     def _apply_create_replace(res, testdata):
         """
