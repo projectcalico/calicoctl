@@ -281,8 +281,8 @@ def main():
     # This is required because the confd templates expect to be able to fill in
     # some templates by fetching them from the environment.
     with open('startup.env', 'w') as f:
-        f.write("IP=%s\n" % ip)
-        f.write("HOSTNAME=%s\n" % hostname)
+        f.write("export IP=%s\n" % ip)
+        f.write("export HOSTNAME=%s\n" % hostname)
 
     warn_if_hostname_conflict(ip)
 
