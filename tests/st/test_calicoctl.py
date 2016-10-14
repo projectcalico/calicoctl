@@ -202,6 +202,254 @@ class TestCreateFromFile(TestBase):
     in both yaml and json formats.
     """
 
+    testdata = [
+        ("bgpPeer1", {
+            'apiVersion': 'v1',
+            'kind': 'bgpPeer',
+            'metadata': {'hostname': 'Node1',
+                         'peerIP': '192.168.0.250',
+                         'scope': 'node'},
+            'spec': {'asNumber': 64514}
+        }),
+        ("bgpPeer2", {
+            'apiVersion': 'v1',
+            'kind': 'bgpPeer',
+            'metadata': {'hostname': 'Node2',
+                         'peerIP': 'fd5f::6:ee',
+                         'scope': 'node'},
+            'spec': {'asNumber': 64590}
+        }),
+        ("hostEndpoint1", {
+            'apiVersion': 'v1',
+            'kind': 'hostEndpoint',
+            'metadata': {'hostname': 'host1',
+                         'labels': {'type': 'database'},
+                         'name': 'endpoint1'},
+            'spec': {'interfaceName': 'eth0',
+                     'profiles': ['prof1',
+                                  'prof2']}
+        }),
+        ("hostEndpoint2", {
+            'apiVersion': 'v1',
+            'kind': 'hostEndpoint',
+            'metadata': {'hostname': 'host2',
+                         'labels': {'type': 'frontend'},
+                         'name': 'endpoint2'},
+            'spec': {'interfaceName': 'cali7',
+                     'profiles': ['prof1',
+                                  'prof2']}
+        }),
+        ("policy1", {'apiVersion': 'v1',
+                     'kind': 'policy',
+                     'metadata': {'name': 'policy1', 'tier': ''},
+                     'spec': {'egress': [{'action': 'allow',
+                                          'source': {
+                                              'selector': "type=='application'"},
+                                          'destination': {},
+                                          }],
+                              'ingress': [{'!icmp': {'type': 19, 'code': 255},
+                                           'ipVersion': 4,
+                                           'action': 'deny',
+                                           'destination': {
+                                               '!net': '10.3.0.0/16',
+                                               '!ports': ['110:1050'],
+                                               '!selector': "type=='apples'",
+                                               '!tag': "bananas",
+                                               'net': '10.2.0.0/16',
+                                               'ports': ['100:200'],
+                                               'selector': "type=='application'",
+                                               'tag': 'alphatag'},
+                                           'icmp': {'type': 10, 'code': 6},
+                                           'protocol': 'tcp',
+                                           'source': {'!net': '10.1.0.0/16',
+                                                      '!ports': [1050],
+                                                      '!selector': "type=='database'",
+                                                      '!tag': 'bartag',
+                                                      'net': '10.0.0.0/16',
+                                                      'ports': [1234,
+                                                                '10:1024'],
+                                                      'selector': "type=='application'",
+                                                      'tag': 'footag'}}],
+                              'order': 100,
+                              'selector': "type=='database'"}}),
+        ("policy2", {'apiVersion': 'v1',
+                     'kind': 'policy',
+                     'metadata': {'name': 'policy2',
+                                  'tier': ''
+                                  },
+                     'spec': {'egress': [{'action': 'deny',
+                                          'destination': {},
+                                          'protocol': 'tcp',
+                                          'source': {}}],
+                              'ingress': [{'action': 'nextTier',
+                                           'destination': {},
+                                           'protocol': 'udp',
+                                           'source': {}}],
+                              'order': 100000,
+                              'selector': ""}}),
+        ("pool1", {'apiVersion': 'v1',
+                   'kind': 'pool',
+                   'metadata': {'cidr': "10.0.1.0/24"},
+                   'spec': {'ipip': {'enabled': True}}
+                   }),
+        ("pool2", {'apiVersion': 'v1',
+                   'kind': 'pool',
+                   'metadata': {'cidr': "10.0.2.0/24"},
+                   'spec': {'ipip': {'enabled': True}}
+                   }),
+        ("profile1", {'apiVersion': 'v1',
+                      'kind': 'profile',
+                      'metadata': {'labels': {'foo': 'bar'},
+                                   'name': 'profile1'},
+                      'spec': {
+                          'egress': [{'action': 'allow',
+                                      'destination': {},
+                                      'source': {
+                                          'selector': "type=='application'"}}],
+                          'ingress': [{'!icmp': {'type': 19, 'code': 255},
+                                       'ipVersion': 4,
+                                       'action': 'deny',
+                                       'destination': {
+                                           '!net': '10.3.0.0/16',
+                                           '!ports': ['110:1050'],
+                                           '!selector': "type=='apples'",
+                                           '!tag': "bananas",
+                                           'net': '10.2.0.0/16',
+                                           'ports': ['100:200'],
+                                           'selector': "type=='application'",
+                                           'tag': 'alphatag'},
+                                       'icmp': {'type': 10, 'code': 6},
+                                       'protocol': 'tcp',
+                                       'source': {'!net': '10.1.0.0/16',
+                                                  '!ports': [1050],
+                                                  '!selector': "type=='database'",
+                                                  '!tag': 'bartag',
+                                                  'net': '10.0.0.0/16',
+                                                  'ports': [1234, '10:20'],
+                                                  'selector': "type=='application'",
+                                                  'tag': "production"}}],
+                          'tags': ['tag1', 'tag2s']}}),
+        ("profile2", {'apiVersion': 'v1',
+                      'kind': 'profile',
+                      'metadata': {'name': 'profile2'},
+                      'spec': {
+                          'egress': [{'action': 'allow',
+                                      'destination': {},
+                                      'source': {}}],
+                          'ingress': [{'ipVersion': 6,
+                                       'action': 'deny',
+                                       'destination': {},
+                                       'source': {}}],
+                          'tags': ['tag1', 'tag2s']}}),
+    ]
+    @parameterized.expand(testdata)
+    def test_create_from_file_yaml(self, name, data):
+        with DockerHost('host', dind=False, start_calico=False) as host:
+            res_type = data['kind']
+            logger.debug("Testing %s" % res_type)
+            set_up()
+            # Write out the files to load later
+            writeyaml('%s-1.yaml' % res_type, data)
+
+            host.calicoctl("create -f %s-1.yaml" % res_type, new=True)
+            # Test use of create with stdin
+
+            # Check both come out OK in yaml:
+            check_data_in_datastore(
+                host, [data], res_type)
+
+            # Check both come out OK in json:
+            check_data_in_datastore(
+                host, [data], res_type, yaml_format=False)
+
+            # Tidy up
+            host.calicoctl("delete -f %s-1.yaml" % res_type, new=True)
+
+            # Check it deleted
+            check_data_in_datastore(host, [], res_type)
+
+    @parameterized.expand(testdata)
+    def test_create_from_file_json(self, name, data):
+        with DockerHost('host', dind=False, start_calico=False) as host:
+            res_type = data['kind']
+            logger.debug("Testing %s" % res_type)
+            set_up()
+            # Write out the files to load later
+            writejson('%s-1.json' % res_type, data)
+
+            host.calicoctl("create -f %s-1.json" % res_type, new=True)
+            # Test use of create with stdin
+
+            # Check both come out OK in yaml:
+            check_data_in_datastore(
+                host, [data], res_type)
+
+            # Check both come out OK in json:
+            check_data_in_datastore(
+                host, [data], res_type, yaml_format=False)
+
+            # Tidy up
+            host.calicoctl("delete -f %s-1.json" % res_type, new=True)
+
+            # Check it deleted
+            check_data_in_datastore(host, [], res_type)
+
+    @parameterized.expand(testdata)
+    def test_create_from_stdin_json(self, name, data):
+        with DockerHost('host', dind=False, start_calico=False) as host:
+            res_type = data['kind']
+            logger.debug("Testing %s" % res_type)
+            set_up()
+            # Write out the files to load later
+            writejson('%s-1.json' % res_type, data)
+
+            # Test use of create with stdin
+            host.execute(
+                "cat %s-1.json | /code/dist/calicoctl.go create -f -" %
+                res_type)
+
+            # Check both come out OK in yaml:
+            check_data_in_datastore(
+                host, [data], res_type)
+
+            # Check both come out OK in json:
+            check_data_in_datastore(
+                host, [data], res_type, yaml_format=False)
+
+            # Tidy up
+            host.calicoctl("delete -f %s-1.json" % res_type, new=True)
+
+            # Check it deleted
+            check_data_in_datastore(host, [], res_type)
+
+    @parameterized.expand(testdata)
+    def test_create_from_stdin_yaml(self, name, data):
+        with DockerHost('host', dind=False, start_calico=False) as host:
+            res_type = data['kind']
+            logger.debug("Testing %s" % res_type)
+            set_up()
+            # Write out the files to load later
+            writeyaml('%s-1.yaml' % res_type, data)
+
+            # Test use of create with stdin
+            host.execute(
+                "cat %s-1.yaml | /code/dist/calicoctl.go create -f -" %
+                res_type)
+
+            # Check both come out OK in yaml:
+            check_data_in_datastore(
+                host, [data], res_type)
+
+            # Check both come out OK in yaml:
+            check_data_in_datastore(
+                host, [data], res_type, yaml_format=False)
+
+            # Tidy up
+            host.calicoctl("delete -f %s-1.yaml" % res_type, new=True)
+
+            # Check it deleted
+            check_data_in_datastore(host, [], res_type)
+
     @parameterized.expand([
         ("bgpPeer",
          {
@@ -255,14 +503,15 @@ class TestCreateFromFile(TestBase):
                    'ingress': [{'!icmp': {'type': 19, 'code': 255},
                                 'ipVersion': 4,
                                 'action': 'deny',
-                                'destination': {'!net': '10.3.0.0/16',
-                                                '!ports': ['110:1050'],
-                                                '!selector': "type=='apples'",
-                                                '!tag': "bananas",
-                                                'net': '10.2.0.0/16',
-                                                'ports': ['100:200'],
-                                                'selector': "type=='application'",
-                                                'tag': 'alphatag'},
+                                'destination': {
+                                    '!net': '10.3.0.0/16',
+                                    '!ports': ['110:1050'],
+                                    '!selector': "type=='apples'",
+                                    '!tag': "bananas",
+                                    'net': '10.2.0.0/16',
+                                    'ports': ['100:200'],
+                                    'selector': "type=='application'",
+                                    'tag': 'alphatag'},
                                 'icmp': {'type': 10, 'code': 6},
                                 'protocol': 'tcp',
                                 'source': {'!net': '10.1.0.0/16',
