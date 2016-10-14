@@ -11,104 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import simplejson as json
-import yaml
 import logging
-from netaddr import IPNetwork
-from deepdiff import DeepDiff
-from pprint import pformat
-import subprocess
+from unittest import skip
 
+from netaddr import IPNetwork
 from nose_parameterized import parameterized
-from tests.st.utils.utils import (get_ip, ETCD_SCHEME, ETCD_CA, ETCD_CERT,
-                                  ETCD_KEY, ETCD_HOSTNAME_SSL)
+
 from tests.st.test_base import TestBase
 from tests.st.utils.docker_host import DockerHost
 from tests.st.utils.exceptions import CommandExecError
 
-from unittest import skip
-
 logging.basicConfig(level=logging.DEBUG, format="%(message)s")
 logger = logging.getLogger(__name__)
-
-
-def check_data_in_datastore(host, data, resource, yaml_format=True):
-    if yaml_format:
-        out = host.calicoctl(
-            "get %s --output=yaml" % resource, new=True)
-        output = yaml.safe_load(out)
-    else:
-        out = host.calicoctl(
-            "get %s --output=json" % resource, new=True)
-        output = json.loads(out)
-    assert_same(data, output)
-
-
-def assert_same(thing1, thing2):
-    """
-    Compares two things.  Debug logs the differences between them before
-    asserting that they are the same.
-    """
-    assert cmp(thing1, thing2) == 0, \
-        "Items are not the same.  Difference is:\n %s" % \
-        pformat(DeepDiff(thing1, thing2), indent=2)
-
-
-def writeyaml(filename, data):
-    with open(filename, 'w') as f:
-        f.write(yaml.dump(data, default_flow_style=False))
-
-
-def writejson(filename, data):
-    with open(filename, 'w') as f:
-        f.write(json.dumps(data, sort_keys=True, indent=2,
-                           separators=(',', ': ')))
-
-
-def set_up():
-    """
-    Clean up before every test.
-    """
-
-    # Delete /calico if it exists. This ensures each test has an empty data
-    # store at start of day.
-    logger.warning("Clearing /calico")
-    curl_etcd("calico", options=["-XDELETE"])
-
-    # Disable Usage Reporting to usage.projectcalico.org
-    # We want to avoid polluting analytics data with unit test noise
-    curl_etcd("calico/v1/config/UsageReportingEnabled",
-              options=["-XPUT -d value=False"])
-
-    # Log a newline to ensure that the first log appears on its own line.
-    logger.info("")
-
-
-def curl_etcd(path, options=None, recursive=True):
-    """
-    Perform a curl to etcd, returning JSON decoded response.
-    :param path:  The key path to query
-    :param options:  Additional options to include in the curl
-    :param recursive:  Whether we want recursive query or not
-    :return:  The JSON decoded response.
-    """
-    if options is None:
-        options = []
-    if ETCD_SCHEME == "https":
-        # Etcd is running with SSL/TLS, require key/certificates
-        rc = subprocess.check_output(
-            "curl --cacert %s --cert %s --key %s "
-            "-sL https://%s:2379/v2/keys/%s?recursive=%s %s"
-            % (ETCD_CA, ETCD_CERT, ETCD_KEY, ETCD_HOSTNAME_SSL,
-               path, str(recursive).lower(), " ".join(options)),
-            shell=True)
-    else:
-        rc = subprocess.check_output(
-            "curl -sL http://%s:2379/v2/keys/%s?recursive=%s %s"
-            % (get_ip(), path, str(recursive).lower(), " ".join(options)),
-            shell=True)
-
-    return json.loads(rc.strip())
 
 
 @skip("LR2: remove this skip")
@@ -161,7 +75,7 @@ class TestPool(TestBase):
             self.assertNotIn("ipip", pool_out)
 
             # Now read it out (yaml format) with the Go calicoctl too:
-            check_data_in_datastore(host, [ipv6_pool_dict], "pool")
+            self.check_data_in_datastore(host, [ipv6_pool_dict], "pool")
 
             # Add in the ipv4 network with Go calicoctl
             host.calicoctl("create -f ipv4.yaml", new=True)
@@ -173,7 +87,7 @@ class TestPool(TestBase):
             self.assertIn("ipip", pool_out)
 
             # Now read it out with the Go calicoctl too:
-            check_data_in_datastore(
+            self.check_data_in_datastore(
                 host, [ipv4_pool_dict, ipv6_pool_dict], "pool")
 
             # Remove both the ipv4 pool and ipv6 pool
@@ -185,7 +99,7 @@ class TestPool(TestBase):
             self.assertNotIn(str(ipv6_net), pool_out)
             self.assertNotIn("ipip", pool_out)
             # Now read it out with the Go calicoctl too:
-            check_data_in_datastore(host, [], "pool")
+            self.check_data_in_datastore(host, [], "pool")
 
             # Assert that deleting the pool again fails.
             self.assertRaises(CommandExecError,
@@ -244,7 +158,8 @@ class TestCreateFromFile(TestBase):
                      'metadata': {'name': 'policy1', 'tier': ''},
                      'spec': {'egress': [{'action': 'allow',
                                           'source': {
-                                              'selector': "type=='application'"},
+                                              'selector':
+                                                  "type=='application'"},
                                           'destination': {},
                                           }],
                               'ingress': [{'!icmp': {'type': 19, 'code': 255},
@@ -257,19 +172,22 @@ class TestCreateFromFile(TestBase):
                                                '!tag': "bananas",
                                                'net': '10.2.0.0/16',
                                                'ports': ['100:200'],
-                                               'selector': "type=='application'",
+                                               'selector':
+                                                   "type=='application'",
                                                'tag': 'alphatag'},
                                            'icmp': {'type': 10, 'code': 6},
                                            'protocol': 'tcp',
-                                           'source': {'!net': '10.1.0.0/16',
-                                                      '!ports': [1050],
-                                                      '!selector': "type=='database'",
-                                                      '!tag': 'bartag',
-                                                      'net': '10.0.0.0/16',
-                                                      'ports': [1234,
-                                                                '10:1024'],
-                                                      'selector': "type=='application'",
-                                                      'tag': 'footag'}}],
+                                           'source': {
+                                               '!net': '10.1.0.0/16',
+                                               '!ports': [1050],
+                                               '!selector': "type=='database'",
+                                               '!tag': 'bartag',
+                                               'net': '10.0.0.0/16',
+                                               'ports': [1234,
+                                                         '10:1024'],
+                                               'selector':
+                                                   "type=='application'",
+                                               'tag': 'footag'}}],
                               'order': 100,
                               'selector': "type=='database'"}}),
         ("policy2", {'apiVersion': 'v1',
@@ -320,14 +238,15 @@ class TestCreateFromFile(TestBase):
                                            'tag': 'alphatag'},
                                        'icmp': {'type': 10, 'code': 6},
                                        'protocol': 'tcp',
-                                       'source': {'!net': '10.1.0.0/16',
-                                                  '!ports': [1050],
-                                                  '!selector': "type=='database'",
-                                                  '!tag': 'bartag',
-                                                  'net': '10.0.0.0/16',
-                                                  'ports': [1234, '10:20'],
-                                                  'selector': "type=='application'",
-                                                  'tag': "production"}}],
+                                       'source': {
+                                           '!net': '10.1.0.0/16',
+                                           '!ports': [1050],
+                                           '!selector': "type=='database'",
+                                           '!tag': 'bartag',
+                                           'net': '10.0.0.0/16',
+                                           'ports': [1234, '10:20'],
+                                           'selector': "type=='application'",
+                                           'tag': "production"}}],
                           'tags': ['tag1', 'tag2s']}}),
         ("profile2", {'apiVersion': 'v1',
                       'kind': 'profile',
@@ -342,66 +261,64 @@ class TestCreateFromFile(TestBase):
                                        'source': {}}],
                           'tags': ['tag1', 'tag2s']}}),
     ]
+
     @parameterized.expand(testdata)
     def test_create_from_file_yaml(self, name, data):
         with DockerHost('host', dind=False, start_calico=False) as host:
             res_type = data['kind']
             logger.debug("Testing %s" % res_type)
-            set_up()
             # Write out the files to load later
-            writeyaml('%s-1.yaml' % res_type, data)
+            self.writeyaml('%s-1.yaml' % res_type, data)
 
             host.calicoctl("create -f %s-1.yaml" % res_type, new=True)
             # Test use of create with stdin
 
             # Check both come out OK in yaml:
-            check_data_in_datastore(
+            self.check_data_in_datastore(
                 host, [data], res_type)
 
             # Check both come out OK in json:
-            check_data_in_datastore(
+            self.check_data_in_datastore(
                 host, [data], res_type, yaml_format=False)
 
             # Tidy up
             host.calicoctl("delete -f %s-1.yaml" % res_type, new=True)
 
             # Check it deleted
-            check_data_in_datastore(host, [], res_type)
+            self.check_data_in_datastore(host, [], res_type)
 
     @parameterized.expand(testdata)
     def test_create_from_file_json(self, name, data):
         with DockerHost('host', dind=False, start_calico=False) as host:
             res_type = data['kind']
             logger.debug("Testing %s" % res_type)
-            set_up()
             # Write out the files to load later
-            writejson('%s-1.json' % res_type, data)
+            self.writejson('%s-1.json' % res_type, data)
 
             host.calicoctl("create -f %s-1.json" % res_type, new=True)
             # Test use of create with stdin
 
             # Check both come out OK in yaml:
-            check_data_in_datastore(
+            self.check_data_in_datastore(
                 host, [data], res_type)
 
             # Check both come out OK in json:
-            check_data_in_datastore(
+            self.check_data_in_datastore(
                 host, [data], res_type, yaml_format=False)
 
             # Tidy up
             host.calicoctl("delete -f %s-1.json" % res_type, new=True)
 
             # Check it deleted
-            check_data_in_datastore(host, [], res_type)
+            self.check_data_in_datastore(host, [], res_type)
 
     @parameterized.expand(testdata)
     def test_create_from_stdin_json(self, name, data):
         with DockerHost('host', dind=False, start_calico=False) as host:
             res_type = data['kind']
             logger.debug("Testing %s" % res_type)
-            set_up()
             # Write out the files to load later
-            writejson('%s-1.json' % res_type, data)
+            self.writejson('%s-1.json' % res_type, data)
 
             # Test use of create with stdin
             host.execute(
@@ -409,27 +326,26 @@ class TestCreateFromFile(TestBase):
                 res_type)
 
             # Check both come out OK in yaml:
-            check_data_in_datastore(
+            self.check_data_in_datastore(
                 host, [data], res_type)
 
             # Check both come out OK in json:
-            check_data_in_datastore(
+            self.check_data_in_datastore(
                 host, [data], res_type, yaml_format=False)
 
             # Tidy up
             host.calicoctl("delete -f %s-1.json" % res_type, new=True)
 
             # Check it deleted
-            check_data_in_datastore(host, [], res_type)
+            self.check_data_in_datastore(host, [], res_type)
 
     @parameterized.expand(testdata)
     def test_create_from_stdin_yaml(self, name, data):
         with DockerHost('host', dind=False, start_calico=False) as host:
             res_type = data['kind']
             logger.debug("Testing %s" % res_type)
-            set_up()
             # Write out the files to load later
-            writeyaml('%s-1.yaml' % res_type, data)
+            self.writeyaml('%s-1.yaml' % res_type, data)
 
             # Test use of create with stdin
             host.execute(
@@ -437,18 +353,18 @@ class TestCreateFromFile(TestBase):
                 res_type)
 
             # Check both come out OK in yaml:
-            check_data_in_datastore(
+            self.check_data_in_datastore(
                 host, [data], res_type)
 
             # Check both come out OK in yaml:
-            check_data_in_datastore(
+            self.check_data_in_datastore(
                 host, [data], res_type, yaml_format=False)
 
             # Tidy up
             host.calicoctl("delete -f %s-1.yaml" % res_type, new=True)
 
             # Check it deleted
-            check_data_in_datastore(host, [], res_type)
+            self.check_data_in_datastore(host, [], res_type)
 
     @parameterized.expand([
         ("bgpPeer",
@@ -601,10 +517,9 @@ class TestCreateFromFile(TestBase):
     def test_create_from_file(self, res, data1, data2):
         with DockerHost('host', dind=False, start_calico=False) as host:
             logger.debug("Testing %s" % res)
-            set_up()
             # Write out the files to load later
-            writeyaml('%s-1.yaml' % res, data1)
-            writejson('%s-2.json' % res, data2)
+            self.writeyaml('%s-1.yaml' % res, data1)
+            self.writejson('%s-2.json' % res, data2)
 
             host.calicoctl("create -f %s-1.yaml" % res, new=True)
             # Test use of create with stdin
@@ -612,11 +527,11 @@ class TestCreateFromFile(TestBase):
                 "cat %s-2.json | /code/dist/calicoctl.go create -f -" % res)
 
             # Check both come out OK in yaml:
-            check_data_in_datastore(
+            self.check_data_in_datastore(
                 host, [data1, data2], res)
 
             # Check both come out OK in json:
-            check_data_in_datastore(
+            self.check_data_in_datastore(
                 host, [data1, data2], res, yaml_format=False)
 
             # Tidy up
@@ -624,7 +539,7 @@ class TestCreateFromFile(TestBase):
             host.calicoctl("delete -f %s-2.json" % res, new=True)
 
             # Check it deleted
-            check_data_in_datastore(host, [], res)
+            self.check_data_in_datastore(host, [], res)
 
     @parameterized.expand([
         ("bgpPeer",
@@ -766,33 +681,32 @@ class TestCreateFromFile(TestBase):
         """
         with DockerHost('host', dind=False, start_calico=False) as host:
             logger.debug("Testing %s" % res)
-            set_up()
 
             # Write test data files for loading later
-            writeyaml('data1.yaml', data1)
-            writejson('data2.json', data2)
+            self.writeyaml('data1.yaml', data1)
+            self.writejson('data2.json', data2)
 
             # apply - create when not present
             host.calicoctl("apply -f data1.yaml", new=True)
             # Check it went in OK
-            check_data_in_datastore(host, [data1], res)
+            self.check_data_in_datastore(host, [data1], res)
 
             # create - skip overwrite with data2
             host.calicoctl("create -f data2.json -s", new=True)
             # Check that nothing's changed
-            check_data_in_datastore(host, [data1], res)
+            self.check_data_in_datastore(host, [data1], res)
 
             # replace - overwrite with data2
             host.calicoctl("replace -f data2.json", new=True)
             # Check that we now have data2 in the datastore
-            check_data_in_datastore(host, [data2], res)
+            self.check_data_in_datastore(host, [data2], res)
 
             # apply - overwrite with data1
             host.calicoctl("apply -f data1.yaml", new=True)
             # Check that we now have data1 in the datastore
-            check_data_in_datastore(host, [data1], res)
+            self.check_data_in_datastore(host, [data1], res)
 
             # delete
             host.calicoctl("delete --filename=data1.yaml", new=True)
             # Check it deleted
-            check_data_in_datastore(host, [], res)
+            self.check_data_in_datastore(host, [], res)
