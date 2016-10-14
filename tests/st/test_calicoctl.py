@@ -19,6 +19,7 @@ from deepdiff import DeepDiff
 from pprint import pformat
 import subprocess
 
+from nose_parameterized import parameterized
 from tests.st.utils.utils import (get_ip, ETCD_SCHEME, ETCD_CA, ETCD_CERT,
                                   ETCD_KEY, ETCD_HOSTNAME_SSL)
 from tests.st.test_base import TestBase
@@ -191,7 +192,7 @@ class TestPool(TestBase):
                               host.calicoctl, "delete -f ipv4.yaml", new=True)
 
 
-class TestCreateFromFile(object):
+class TestCreateFromFile(TestBase):
     """
     Test calicoctl create command
 
@@ -201,291 +202,157 @@ class TestCreateFromFile(object):
     in both yaml and json formats.
     """
 
-    def test_create_from_file(self):
-        testdata = {
-            "bgpPeer": (
-                {
-                    'apiVersion': 'v1',
-                    'kind': 'bgpPeer',
-                    'metadata': {'hostname': 'Node1',
-                                 'peerIP': '192.168.0.250',
-                                 'scope': 'node'},
-                    'spec': {'asNumber': 64514}
-                },
-                {
-                    'apiVersion': 'v1',
-                    'kind': 'bgpPeer',
-                    'metadata': {'hostname': 'Node2',
-                                 'peerIP': 'fd5f::6:ee',
-                                 'scope': 'node'},
-                    'spec': {'asNumber': 64590}
-                }
-            ),
-            "hostEndpoint": (
-                {
-                    'apiVersion': 'v1',
-                    'kind': 'hostEndpoint',
-                    'metadata': {'hostname': 'host1',
-                                 'labels': {'type': 'database'},
-                                 'name': 'endpoint1'},
-                    'spec': {'interfaceName': 'eth0',
-                             'profiles': ['prof1',
-                                          'prof2']}
-                },
-                {
-                    'apiVersion': 'v1',
-                    'kind': 'hostEndpoint',
-                    'metadata': {'hostname': 'host2',
-                                 'labels': {'type': 'frontend'},
-                                 'name': 'endpoint2'},
-                    'spec': {'interfaceName': 'cali7',
-                             'profiles': ['prof1',
-                                          'prof2']}
-                },
-            ),
-            "policy": (
-                {'apiVersion': 'v1',
-                 'kind': 'policy',
-                 'metadata': {'name': 'policy1'},
-                 'spec': {'egress': [{'action': 'deny',
-                                      'protocol': 'tcp',
-                                      'source': {
-                                          '!net': 'aa:bb:cc:ff::/100',
-                                          '!ports': [100],
-                                          '!selector': '',
-                                          '!tag': 'abcd'}}],
-                          'ingress': [{'action': 'nextTier',
-                                       'destination': {
-                                           'net': '10.20.30.40/32',
-                                           'ports': None,
-                                           'selector': '',
-                                           'tag': 'database'},
-                                       'icmp': {'code': 100,
-                                                'type': 10},
-                                       'protocol': 'udp',
-                                       'source': {
-                                           'net': '1.2.0.0/16',
-                                           'ports': [1, 2, 3, 4],
-                                           'selector': '',
-                                           'tag': 'web'}}],
-                          'order': 6543215.321,
-                          'selector': ''}},
-                {'apiVersion': 'v1',
-                 'kind': 'policy',
-                 'metadata': {'name': 'policy2'},
-                 'spec': {'egress': [{'action': 'deny',
-                                      'protocol': 'tcp',
-                                      'source': {
-                                          '!net': 'aa:bb:cc::/100',
-                                          '!ports': [100],
-                                          '!selector': "",
-                                          '!tag': 'abcd'}}],
-                          'ingress': [{'action': 'nextTier',
-                                       'destination': {
-                                           'net': '10.20.30.40/32',
-                                           'ports': None,
-                                           'selector': "",
-                                           'tag': 'database'},
-                                       'icmp': {'code': 100,
-                                                'type': 10},
-                                       'protocol': 'udp',
-                                       'source': {
-                                           'net': '1.2.3.0/24',
-                                           'ports': [1, 2, 3, 4],
-                                           'selector': "",
-                                           'tag': 'web'}}],
-                          'order': 100000,
-                          'selector': ""}},
-            ),
-            "pool": (
-                {'apiVersion': 'v1',
-                 'kind': 'pool',
-                 'metadata': {'cidr': "10.0.1.0/24"},
-                 'spec': {'ipip': {'enabled': True}}
-                 },
-                {'apiVersion': 'v1',
-                 'kind': 'pool',
-                 'metadata': {'cidr': "10.0.2.0/24"},
-                 'spec': {'ipip': {'enabled': True}}
-                 },
-            ),
-            "profile": (
-                {'apiVersion': 'v1',
-                 'kind': 'profile',
-                 'metadata': {'name': 'profile1'},
-                 'spec': {'labels': {'type': 'database'},
-                          'rules': {
-                              'egress': [{'action': 'deny'}],
-                              'ingress': [{'action': 'deny'}]},
-                          'tags': ['a', 'b', 'c', 'a1']}
-                 },
-                {'apiVersion': 'v1',
-                 'kind': 'profile',
-                 'metadata': {'name': 'profile2'},
-                 'spec': {'labels': {'type': 'frontend'},
-                          'rules': {
-                              'egress': [{'action': 'deny'}],
-                              'ingress': [{'action': 'deny'}]},
-                          'tags': ['a', 'b', 'c', 'a1']}
-                 },
-            )
-        }
-
-        for res in testdata.keys():
-            def testcase(): self._create_runner(res, testdata[res])
-
-            testcase.description = "Create %s from file" % res
-            yield testcase
-
-    def test_apply_create_replace(self):
-        """
-        Test calicoctl create/apply/replace/delete commands.
-
-        Test data is a pair of resource objects - both are the same object,
-        but the details differ in some way to simulate a user updating the
-        object.
-        """
-        testdata = {
-            "bgpPeer": (
-                {
-                    'apiVersion': 'v1',
-                    'kind': 'bgpPeer',
-                    'metadata': {'hostname': 'Node1',
-                                 'peerIP': '192.168.0.250',
-                                 'scope': 'node'},
-                    'spec': {'asNumber': 64514}
-                },
-                {
-                    'apiVersion': 'v1',
-                    'kind': 'bgpPeer',
-                    'metadata': {'hostname': 'Node1',
-                                 'peerIP': '192.168.0.250',
-                                 'scope': 'node'},
-                    'spec': {'asNumber': 64590}
-                }
-            ),
-            "hostEndpoint": (
-                {
-                    'apiVersion': 'v1',
-                    'kind': 'hostEndpoint',
-                    'metadata': {'hostname': 'host1',
-                                 'labels': {'type': 'database'},
-                                 'name': 'endpoint1'},
-                    'spec': {'interfaceName': 'eth0',
-                             'profiles': ['prof1',
-                                          'prof2']}
-                },
-                {
-                    'apiVersion': 'v1',
-                    'kind': 'hostEndpoint',
-                    'metadata': {'hostname': 'host1',
-                                 'labels': {'type': 'frontend'},
-                                 'name': 'endpoint1'},
-                    'spec': {'interfaceName': 'cali7',
-                             'profiles': ['prof1',
-                                          'prof2']}
-                },
-            ),
-            "policy": (
-                {'apiVersion': 'v1',
-                 'kind': 'policy',
-                 'metadata': {'name': 'policy1'},
-                 'spec': {'egress': [{'action': 'deny',
-                                      'protocol': 'tcp',
-                                      'source': {
-                                          '!net': 'aa:bb:cc:ff::/100',
-                                          '!ports': [100],
-                                          '!selector': '',
-                                          '!tag': 'abcd'}}],
-                          'ingress': [{'action': 'nextTier',
-                                       'destination': {
-                                           'net': '10.20.30.40/32',
-                                           'ports': None,
-                                           'selector': '',
-                                           'tag': 'database'},
-                                       'icmp': {'code': 100,
-                                                'type': 10},
-                                       'protocol': 'udp',
-                                       'source': {
-                                           'net': '1.2.0.0/16',
-                                           'ports': [1, 2, 3, 4],
-                                           'selector': '',
-                                           'tag': 'web'}}],
-                          'order': 6543215.321,
-                          'selector': ''}},
-                {'apiVersion': 'v1',
-                 'kind': 'policy',
-                 'metadata': {'name': 'policy1'},
-                 'spec': {'egress': [{'action': 'deny',
-                                      'protocol': 'tcp',
-                                      'source': {
-                                          '!net': 'aa:bb:cc::/100',
-                                          '!ports': [100],
-                                          '!selector': "",
-                                          '!tag': 'abcd'}}],
-                          'ingress': [{'action': 'nextTier',
-                                       'destination': {
-                                           'net': '10.20.30.40/32',
-                                           'ports': None,
-                                           'selector': "",
-                                           'tag': 'database'},
-                                       'icmp': {'code': 100,
-                                                'type': 10},
-                                       'protocol': 'udp',
-                                       'source': {
-                                           'net': '1.2.3.0/24',
-                                           'ports': [1, 2, 3, 4],
-                                           'selector': "",
-                                           'tag': 'web'}}],
-                          'order': 100000,
-                          'selector': ""}},
-            ),
-            "pool": (
-                {'apiVersion': 'v1',
-                 'kind': 'pool',
-                 'metadata': {'cidr': "10.0.1.0/24"},
-                 'spec': {}
-                 },
-                {'apiVersion': 'v1',
-                 'kind': 'pool',
-                 'metadata': {'cidr': "10.0.1.0/24"},
-                 'spec': {'ipip': {'enabled': True}}
-                 },
-            ),
-            "profile": (
-                {'apiVersion': 'v1',
-                 'kind': 'profile',
-                 'metadata': {'name': 'profile1'},
-                 'spec': {'labels': {'type': 'database'},
-                          'rules': {
-                              'egress': [{'action': 'deny'}],
-                              'ingress': [{'action': 'deny'}]},
-                          'tags': ['a', 'b', 'c', 'a1']}
-                 },
-                {'apiVersion': 'v1',
-                 'kind': 'profile',
-                 'metadata': {'name': 'profile1'},
-                 'spec': {'labels': {'type': 'frontend'},
-                          'rules': {
-                              'egress': [{'action': 'deny'}],
-                              'ingress': [{'action': 'deny'}]},
-                          'tags': ['d', 'e', 'f', 'a1']}
-                 },
-            )
-        }
-
-        for res in testdata.keys():
-            def testcase(): self._apply_create_replace(res, testdata[res])
-
-            testcase.description = "apply/create/replace %s from file" % res
-            yield testcase
-
-    @staticmethod
-    def _create_runner(res, testdata):
+    @parameterized.expand([
+        ("bgpPeer",
+         {
+             'apiVersion': 'v1',
+             'kind': 'bgpPeer',
+             'metadata': {'hostname': 'Node1',
+                          'peerIP': '192.168.0.250',
+                          'scope': 'node'},
+             'spec': {'asNumber': 64514}
+         },
+         {
+             'apiVersion': 'v1',
+             'kind': 'bgpPeer',
+             'metadata': {'hostname': 'Node2',
+                          'peerIP': 'fd5f::6:ee',
+                          'scope': 'node'},
+             'spec': {'asNumber': 64590}
+         }
+         ),
+        ("hostEndpoint",
+         {
+             'apiVersion': 'v1',
+             'kind': 'hostEndpoint',
+             'metadata': {'hostname': 'host1',
+                          'labels': {'type': 'database'},
+                          'name': 'endpoint1'},
+             'spec': {'interfaceName': 'eth0',
+                      'profiles': ['prof1',
+                                   'prof2']}
+         },
+         {
+             'apiVersion': 'v1',
+             'kind': 'hostEndpoint',
+             'metadata': {'hostname': 'host2',
+                          'labels': {'type': 'frontend'},
+                          'name': 'endpoint2'},
+             'spec': {'interfaceName': 'cali7',
+                      'profiles': ['prof1',
+                                   'prof2']}
+         },
+         ),
+        ("policy",
+         {'apiVersion': 'v1',
+          'kind': 'policy',
+          'metadata': {'name': 'policy1', 'tier': ''},
+          'spec': {'egress': [{'action': 'allow',
+                               'source': {
+                                   'selector': "type=='application'"},
+                               'destination': {},
+                               }],
+                   'ingress': [{'!icmp': {'type': 19, 'code': 255},
+                                'ipVersion': 4,
+                                'action': 'deny',
+                                'destination': {'!net': '10.3.0.0/16',
+                                                '!ports': ['110:1050'],
+                                                '!selector': "type=='apples'",
+                                                '!tag': "bananas",
+                                                'net': '10.2.0.0/16',
+                                                'ports': ['100:200'],
+                                                'selector': "type=='application'",
+                                                'tag': 'alphatag'},
+                                'icmp': {'type': 10, 'code': 6},
+                                'protocol': 'tcp',
+                                'source': {'!net': '10.1.0.0/16',
+                                           '!ports': [1050],
+                                           '!selector': "type=='database'",
+                                           '!tag': 'bartag',
+                                           'net': '10.0.0.0/16',
+                                           'ports': [1234, '10:1024'],
+                                           'selector': "type=='application'",
+                                           'tag': 'footag'}}],
+                   'order': 100,
+                   'selector': "type=='database'"}},
+         {'apiVersion': 'v1',
+          'kind': 'policy',
+          'metadata': {'name': 'policy2',
+                       'tier': ''
+                       },
+          'spec': {'egress': [{'action': 'deny',
+                               'destination': {},
+                               'protocol': 'tcp',
+                               'source': {}}],
+                   'ingress': [{'action': 'nextTier',
+                                'destination': {},
+                                'protocol': 'udp',
+                                'source': {}}],
+                   'order': 100000,
+                   'selector': ""}},
+         ),
+        ("pool",
+         {'apiVersion': 'v1',
+          'kind': 'pool',
+          'metadata': {'cidr': "10.0.1.0/24"},
+          'spec': {'ipip': {'enabled': True}}
+          },
+         {'apiVersion': 'v1',
+          'kind': 'pool',
+          'metadata': {'cidr': "10.0.2.0/24"},
+          'spec': {'ipip': {'enabled': True}}
+          },
+         ),
+        ("profile",
+         {'apiVersion': 'v1',
+          'kind': 'profile',
+          'metadata': {'labels': {'foo': 'bar'}, 'name': 'profile1'},
+          'spec': {
+              'egress': [{'action': 'allow',
+                          'destination': {},
+                          'source': {
+                              'selector': "type=='application'"}}],
+              'ingress': [{'!icmp': {'type': 19, 'code': 255},
+                           'ipVersion': 4,
+                           'action': 'deny',
+                           'destination': {
+                               '!net': '10.3.0.0/16',
+                               '!ports': ['110:1050'],
+                               '!selector': "type=='apples'",
+                               '!tag': "bananas",
+                               'net': '10.2.0.0/16',
+                               'ports': ['100:200'],
+                               'selector': "type=='application'",
+                               'tag': 'alphatag'},
+                           'icmp': {'type': 10, 'code': 6},
+                           'protocol': 'tcp',
+                           'source': {'!net': '10.1.0.0/16',
+                                      '!ports': [1050],
+                                      '!selector': "type=='database'",
+                                      '!tag': 'bartag',
+                                      'net': '10.0.0.0/16',
+                                      'ports': [1234, '10:20'],
+                                      'selector': "type=='application'",
+                                      'tag': "production"}}],
+              'tags': ['tag1', 'tag2s']}},
+         {'apiVersion': 'v1',
+          'kind': 'profile',
+          'metadata': {'name': 'profile2'},
+          'spec': {
+              'egress': [{'action': 'allow',
+                          'destination': {},
+                          'source': {}}],
+              'ingress': [{'ipVersion': 6,
+                           'action': 'deny',
+                           'destination': {},
+                           'source': {}}],
+              'tags': ['tag1', 'tag2s']}},
+         )
+    ])
+    def test_create_from_file(self, res, data1, data2):
         with DockerHost('host', dind=False, start_calico=False) as host:
             logger.debug("Testing %s" % res)
             set_up()
-            data1, data2 = testdata
             # Write out the files to load later
             writeyaml('%s-1.yaml' % res, data1)
             writejson('%s-2.json' % res, data2)
@@ -493,7 +360,7 @@ class TestCreateFromFile(object):
             host.calicoctl("create -f %s-1.yaml" % res, new=True)
             # Test use of create with stdin
             host.execute(
-                "cat %s-2.json | /code/dist/calicoctl create -f -" % res)
+                "cat %s-2.json | /code/dist/calicoctl.go create -f -" % res)
 
             # Check both come out OK in yaml:
             check_data_in_datastore(
@@ -510,15 +377,147 @@ class TestCreateFromFile(object):
             # Check it deleted
             check_data_in_datastore(host, [], res)
 
-    @staticmethod
-    def _apply_create_replace(res, testdata):
+    @parameterized.expand([
+        ("bgpPeer",
+         {
+             'apiVersion': 'v1',
+             'kind': 'bgpPeer',
+             'metadata': {'hostname': 'Node1',
+                          'peerIP': '192.168.0.250',
+                          'scope': 'node'},
+             'spec': {'asNumber': 64514}
+         },
+         {
+             'apiVersion': 'v1',
+             'kind': 'bgpPeer',
+             'metadata': {'hostname': 'Node1',
+                          'peerIP': '192.168.0.250',
+                          'scope': 'node'},
+             'spec': {'asNumber': 64590}
+         }
+         ),
+        ("hostEndpoint",
+         {
+             'apiVersion': 'v1',
+             'kind': 'hostEndpoint',
+             'metadata': {'hostname': 'host1',
+                          'labels': {'type': 'database'},
+                          'name': 'endpoint1'},
+             'spec': {'interfaceName': 'eth0',
+                      'profiles': ['prof1',
+                                   'prof2']}
+         },
+         {
+             'apiVersion': 'v1',
+             'kind': 'hostEndpoint',
+             'metadata': {'hostname': 'host1',
+                          'labels': {'type': 'frontend'},
+                          'name': 'endpoint1'},
+             'spec': {'interfaceName': 'cali7',
+                      'profiles': ['prof1',
+                                   'prof2']}
+         },
+         ),
+        ("policy",
+         {'apiVersion': 'v1',
+          'kind': 'policy',
+          'metadata': {'name': 'policy1', 'tier': ''},
+          'spec': {'egress': [{'action': 'deny',
+                               'protocol': 'tcp',
+                               'destination': {},
+                               'source': {
+                                   '!net': 'aa:bb:cc:ff::/100',
+                                   '!ports': [100],
+                                   '!tag': 'abcd'}}],
+                   'ingress': [{'action': 'nextTier',
+                                'destination': {
+                                    'net': '10.20.30.40/32',
+                                    'tag': 'database'},
+                                'icmp': {'code': 100,
+                                         'type': 10},
+                                'protocol': 'udp',
+                                'source': {
+                                    'net': '1.2.0.0/16',
+                                    'ports': [1, 2, 3, 4],
+                                    'tag': 'web'}}],
+                   'order': 6543215.321,
+                   'selector': ''}},
+         {'apiVersion': 'v1',
+          'kind': 'policy',
+          'metadata': {'name': 'policy1', 'tier': ''},
+          'spec': {'egress': [{'action': 'deny',
+                               'protocol': 'tcp',
+                               'destination': {},
+                               'source': {
+                                   '!net': 'aa:bb:cc::/100',
+                                   '!ports': [100],
+                                   '!tag': 'abcd'}}],
+                   'ingress': [{'action': 'nextTier',
+                                'destination': {
+                                    'net': '10.20.30.40/32',
+                                    'tag': 'database'},
+                                'icmp': {'code': 100,
+                                         'type': 10},
+                                'protocol': 'udp',
+                                'source': {
+                                    'net': '1.2.3.0/24',
+                                    'ports': [1, 2, 3, 4],
+                                    'tag': 'web'}}],
+                   'order': 100000,
+                   'selector': ""}},
+         ),
+        ("pool",
+         {'apiVersion': 'v1',
+          'kind': 'pool',
+          'metadata': {'cidr': "10.0.1.0/24"},
+          'spec': {}
+          },
+         {'apiVersion': 'v1',
+          'kind': 'pool',
+          'metadata': {'cidr': "10.0.1.0/24"},
+          'spec': {'ipip': {'enabled': True}}
+          },
+         ),
+        ("profile",
+         {'apiVersion': 'v1',
+          'kind': 'profile',
+          'metadata': {'name': 'profile1', 'labels': {'type': 'database'}},
+          'spec': {
+              'egress': [{
+                  'source': {},
+                  'destination': {},
+                  'action': 'deny'}],
+              'ingress': [{
+                  'source': {},
+                  'destination': {},
+                  'action': 'deny'}],
+              'tags': ['a', 'b', 'c', 'a1']}, },
+         {'apiVersion': 'v1',
+          'kind': 'profile',
+          'metadata': {'labels': {'type': 'frontend'}, 'name': 'profile1'},
+          'spec': {
+              'egress': [{
+                  'source': {},
+                  'destination': {},
+                  'action': 'deny'}],
+              'ingress': [{
+                  'source': {},
+                  'destination': {},
+                  'action': 'deny'}],
+              'tags': ['d', 'e', 'f', 'a1']}},
+         )
+    ])
+    def test_apply_create_replace(self, res, data1, data2):
         """
-        Basic check that apply, create and replace commands work correctly.
+        Test calicoctl create/apply/replace/delete commands.
+
+        Test data is a pair of resource objects - both are the same object,
+        but the details differ in some way to simulate a user updating the
+        object.
         """
         with DockerHost('host', dind=False, start_calico=False) as host:
             logger.debug("Testing %s" % res)
             set_up()
-            data1, data2 = testdata
 
             # Write test data files for loading later
             writeyaml('data1.yaml', data1)
