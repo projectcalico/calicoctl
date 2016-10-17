@@ -6,6 +6,10 @@ BUILD_CONTAINER_MARKER=calicoctl_build_container.created
 NODE_CONTAINER_DIR=calico_node
 NODE_CONTAINER_FILES=$(shell find calico_node/ -type f ! -name '*.created')
 
+# These variables can be overridden by setting an environment variable.
+LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
+HOST_CHECKOUT_DIR?=$(shell pwd)
+
 default: binary node_image
 all: test
 test: ut
@@ -18,7 +22,7 @@ binary: dist/calicoctl
 ut: binary
 	./run-uts
 
-st: run-etcd dist/calicoctl busybox.tar routereflector.tar calico-node.tar
+st: run-etcd dist/calicoctl busybox.tgz routereflector.tgz calico-node.tgz calico-node-libnetwork.tgz
 	# Use the host, PID and network namespaces from the host.
 	# Privileged is needed since 'calico node' write to /proc (to enable ip_forwarding)
 	# Map the docker socket in so docker can be used from inside the container
@@ -37,16 +41,20 @@ st: run-etcd dist/calicoctl busybox.tar routereflector.tar calico-node.tar
 	           calico/test \
 	           sh -c 'cp -ra tests/st/* /tests/st && cd / && nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer $(ST_OPTIONS)'
 
-calico-node.tar: $(NODE_CONTAINER_CREATED)
-	docker save --output $@ calico/node:latest
+calico-node.tgz:
+	docker save calico/node:latest | gzip -c > calico-node.tgz
 
-busybox.tar:
+busybox.tgz:
 	docker pull busybox:latest
-	docker save --output busybox.tar busybox:latest
+	docker save busybox:latest | gzip -c > busybox.tgz
 
-routereflector.tar:
+calico-node-libnetwork.tgz:
+	docker pull calico/node-libnetwork:latest
+	docker save calico/node-libnetwork:latest | gzip -c > calico-node-libnetwork.tgz
+
+routereflector.tgz:
 	docker pull calico/routereflector:latest
-	docker save --output routereflector.tar calico/routereflector:latest
+	docker calico/routereflector:latest | gzip -c > routereflector.tgz
 
 semaphore: st
 
@@ -54,8 +62,9 @@ force:
 	true
 
 dist/calicoctl: force
-	mkdir -p dist
-	go build -o dist/calicoctl "./calicoctl/calicoctl.go"
+	#mkdir -p dist
+	#go build -o dist/calicoctl "./calicoctl/calicoctl.go"
+	cp ../libcalico-go/bin/calicoctl dist/calicoctl.go
 
 release/calicoctl: force
 	mkdir -p release
@@ -89,10 +98,10 @@ $(BUILD_CONTAINER_MARKER): Dockerfile.build
 run-etcd:
 	@-docker rm -f calico-etcd
 	docker run --detach \
-	-p 2379:2379 \
+	--net=host \
 	--name calico-etcd quay.io/coreos/etcd:v2.3.6 \
-	--advertise-client-urls "http://127.0.0.1:2379,http://127.0.0.1:4001" \
-	--listen-client-urls "http://0.0.0.0:2379,http://0.0.0.0:4001"
+	--advertise-client-urls "http://$(LOCAL_IP_ENV):2379,http://127.0.0.1:2379" \
+	--listen-client-urls "http://0.0.0.0:2379"
 
 calico_node/.calico_node.created: $(NODE_CONTAINER_FILES)
 	cd calico_node && docker build -t calico/node:latest .
