@@ -40,7 +40,13 @@ else:
 
 
 class MultiHostMainline(TestBase):
-    def test_multi_host(self):
+    @parameterized.expand([
+        "tags",
+        "rules.tags",
+        "rules.protocol.icmp",
+        "rules.ip.addr",
+    ])
+    def test_multi_host(self, test_type):
         """
         Run a mainline multi-host test.
         Because multihost tests are slow to setup, this tests most mainline
@@ -53,7 +59,6 @@ class MultiHostMainline(TestBase):
         - Check that hosts on the same network can ping each other.
         - Check that hosts on different networks cannot ping each other.
         """
-        test_type = "rules.ip.addr"
         with DockerHost("host1",
                         additional_docker_options=ADDITIONAL_DOCKER_OPTIONS,
                         post_docker_commands=POST_DOCKER_COMMANDS,
@@ -62,7 +67,8 @@ class MultiHostMainline(TestBase):
                            additional_docker_options=ADDITIONAL_DOCKER_OPTIONS,
                            post_docker_commands=POST_DOCKER_COMMANDS,
                            start_calico=False) as host2:
-            (n1_workloads, n2_workloads) = self._setup_workloads(host1, host2)
+            (n1_workloads, n2_workloads, networks) = \
+                self._setup_workloads(host1, host2)
 
             # Get the original profiles:
             output = host1.calicoctl("get profile -o yaml", new=True)
@@ -135,7 +141,14 @@ class MultiHostMainline(TestBase):
             host1.calicoctl("get profile -o yaml", new=True)
             self._check_original_connectivity(n1_workloads, n2_workloads)
 
-    def _apply_new_profile(self, new_profile, host):
+            # Tidy up
+            host1.remove_workloads()
+            host2.remove_workloads()
+            for network in networks:
+                network.delete()
+
+    @staticmethod
+    def _apply_new_profile(new_profile, host):
         # Apply new profiles
         host.writefile("new_profiles",
                        yaml.dump(new_profile, default_flow_style=False))
@@ -151,6 +164,7 @@ class MultiHostMainline(TestBase):
         # other using the Calico driver.
         network1 = host1.create_network("testnet1", ipam_driver="calico")
         network2 = host1.create_network("testnet2", ipam_driver="calico")
+        networks = [network1, network2]
 
         # Assert that the networks can be seen on host2
         assert_network(host2, network2)
@@ -192,7 +206,7 @@ class MultiHostMainline(TestBase):
         self.assertRaises(CommandExecError, network1.delete)
         self.assertRaises(CommandExecError, network2.delete)
 
-        return n1_workloads, n2_workloads
+        return n1_workloads, n2_workloads, networks
 
     def _check_original_connectivity(self, n1_workloads, n2_workloads):
         # Assert that workloads can communicate with each other on network
@@ -215,4 +229,3 @@ class InvalidData(TestBase):
         with DockerHost('host', dind=False, start_calico=False) as host:
             host.writefile("testfile.yaml", testdata)
             host.calicoctl("create -f testfile.yaml", new=True)
-
