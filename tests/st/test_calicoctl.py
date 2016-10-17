@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
 import logging
+import yaml
 from unittest import skip
 
 from netaddr import IPNetwork
@@ -25,7 +27,6 @@ logging.basicConfig(level=logging.DEBUG, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 
-@skip("LR2: remove this skip")
 class TestPool(TestBase):
     """
     Test calicoctl pool
@@ -38,6 +39,7 @@ class TestPool(TestBase):
 
     """
 
+    @skip('LR2 - remove this skip')
     def test_pool_crud(self):
         """
         Test that a basic CRUD flow for pool commands works.
@@ -62,8 +64,8 @@ class TestPool(TestBase):
             # Write out some yaml files to load in through calicoctl-go
             # We could have sent these via stdout into calicoctl, but this
             # seemed easier.
-            writeyaml('ipv4.yaml', ipv4_pool_dict)
-            writeyaml('ipv6.yaml', ipv6_pool_dict)
+            self.writeyaml('ipv4.yaml', ipv4_pool_dict)
+            self.writeyaml('ipv6.yaml', ipv6_pool_dict)
 
             # Create the ipv6 network using the Go calicoctl
             host.calicoctl("create -f ipv6.yaml", new=True)
@@ -264,6 +266,7 @@ class TestCreateFromFile(TestBase):
 
     @parameterized.expand(testdata)
     def test_create_from_file_yaml(self, name, data):
+        self._check_data_save_load(data)
         with DockerHost('host', dind=False, start_calico=False) as host:
             res_type = data['kind']
             logger.debug("Testing %s" % res_type)
@@ -289,6 +292,7 @@ class TestCreateFromFile(TestBase):
 
     @parameterized.expand(testdata)
     def test_create_from_file_json(self, name, data):
+        self._check_data_save_load(data)
         with DockerHost('host', dind=False, start_calico=False) as host:
             res_type = data['kind']
             logger.debug("Testing %s" % res_type)
@@ -314,6 +318,7 @@ class TestCreateFromFile(TestBase):
 
     @parameterized.expand(testdata)
     def test_create_from_stdin_json(self, name, data):
+        self._check_data_save_load(data)
         with DockerHost('host', dind=False, start_calico=False) as host:
             res_type = data['kind']
             logger.debug("Testing %s" % res_type)
@@ -341,6 +346,7 @@ class TestCreateFromFile(TestBase):
 
     @parameterized.expand(testdata)
     def test_create_from_stdin_yaml(self, name, data):
+        self._check_data_save_load(data)
         with DockerHost('host', dind=False, start_calico=False) as host:
             res_type = data['kind']
             logger.debug("Testing %s" % res_type)
@@ -515,6 +521,8 @@ class TestCreateFromFile(TestBase):
          )
     ])
     def test_create_from_file(self, res, data1, data2):
+        self._check_data_save_load(data1)
+        self._check_data_save_load(data2)
         with DockerHost('host', dind=False, start_calico=False) as host:
             logger.debug("Testing %s" % res)
             # Write out the files to load later
@@ -679,6 +687,8 @@ class TestCreateFromFile(TestBase):
         but the details differ in some way to simulate a user updating the
         object.
         """
+        self._check_data_save_load(data1)
+        self._check_data_save_load(data2)
         with DockerHost('host', dind=False, start_calico=False) as host:
             logger.debug("Testing %s" % res)
 
@@ -710,3 +720,22 @@ class TestCreateFromFile(TestBase):
             host.calicoctl("delete --filename=data1.yaml", new=True)
             # Check it deleted
             self.check_data_in_datastore(host, [], res)
+
+    def _check_data_save_load(self, data):
+        """
+        Confirms that round tripping the data via json and yaml format works
+        OK so that we can be sure any errors the tests find are due to the
+        calicoctl code under test
+        :param data: The dictionary of test data to check
+        :return: None.
+        """
+        # Do yaml first
+        self.writeyaml('test', data)
+        with open('test', 'r') as f:
+            output = yaml.safe_load(f.read())
+        self.assert_same(data, output)
+        # Now check json
+        self.writejson('test', data)
+        with open('test', 'r') as f:
+            output = json.loads(f.read())
+        self.assert_same(data, output)
