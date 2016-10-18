@@ -6,7 +6,7 @@ machine:
     - docker
 test:
   override:
-    - make ut-circle
+    - make release/calicoctl test-containerized
 experimental:
   notify:
     branches:
