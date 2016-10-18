@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
-
+import netaddr
 import yaml
 from nose_parameterized import parameterized
 
@@ -25,7 +25,8 @@ from tests.st.utils.utils import assert_network, assert_profile, \
 
 POST_DOCKER_COMMANDS = ["docker load -i /code/calico-node.tgz",
                         "docker load -i /code/busybox.tgz",
-                        "docker load -i /code/calico-node-libnetwork.tgz"]
+                        "docker load -i /code/calico-node-libnetwork.tgz",
+                        "docker load -i /code/workload.tgz"]
 
 if ETCD_SCHEME == "https":
     ADDITIONAL_DOCKER_OPTIONS = "--cluster-store=etcd://%s:2379 " \
@@ -45,6 +46,9 @@ class MultiHostMainline(TestBase):
         "rules.tags",
         "rules.protocol.icmp",
         "rules.ip.addr",
+        "rules.ip.net",
+        "rules.selector",
+        # "rules.tcp.port",
     ])
     def test_multi_host(self, test_type):
         """
@@ -136,6 +140,47 @@ class MultiHostMainline(TestBase):
                 self.assert_connectivity(retries=2,
                                          pass_list=n1_workloads + n2_workloads)
 
+            elif test_type == "rules.ip.net":
+                n1_ips = [workload.ip for workload in n1_workloads]
+                n2_ips = [workload.ip for workload in n2_workloads]
+                n1_subnet = netaddr.spanning_cidr(n1_ips)
+                n2_subnet = netaddr.spanning_cidr(n2_ips)
+                rule = {'action': 'allow',
+                        'source':
+                            {'net': str(n1_subnet)}}
+                new_profiles[0]['spec']['ingress'].append(rule)
+                rule = {'action': 'allow',
+                        'source':
+                            {'net': str(n2_subnet)}}
+                new_profiles[1]['spec']['ingress'].append(rule)
+                self._apply_new_profile(new_profiles, host1)
+                self.assert_connectivity(retries=2,
+                                         pass_list=n1_workloads + n2_workloads)
+
+            elif test_type == "rules.selector":
+                new_profiles[0]['metadata']['labels'] = {'net': 'n1'}
+                new_profiles[1]['metadata']['labels'] = {'net': 'n2'}
+                rule = {'action': 'allow',
+                        'source':
+                            {'selector': 'net=="n2"'}}
+                new_profiles[0]['spec']['ingress'].append(rule)
+                rule = {'action': 'allow',
+                        'source':
+                            {'selector': "net=='n1'"}}
+                new_profiles[1]['spec']['ingress'].append(rule)
+                self._apply_new_profile(new_profiles, host1)
+                self.assert_connectivity(retries=2,
+                                         pass_list=n1_workloads + n2_workloads)
+
+            elif test_type == "rules.tcp.port":
+                pass
+
+            else:
+                print "******************* " \
+                      "ERROR - Unrecognised test type " \
+                      "*******************"
+                assert False, "Unrecognised test type: %s" % test_type
+
             # Now restore the original profile and check it all works as before
             self._apply_new_profile(original_profiles, host1)
             host1.calicoctl("get profile -o yaml", new=True)
@@ -181,18 +226,24 @@ class MultiHostMainline(TestBase):
 
         # Create two workloads on host1 and one on host2 all in network 1.
         n1_workloads.append(host2.create_workload("workload_h2n1_1",
+                                                  image="workload",
                                                   network=network1))
         n1_workloads.append(host1.create_workload("workload_h1n1_1",
+                                                  image="workload",
                                                   network=network1))
         n1_workloads.append(host1.create_workload("workload_h1n1_2",
+                                                  image="workload",
                                                   network=network1))
 
         # Create similar workloads in network 2.
         n2_workloads.append(host1.create_workload("workload_h1n2_1",
+                                                  image="workload",
                                                   network=network2))
         n2_workloads.append(host1.create_workload("workload_h1n2_2",
+                                                  image="workload",
                                                   network=network2))
         n2_workloads.append(host2.create_workload("workload_h2n2_1",
+                                                  image="workload",
                                                   network=network2))
 
         # Assert that endpoints are in Calico
