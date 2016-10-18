@@ -54,7 +54,11 @@ calico-node-libnetwork.tgz:
 
 routereflector.tgz:
 	docker pull calico/routereflector:latest
-	docker calico/routereflector:latest | gzip -c > routereflector.tgz
+	docker save calico/routereflector:latest | gzip -c > routereflector.tgz
+
+workload.tgz:
+	docker build -f Dockerfile.workload -t workload .
+	docker save workload | gzip -c > workload.tgz
 
 semaphore: st
 
