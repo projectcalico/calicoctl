@@ -4,7 +4,7 @@ default: help
 all: test                                     ## Run all the tests
 binary: dist/calicoctl                        ## Create the calicoctl binary
 calico/node: calico_node/.calico_node.created ## Create the calico/node image
-calico/ctl: calicoctl/.calico_ctl.created     ## Create the calico/node image
+calico/ctl: calicoctl/.calico_ctl.created     ## Create the calico/ctl image
 test: ut                                      ## Run all the tests
 ssl-certs: certs/.certificates.created        ## Generate self-signed SSL certificates
 
@@ -109,14 +109,14 @@ CTL_CONTAINER_NAME?=calico/ctl:latest
 CALICOCTL_FILE=$(CALICOCTL_DIR)/calicoctl.py $(wildcard $(CALICOCTL_DIR)/calico_ctl/*.py) calicoctl.spec
 CTL_CONTAINER_CREATED=$(CALICOCTL_DIR)/.calico_ctl.created
 
-LDFLAGS=-ldflags "-X github.com/projectcalico/libcalico-go/calicoctl/commands.VERSION=$(CALICOCTL_VERSION) \
-	-X github.com/projectcalico/libcalico-go/calicoctl/commands.BUILD_DATE=$(CALICOCTL_BUILD_DATE) \
-	-X github.com/projectcalico/libcalico-go/calicoctl/commands.GIT_REVISION=$(CALICOCTL_GIT_REVISION) -s -w"
+LDFLAGS=-ldflags "-X github.com/projectcalico/calico-containers/calicoctl/commands.VERSION=$(CALICOCTL_VERSION) \
+	-X github.com/projectcalico/calico-containers/calicoctl/commands.BUILD_DATE=$(CALICOCTL_BUILD_DATE) \
+	-X github.com/projectcalico/calico-containers/calicoctl/commands.GIT_REVISION=$(CALICOCTL_GIT_REVISION) -s -w"
 
 BUILD_CONTAINER_NAME=calico/calicoctl_build_container
 BUILD_CONTAINER_MARKER=calicoctl_build_container.created
 
-GO_FILES:=$(shell find calicoctl lib -name '*.go')
+GO_FILES:=$(shell find calicoctl -name '*.go')
 
 CALICOCTL_VERSION?=$(shell git describe --tags --dirty --always)
 CALICOCTL_BUILD_DATE?=$(shell date -u +'%FT%T%z')
@@ -124,48 +124,50 @@ CALICOCTL_GIT_REVISION?=$(shell git rev-parse --short HEAD)
 
 
 .PHONY: vendor
-# Use this to populate the vendor directory after checking out the repository.
-# To update upstream dependencies, delete the glide.lock file first.
+## Use this to populate the vendor directory after checking out the repository.
+## To update upstream dependencies, delete the glide.lock file first.
 vendor vendor/.up-to-date: glide.lock
 	rm -f vendor/.up-to-date
 	glide install -strip-vendor -strip-vcs --cache
 	touch vendor/.up-to-date
 
-# Build the binary locally.
+## Build the calicoctl binary locally.
 bin/calicoctl: vendor/.up-to-date $(GO_FILES)
 	mkdir -p bin
 	go build -o "$@" $(LDFLAGS) "./calicoctl/calicoctl.go"
 
 .PHONY: release/calicoctl
-# Build the release calicoctl binary in a Centos 6 container
+## Build the release calicoctl binary in a Centos 6 container
 release/calicoctl: clean
 	mkdir -p bin release
 	docker build -f Dockerfile.calicoctl.release -t calicoctl-build .
 	docker run --rm --privileged --net=host \
-	-v ${PWD}:/go/src/github.com/projectcalico/libcalico-go:rw \
-	-v ${PWD}/bin:/go/src/github.com/projectcalico/libcalico-go/bin:rw \
-	-w /go/src/github.com/projectcalico/libcalico-go \
+	-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw \
+	-v ${PWD}/bin:/go/src/github.com/projectcalico/calico-containers/bin:rw \
+	-w /go/src/github.com/projectcalico/calico-containers \
 	calicoctl-build make bin/calicoctl
 	mv bin/calicoctl release/calicoctl
 	rm -rf bin
 	mv release/calicoctl release/calicoctl-$(CALICOCTL_VERSION)
 	cd release && ln -sf calicoctl-$(CALICOCTL_VERSION) calicoctl
 
-# Build calicoctl in a container.
+## Build calicoctl in a container.
 build-containerized: $(BUILD_CONTAINER_MARKER)
 	mkdir -p dist
-	docker run -ti --rm --privileged --net=host \
+	docker run --rm --privileged --net=host \
 	-e PLUGIN=calico \
-	-v ${PWD}:/go/src/github.com/projectcalico/libcalico-go:rw \
-	-v ${PWD}/dist:/go/src/github.com/projectcalico/libcalico-go/dist:rw \
-	$(BUILD_CONTAINER_NAME) make bin/calicoctl
+	-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw \
+	-v ${PWD}/dist:/go/src/github.com/projectcalico/calico-containers/dist:rw \
+	$(BUILD_CONTAINER_NAME) bash -c 'make bin/calicoctl; \
+	chown $(shell id -u):$(shell id -g) -R ./'
+
 
 $(BUILD_CONTAINER_MARKER): Dockerfile.calicoctl.build
 	docker build -f Dockerfile.calicoctl.build -t $(BUILD_CONTAINER_NAME) .
 	touch $@
 
-# Install or update the tools used by the build
 .PHONY: update-tools
+## Install or update the tools used by the build
 update-tools:
 	go get -u github.com/Masterminds/glide
 	go get -u github.com/kisielk/errcheck
@@ -179,16 +181,16 @@ update-tools:
 # - Running UTs
 ###############################################################################
 .PHONY: ut
-#
+## Run the Unit Tests locally
 ut: bin/calicoctl
 	./run-uts
 
 .PHONY: test-containerized
-# Run the tests in a container. Useful for CI, Mac dev.
+## Run the tests in a container. Useful for CI, Mac dev.
 test-containerized: run-etcd $(BUILD_CONTAINER_MARKER)
 	docker run -ti --rm --privileged --net=host \
 	-e PLUGIN=calico \
-	-v ${PWD}:/go/src/github.com/projectcalico/libcalico-go:rw \
+	-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw \
 	$(BUILD_CONTAINER_NAME) make ut
 
 ## Generate the keys and certificates for running etcd with SSL.
@@ -270,7 +272,7 @@ clean:
 ## Display this help text
 help: # Some kind of magic from https://gist.github.com/rcmachado/af3db315e31383502660
 	$(info Available targets)
-	@awk '/^[a-zA-Z\-\_0-9]+:/ {                                        \
+	@awk '/^[a-zA-Z\-\_0-9\/]+:/ {                                        \
 		nb = sub( /^## /, "", helpMsg );                                \
 		if(nb == 0) {                                                   \
 			helpMsg = $$0;                                              \
@@ -282,4 +284,3 @@ help: # Some kind of magic from https://gist.github.com/rcmachado/af3db315e31383
 	{ helpMsg = $$0 }'                                                  \
 	width=$$(grep -o '^[a-zA-Z_0-9]\+:' $(MAKEFILE_LIST) | wc -L)       \
 	$(MAKEFILE_LIST)
-
