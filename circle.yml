@@ -1,6 +1,6 @@
 general:
   artifacts:
-    - "dist"
+    - "release"
 machine:
   services:
     - docker
