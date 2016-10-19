@@ -21,7 +21,9 @@ Description:
 
 Options:
   --runtime=<RUNTIME>       Specify the runtime used to run the calico/node
-                            container, either "docker" or "rkt".
+                            container, either "docker" or "rkt" or "k8s" for
+                            kubeadm inited kubernetes clusters with calico
+                            network plugin.
                             [default: docker]
   --backend=<BACKEND>       Specify the networking backend used in calico/node
                             container. "bird", "gobgp" or "none".
@@ -55,7 +57,7 @@ def status(arguments):
     """
     # Check runtime.
     runtime = arguments.get("--runtime")
-    if not runtime in ["docker", "rkt"]:
+    if not runtime in ["docker", "rkt", "k8s"]:
         print "Invalid runtime specified: '%s'" % runtime
         sys.exit(1)
 
@@ -70,6 +72,8 @@ def status(arguments):
     if runtime == "rkt":
         enforce_root()
         check_container_status_rkt()
+    elif runtime == "k8s":
+        check_container_status_k8s()
     else:
         check_container_status_docker()
 
@@ -104,6 +108,36 @@ def status(arguments):
         pprint_bgp_protocols(6, backend)
     else:
         print "No IPv6 address configured.\n"
+
+def check_container_status_k8s():
+    """
+    Checks and prints the calico/node container status when running in Docker with kubeadm.
+    """
+    try:
+        calico_node_info = filter(lambda container: "calico/node" in
+                                  container["Image"],
+                                  docker_client.containers())
+
+        if len(calico_node_info) == 0:
+            print "calico-node container not running"
+            sys.exit(1)
+        else:
+            print "calico-node container is running. Status: %s" % \
+                  calico_node_info[0]["Status"]
+
+            libraries_cmd = docker_client.exec_create(calico_node_info[0]["Id"],
+                                                      ["sh", "-c",
+                                                       "cat libraries.txt"])
+            libraries_out = docker_client.exec_start(libraries_cmd)
+            result = re.search(r"^calico\s*\((.*)\)\s*$", libraries_out,
+                               re.MULTILINE)
+
+            if result is not None:
+                print "Running felix version %s" % result.group(1)
+    except ConnectionError:
+        print "Docker is not running"
+        sys.exit(1)
+
 
 
 def check_container_status_docker():
