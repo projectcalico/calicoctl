@@ -1,10 +1,10 @@
 [![CircleCI](https://circleci.com/gh/projectcalico/libcalico-go.svg?style=svg)](https://circleci.com/gh/projectcalico/libcalico-go)
 
-# libcalico-go
-This repositiory contains Calico's Go components:
+# calico-containers
+This repositiory contains the following Calico components:
 
-- `libcalico`, which can be imported as `"github.com/projectcalico/libcalico-go/lib"`
-- `calicoctl`
+- `calicoctl` the command line tool for manageing Calico configuration
+- `calico/node` the container image for easily deploying Calico on a compute host
 
 ## Common set-up
 
@@ -14,12 +14,12 @@ Assuming you have already installed **go version 1.7.1+**, perform the following
 
 - Clone this repository to your Go project path: 
 ```
-git clone git@github.com:projectcalico/libcalico-go.git $GOPATH/src/github.com/projectcalico/libcalico-go
+git clone git@github.com:projectcalico/libcalico-go.git $GOPATH/src/github.com/projectcalico/calico-containers
 ```
 
 - Switch to your project directory:
 ```
-cd $GOPATH/src/github.com/projectcalico/libcalico-go
+cd $GOPATH/src/github.com/projectcalico/calico-containers
 ```
 
 - Populate the `vendor/` directory in the project's root with this project's dependencies:
@@ -48,4 +48,4 @@ To do a release build, run:
 ```
 make release/calicoctl
 ```
-The binary will be emitted to `./releases/calicoctl-<version>`
+The binary will be emitted to `./release/calicoctl-<version>`
