@@ -1,13 +1,15 @@
-.PHONY: all binary calico/node test ut ut-circle st st-ssl clean run-etcd run-etcd-ssl help clean_calico_node
+.PHONY: all binary calico/node calico/ctl test ssl-certs node_image ctl_image
+
 default: help
-all: test                ## Run all the tests
-binary: dist/calicoctl   ## Create the calicoctl binary
+all: test                                     ## Run all the tests
+binary: dist/calicoctl                        ## Create the calicoctl binary
 calico/node: calico_node/.calico_node.created ## Create the calico/node image
-calico/ctl: calicoctl/.calico_ctl.created ## Create the calico/node image
+calico/ctl: calicoctl/.calico_ctl.created     ## Create the calico/ctl image
+test: ut                                      ## Run all the tests
+ssl-certs: certs/.certificates.created        ## Generate self-signed SSL certificates
+
 node_image: calico/node
 ctl_image: calico/ctl
-test: st ut              ## Run all the tests
-ssl-certs: certs/.certificates.created ## Generate self-signed SSL certificates
 
 ###############################################################################
 # Common build variables
@@ -107,64 +109,90 @@ CTL_CONTAINER_NAME?=calico/ctl:latest
 CALICOCTL_FILE=$(CALICOCTL_DIR)/calicoctl.py $(wildcard $(CALICOCTL_DIR)/calico_ctl/*.py) calicoctl.spec
 CTL_CONTAINER_CREATED=$(CALICOCTL_DIR)/.calico_ctl.created
 
-dist/calicoctl: $(CALICOCTL_FILE) birdcl gobgp
-	# Ignore errors on docker command. CircleCI throws a benign error
-	# from the use of the --rm flag
-    #
-    # We create two versions of calicoctl built using wheezy and jessie based
-    # build containers.  The main build is the more up-to-date jessie build,
-    # but we also build a wheezy version for support of older versions of glibc.
-	-docker run -v $(SOURCE_DIR):/code --rm \
-	 $(BUILD_CONTAINER_NAME)-wheezy \
-	 pyinstaller calicoctl-debian-glibc-2.13.spec -ayF
+LDFLAGS=-ldflags "-X github.com/projectcalico/calico-containers/calicoctl/commands.VERSION=$(CALICOCTL_VERSION) \
+	-X github.com/projectcalico/calico-containers/calicoctl/commands.BUILD_DATE=$(CALICOCTL_BUILD_DATE) \
+	-X github.com/projectcalico/calico-containers/calicoctl/commands.GIT_REVISION=$(CALICOCTL_GIT_REVISION) -s -w"
 
-	-docker run -v $(SOURCE_DIR):/code --rm \
-	 $(BUILD_CONTAINER_NAME) \
-	 pyinstaller calicoctl.spec -ayF
+BUILD_CONTAINER_NAME=calico/calicoctl_build_container
+BUILD_CONTAINER_MARKER=calicoctl_build_container.created
 
-birdcl:
-	curl -L $(BIRDCL_URL) -o $@
-	chmod +x birdcl
+GO_FILES:=$(shell find calicoctl -name '*.go')
 
-gobgp:
-	curl -L $(GOBGP_URL) -o $@
-	chmod +x $@
+CALICOCTL_VERSION?=$(shell git describe --tags --dirty --always)
+CALICOCTL_BUILD_DATE?=$(shell date -u +'%FT%T%z')
+CALICOCTL_GIT_REVISION?=$(shell git rev-parse --short HEAD)
 
-simple-binary: $(CALICOCTL_FILE) birdcl gobgp
-	pip install git+https://github.com/projectcalico/libcalico.git@master
-	pip install -r https://raw.githubusercontent.com/projectcalico/libcalico/master/build-requirements.txt
-	pyinstaller calicoctl/calicoctl.py -ayF --clean
 
-setup-env:
-	rm -rf venv
-	virtualenv venv
-	. venv/bin/activate && \
-	    pip install -U pip && \
-	    pip install -U git+https://github.com/projectcalico/libcalico.git@master && \
-	    pip install -U -r https://raw.githubusercontent.com/projectcalico/libcalico/master/build-requirements.txt
-	@echo "run\n. venv/bin/activate"
+.PHONY: vendor
+## Use this to populate the vendor directory after checking out the repository.
+## To update upstream dependencies, delete the glide.lock file first.
+vendor vendor/.up-to-date: glide.lock
+	rm -f vendor/.up-to-date
+	glide install -strip-vendor -strip-vcs --cache
+	touch vendor/.up-to-date
 
-# build calico_ctl image
-$(CTL_CONTAINER_CREATED): $(CALICOCTL_DIR)/Dockerfile $(CALICOCTL_DIR)/calicoctl
-	docker build -t $(CTL_CONTAINER_NAME) $(CALICOCTL_DIR)
+## Build the calicoctl binary locally.
+bin/calicoctl: vendor/.up-to-date $(GO_FILES)
+	mkdir -p bin
+	go build -o "$@" $(LDFLAGS) "./calicoctl/calicoctl.go"
+
+.PHONY: release/calicoctl
+## Build the release calicoctl binary in a Centos 6 container
+release/calicoctl: clean
+	mkdir -p bin release
+	docker build -f Dockerfile.calicoctl.release -t calicoctl-build .
+	docker run --rm --privileged --net=host \
+	-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw \
+	-v ${PWD}/bin:/go/src/github.com/projectcalico/calico-containers/bin:rw \
+	-w /go/src/github.com/projectcalico/calico-containers \
+	calicoctl-build make bin/calicoctl
+	mv bin/calicoctl release/calicoctl
+	rm -rf bin
+	mv release/calicoctl release/calicoctl-$(CALICOCTL_VERSION)
+	cd release && ln -sf calicoctl-$(CALICOCTL_VERSION) calicoctl
+
+## Build calicoctl in a container.
+build-containerized: $(BUILD_CONTAINER_MARKER)
+	mkdir -p dist
+	docker run --rm --privileged --net=host \
+	-e PLUGIN=calico \
+	-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw \
+	-v ${PWD}/dist:/go/src/github.com/projectcalico/calico-containers/dist:rw \
+	$(BUILD_CONTAINER_NAME) bash -c 'make bin/calicoctl; \
+	chown $(shell id -u):$(shell id -g) -R ./vendor ./dist'
+
+
+$(BUILD_CONTAINER_MARKER): Dockerfile.calicoctl.build
+	docker build -f Dockerfile.calicoctl.build -t $(BUILD_CONTAINER_NAME) .
 	touch $@
 
-$(CALICOCTL_DIR)/calicoctl: dist/calicoctl
-	cp $< $@
+.PHONY: update-tools
+## Install or update the tools used by the build
+update-tools:
+	go get -u github.com/Masterminds/glide
+	go get -u github.com/kisielk/errcheck
+	go get -u golang.org/x/tools/cmd/goimports
+	go get -u github.com/golang/lint/golint
+	go get -u github.com/onsi/ginkgo/ginkgo
 
 ###############################################################################
 # Tests
 # - Support for running etcd (both securely and insecurely)
-# - Running UTs and STs
+# - Running UTs
 ###############################################################################
-# These variables can be overridden by setting an environment variable.
-LOCAL_IP_ENV?=$(shell ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
-ST_TO_RUN?=tests/st/
-UT_TO_RUN?=tests/unit/
+.PHONY: ut
+## Run the Unit Tests locally
+ut: bin/calicoctl
+	./run-uts
 
-# Can exclude the slower tests with "-a '!slow'"
-ST_OPTIONS?=
-HOST_CHECKOUT_DIR?=$(shell pwd)
+.PHONY: test-containerized
+## Run the tests in a container. Useful for CI, Mac dev.
+test-containerized: run-etcd $(BUILD_CONTAINER_MARKER)
+	docker run -ti --rm --privileged --net=host \
+	-e PLUGIN=calico \
+	-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw \
+	$(BUILD_CONTAINER_NAME) make ut; \
+	chown $(shell id -u):$(shell id -g) -R ./vendor ./dist'
 
 ## Generate the keys and certificates for running etcd with SSL.
 certs/.certificates.created:
@@ -188,153 +216,49 @@ certs/.certificates.created:
 
 	touch certs/.certificates.created
 
-busybox.tar:
-	docker pull busybox:latest
-	docker save --output busybox.tar busybox:latest
-
-routereflector.tar:
-	docker pull calico/routereflector:latest
-	docker save --output routereflector.tar calico/routereflector:latest
-
-## Run the UTs in a container.
-ut:
-	docker run --rm -v $(SOURCE_DIR)/calicoctl:/code calico/test \
-		nosetests $(UT_TO_RUN) -c nose.cfg
-	docker run --rm -v $(SOURCE_DIR)/$(NODE_CONTAINER_DIR):/code calico/test \
-		nosetests tests --with-coverage --cover-package=startup
-
-ut-circle: dist/calicoctl
-	# Test this locally using CIRCLE_TEST_REPORTS=/tmp COVERALLS_REPO_TOKEN=bad make ut-circle
-	# Can't use --rm on circle
-	# Circle also requires extra options for reporting.
-	docker run \
-	-v $(SOURCE_DIR):/code \
-	-v $(CIRCLE_TEST_REPORTS):/circle_output \
-	-e COVERALLS_REPO_TOKEN=$(COVERALLS_REPO_TOKEN) \
-	calico/test \
-	sh -c '\
-	cd calicoctl; nosetests tests/unit -c nose.cfg \
-	--with-xunit --xunit-file=/circle_output/output.xml; RC=$$?;\
-	[[ ! -z "$$COVERALLS_REPO_TOKEN" ]] && coveralls || true; exit $$RC'
-
-	docker run --rm -v $(SOURCE_DIR)/$(NODE_CONTAINER_DIR):/code calico/test \
-		nosetests tests --with-coverage --cover-package=startup
-
-## Run etcd in a container. Used by the STs and generally useful.
+.PHONY: run-etcd
+## Run etcd in a container. Used by the tests and generally useful.
 run-etcd:
 	$(MAKE) stop-etcd
 	docker run --detach \
 	--net=host \
-	--name calico-etcd quay.io/coreos/etcd:v2.0.11 \
+	--name calico-etcd quay.io/coreos/etcd:v2.3.6 \
 	--advertise-client-urls "http://$(LOCAL_IP_ENV):2379" \
 	--listen-client-urls "http://$(LOCAL_IP_ENV):2379,http://127.0.0.1:2379"
 
-stop-etcd:
-	@-docker rm -f calico-etcd calico-etcd-ssl
-
-## Run etcd in a container with SSL verification. Used primarily by STs.
+.PHONY: run-etcd-ssl
+## Run etcd in a container with SSL verification. Used primarily by tests.
 run-etcd-ssl: certs/.certificates.created add-ssl-hostname
 	$(MAKE) stop-etcd
 	docker run --detach \
 	--net=host \
 	-v $(SOURCE_DIR)/certs:/etc/calico/certs \
-	--name calico-etcd-ssl quay.io/coreos/etcd:v2.0.11 \
+	--name calico-etcd-ssl quay.io/coreos/etcd:v2.3.6 \
 	--cert-file "/etc/calico/certs/server.pem" \
 	--key-file "/etc/calico/certs/server-key.pem" \
 	--ca-file "/etc/calico/certs/ca.pem" \
 	--advertise-client-urls "https://etcd-authority-ssl:2379,https://localhost:2379" \
 	--listen-client-urls "https://0.0.0.0:2379"
 
-IPT_ALLOW_ETCD:=-A INPUT -i docker0 -p tcp --dport 2379 -m comment --comment "calico-st-allow-etcd" -j ACCEPT
+.PHONY: stop-etcd
+stop-etcd:
+	@-docker rm -f calico-etcd calico-etcd-ssl
 
-.PHONY: st-checks
-st-checks:
-	# Check that we're running as root.
-	test `id -u` -eq '0' || { echo "STs must be run as root to allow writes to /proc"; false; }
-
-	# Insert an iptables rule to allow access from our test containers to etcd
-	# running on the host.
-	iptables-save | grep -q 'calico-st-allow-etcd' || iptables $(IPT_ALLOW_ETCD)
-
-## Run the STs in a container
-st: run-etcd dist/calicoctl busybox.tar routereflector.tar calico-node.tar
-	# Use the host, PID and network namespaces from the host.
-	# Privileged is needed since 'calico node' write to /proc (to enable ip_forwarding)
-	# Map the docker socket in so docker can be used from inside the container
-	# HOST_CHECKOUT_DIR is used for volume mounts on containers started by this one.
-	# All of code under test is mounted into the container.
-	#   - This also provides access to calicoctl and the docker client
-	$(MAKE) st-checks
-	docker run --uts=host \
-	           --pid=host \
-	           --net=host \
-	           --privileged \
-	           -e HOST_CHECKOUT_DIR=$(HOST_CHECKOUT_DIR) \
-	           -e DEBUG_FAILURES=$(DEBUG_FAILURES) \
-	           -e MY_IP=$(LOCAL_IP_ENV) \
-	           --rm -ti \
-	           -v /var/run/docker.sock:/var/run/docker.sock \
-	           -v $(SOURCE_DIR):/code \
-	           calico/test \
-	           sh -c 'cp -ra tests/st/* /tests/st && cd / && nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer $(ST_OPTIONS)'
-	$(MAKE) stop-etcd
-
-## Run the STs in a container using etcd with SSL certificate/key/CA verification.
-st-ssl: run-etcd-ssl dist/calicoctl busybox.tar calico-node.tar routereflector.tar
-	# Use the host, PID and network namespaces from the host.
-	# Privileged is needed since 'calico node' write to /proc (to enable ip_forwarding)
-	# Map the docker socket in so docker can be used from inside the container
-	# HOST_CHECKOUT_DIR is used for volume mounts on containers started by this one.
-	# All of code under test is mounted into the container.
-	#   - This also provides access to calicoctl and the docker client
-	# Mount the full path to the etcd certs directory.
-	#   - docker copies this directory directly from the host, but the
-	#     calicoctl node command reads the files from the test container
-	$(MAKE) st-checks
-	docker run --uts=host \
-	           --pid=host \
-	           --net=host \
-	           --privileged \
-	           -e HOST_CHECKOUT_DIR=$(HOST_CHECKOUT_DIR) \
-	           -e DEBUG_FAILURES=$(DEBUG_FAILURES) \
-	           -e MY_IP=$(LOCAL_IP_ENV) \
-	           -e ETCD_SCHEME=https \
-	           -e ETCD_CA_CERT_FILE=$(SOURCE_DIR)/certs/ca.pem \
-	           -e ETCD_CERT_FILE=$(SOURCE_DIR)/certs/client.pem \
-	           -e ETCD_KEY_FILE=$(SOURCE_DIR)/certs/client-key.pem \
-	           --rm -ti \
-	           -v /var/run/docker.sock:/var/run/docker.sock \
-	           -v $(SOURCE_DIR):/code \
-	           -v $(SOURCE_DIR)/certs:$(SOURCE_DIR)/certs \
-	           calico/test \
-	           sh -c 'cp -ra tests/st/* /tests/st && cd / && nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer $(ST_OPTIONS)'
-	$(MAKE) stop-etcd
-
+.PHONY: add-ssl-hostname
 add-ssl-hostname:
 	# Set "LOCAL_IP etcd-authority-ssl" in /etc/hosts to use as a hostname for etcd with ssl
 	if ! grep -q "etcd-authority-ssl" /etc/hosts; then \
 	  echo "\n# Host used by Calico's ETCD with SSL\n$(LOCAL_IP_ENV) etcd-authority-ssl" >> /etc/hosts; \
 	fi
 
-# This depends on clean to ensure that dependent images get untagged and repulled
-semaphore: clean
-	# Clean up unwanted files to free disk space.
-	bash -c 'rm -rf /home/runner/{.npm,.phpbrew,.phpunit,.kerl,.kiex,.lein,.nvm,.npm,.phpbrew,.rbenv}'
-
-	# Actually run the tests (refreshing the images as required)
-	make st
-
-	# Run subset of STs with secure etcd
-	ST_TO_RUN=tests/st/no_orchestrator/ make st-ssl
-	ST_TO_RUN=tests/st/bgp/test_route_reflector_cluster.py make st-ssl
-
-
+.PHONY: clean
 ## Clean everything (including stray volumes)
-clean: clean_calico_node
+clean:
 	find . -name '*.created' -exec rm -f {} +
-	find . -name '*.pyc' -exec rm -f {} +
-	-rm -rf dist
-	-rm -rf build
+	find . -name '*.coverprofile' -type f -delete
+	-rm -rf bin
+	-rm -rf release
+	-rm -rf vendor
 	-rm -rf certs
 	-rm -f *.tar
 	-docker rm -f calico-node
@@ -345,18 +269,19 @@ clean: clean_calico_node
 	-rm -rf $(NODE_CONTAINER_DIR)/bin
 	-rm -rf $(CALICOCTL_DIR)/calicoctl
 
+.PHONY: help
 ## Display this help text
 help: # Some kind of magic from https://gist.github.com/rcmachado/af3db315e31383502660
 	$(info Available targets)
-	@awk '/^[a-zA-Z\-\_0-9]+:/ {                                   \
-		nb = sub( /^## /, "", helpMsg );                             \
-		if(nb == 0) {                                                \
-			helpMsg = $$0;                                             \
-			nb = sub( /^[^:]*:.* ## /, "", helpMsg );                  \
-		}                                                            \
-		if (nb)                                                      \
-			printf "\033[1;31m%-" width "s\033[0m %s\n", $$1, helpMsg; \
-	}                                                              \
-	{ helpMsg = $$0 }'                                             \
-	width=$$(grep -o '^[a-zA-Z_0-9]\+:' $(MAKEFILE_LIST) | wc -L)  \
+	@awk '/^[a-zA-Z\-\_0-9\/]+:/ {                                      \
+		nb = sub( /^## /, "", helpMsg );                                \
+		if(nb == 0) {                                                   \
+			helpMsg = $$0;                                              \
+			nb = sub( /^[^:]*:.* ## /, "", helpMsg );                   \
+		}                                                               \
+		if (nb)                                                         \
+			printf "\033[1;31m%-" width "s\033[0m %s\n", $$1, helpMsg;  \
+	}                                                                   \
+	{ helpMsg = $$0 }'                                                  \
+	width=20                                                            \
 	$(MAKEFILE_LIST)
