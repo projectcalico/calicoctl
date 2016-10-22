@@ -1,12 +1,12 @@
 general:
   artifacts:
-    - "dist"
+    - "release"
 machine:
   services:
     - docker
 test:
   override:
-    - make ut-circle
+    - make release/calicoctl test-containerized
 experimental:
   notify:
     branches:
