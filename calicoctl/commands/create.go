@@ -19,10 +19,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docopt/docopt-go"
+
+	"github.com/projectcalico/calico-containers/calicoctl/commands/common"
 )
 
 func Create(args []string) error {
-	doc := DatastoreIntro + `Usage:
+	doc := common.DatastoreIntro + `Usage:
   calicoctl create --filename=<FILENAME> [--skip-exists] [--config=<CONFIG>]
 
 Examples:

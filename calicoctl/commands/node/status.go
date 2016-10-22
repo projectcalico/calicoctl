@@ -25,7 +25,6 @@ import (
 
 	"github.com/docopt/docopt-go"
 	gops "github.com/mitchellh/go-ps"
-
 	"github.com/olekukonko/tablewriter"
 )
 

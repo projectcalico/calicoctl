@@ -20,13 +20,14 @@ import (
 	"strings"
 
 	"github.com/docopt/docopt-go"
+	"github.com/projectcalico/calico-containers/calicoctl/commands/common"
 	"github.com/projectcalico/calico-containers/calicoctl/commands/node"
 )
 
 // Node function is a switch to node related sub-commands
 func Node(args []string) error {
 	var err error
-	doc := `Usage:
+	doc := common.DatastoreIntro + `Usage:
   calicoctl node <command> [<args>...]
 
     status         View the current status of a Calico node.

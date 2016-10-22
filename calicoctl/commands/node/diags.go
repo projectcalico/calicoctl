@@ -25,7 +25,6 @@ import (
 	"time"
 
 	shutil "github.com/termie/go-shutil"
-
 	"github.com/docopt/docopt-go"
 )
 
