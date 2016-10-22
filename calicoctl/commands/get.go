@@ -24,15 +24,7 @@ import (
 )
 
 func Get(args []string) error {
-	doc := DatastoreIntro + `Display one or many resources identified by file, stdin or resource type and name.
-
-Valid resource kinds are bgpPeer, hostEndpoint, workloadEndpoint, policy, pool and profile.
-The <KIND> parameter is case insensitive and may be pluralized.
-
-By specifying the output as 'go-template' and providing a Go template as the value
-of the --go-template flag, you can filter the attributes of the fetched resource(s).
-
-Usage:
+	doc := DatastoreIntro + `Usage:
   calicoctl get ([--node=<NODE>] [--orchestrator=<ORCH>] [--workload=<WORKLOAD>] [--scope=<SCOPE>]
                  (<KIND> [<NAME>]) |
                  --filename=<FILENAME>)
