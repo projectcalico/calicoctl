@@ -17,20 +17,23 @@ package ipam
 import (
 	"fmt"
 
-	"github.com/projectcalico/calico-containers/calicoctl/commands/common"
-	cnet "github.com/projectcalico/libcalico-go/lib/net"
+	"github.com/projectcalico/libcalico-go/lib/net"
 
 	docopt "github.com/docopt/docopt-go"
+	"github.com/projectcalico/calico-containers/calicoctl/commands/clientmgr"
+	"github.com/projectcalico/calico-containers/calicoctl/commands/constants"
 )
 
 // IPAM takes keyword with an IP address then calls the subcommands.
 func Release(args []string) error {
-	doc := common.DatastoreIntro + `Usage:
-  calicoctl ipam release --ip=<IP>
+	doc := constants.DatastoreIntro + `Usage:
+  calicoctl ipam release --ip=<IP> [--config=<CONFIG>]
 
 Options:
   -h --help      Show this screen.
      --ip=<IP>   IP address
+  -c --config=<CONFIG>      Filename containing connection configuration in YAML or JSON format.
+                            [default: /etc/calico/calicoctl.cfg]
 
 Description:
   The ipam release command releases an IP address from the Calico IP Address
@@ -50,16 +53,17 @@ Description:
 	}
 
 	// Create a new backend client from env vars.
-	backendClient, err := common.NewClient("")
+	cf := parsedArgs["--config"].(string)
+	client, err := clientmgr.NewClient(cf)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	ipamClient := backendClient.IPAM()
+	ipamClient := client.IPAM()
 	passedIP := parsedArgs["--ip"].(string)
 
 	ip := validateIP(passedIP)
-	ips := []cnet.IP{cnet.IP{ip}}
+	ips := []net.IP{net.IP{ip}}
 
 	// Call ReleaseIPs releases the IP and returns an empty slice as unallocatedIPs if
 	// release was successful else it returns back the slice with the IP passed in.

@@ -17,20 +17,23 @@ package ipam
 import (
 	"fmt"
 
-	"github.com/projectcalico/calico-containers/calicoctl/commands/common"
-	cnet "github.com/projectcalico/libcalico-go/lib/net"
+	"github.com/projectcalico/calico-containers/calicoctl/commands/constants"
+	"github.com/projectcalico/libcalico-go/lib/net"
 
 	docopt "github.com/docopt/docopt-go"
+	"github.com/projectcalico/calico-containers/calicoctl/commands/clientmgr"
 )
 
 // IPAM takes keyword with an IP address then calls the subcommands.
 func Show(args []string) error {
-	doc := common.DatastoreIntro + `Usage:
-  calicoctl ipam show --ip=<IP>
+	doc := constants.DatastoreIntro + `Usage:
+  calicoctl ipam show --ip=<IP> [--config=<CONFIG>]
 
 Options:
   -h --help      Show this screen.
      --ip=<IP>   IP address
+  -c --config=<CONFIG>      Filename containing connection configuration in YAML or JSON format.
+                            [default: /etc/calico/calicoctl.cfg]
 
 Description:
   The ipam show command prints information about a given IP address, such as special
@@ -46,15 +49,16 @@ Description:
 	}
 
 	// Create a new backend client from env vars.
-	backendClient, err := common.NewClient("")
+	cf := parsedArgs["--config"].(string)
+	client, err := clientmgr.NewClient(cf)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	ipamClient := backendClient.IPAM()
+	ipamClient := client.IPAM()
 	passedIP := parsedArgs["--ip"].(string)
 	ip := validateIP(passedIP)
-	attr, err := ipamClient.GetAssignmentAttributes(cnet.IP{ip})
+	attr, err := ipamClient.GetAssignmentAttributes(net.IP{ip})
 
 	// IP address is not assigned, this prints message like
 	// `IP 192.168.71.1 is not assigned in block`. This is not exactly an error,

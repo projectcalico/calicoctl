@@ -20,11 +20,11 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/projectcalico/calico-containers/calicoctl/commands/common"
+	"github.com/projectcalico/calico-containers/calicoctl/commands/constants"
 )
 
 func Replace(args []string) error {
-	doc := common.DatastoreIntro + `Usage:
+	doc := constants.DatastoreIntro + `Usage:
   calicoctl replace --filename=<FILENAME> [--config=<CONFIG>]
 
 Examples:

@@ -20,13 +20,13 @@ import (
 	"strings"
 
 	"github.com/docopt/docopt-go"
+	"github.com/projectcalico/calico-containers/calicoctl/commands/constants"
 	"github.com/projectcalico/calico-containers/calicoctl/commands/ipam"
-	"github.com/projectcalico/calico-containers/calicoctl/commands/common"
 )
 
 // IPAM takes keyword with an IP address then calls the subcommands.
 func IPAM(args []string) error {
-	doc := common.DatastoreIntro + `Usage:
+	doc := constants.DatastoreIntro + `Usage:
   calicoctl ipam <command> [<args>...]
 
     release       Release a Calico assigned IP address.

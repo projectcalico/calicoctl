@@ -21,11 +21,11 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/projectcalico/calico-containers/calicoctl/commands/common"
+	"github.com/projectcalico/calico-containers/calicoctl/commands/constants"
 )
 
 func Get(args []string) error {
-	doc := common.DatastoreIntro + `Usage:
+	doc := constants.DatastoreIntro + `Usage:
   calicoctl get ([--node=<NODE>] [--orchestrator=<ORCH>] [--workload=<WORKLOAD>] [--scope=<SCOPE>]
                  (<KIND> [<NAME>]) |
                  --filename=<FILENAME>)
