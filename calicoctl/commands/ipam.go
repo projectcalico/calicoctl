@@ -29,16 +29,17 @@ func IPAM(args []string) error {
 	doc := constants.DatastoreIntro + `Usage:
   calicoctl ipam <command> [<args>...]
 
-    release       Release a Calico assigned IP address.
-    show          Show details of a Calico assigned IP address.
+    release      Release a Calico assigned IP address.
+    show         Show details of a Calico assigned IP address.
 
 Options:
-  -h --help               Show this screen.
+  -h --help      Show this screen.
 
 Description:
   IP Address Management specific commands for calicoctl.
 
-  See 'calicoctl ipam <command> --help' to read about a specific subcommand.`
+  See 'calicoctl ipam <command> --help' to read about a specific subcommand.
+`
 	arguments, err := docopt.Parse(doc, args, true, "", true, false)
 	if err != nil {
 		return err

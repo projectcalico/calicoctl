@@ -35,7 +35,8 @@ Options:
   -h --help   Show this screen.
 
 Description:
-  Display the version of calicoctl.`
+  Display the version of calicoctl.
+`
 	arguments, err := docopt.Parse(doc, args, true, "", false, false)
 	if err != nil {
 		return err
