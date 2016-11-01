@@ -48,6 +48,7 @@ COPY node_share /tmp/node_share
 RUN apk --no-cache add --virtual temp py-pip git gcc python-dev musl-dev libffi-dev openssl-dev && \
   pip install git+$LIBNETWORK_REPO@$LIBNETWORK_VER && \
   pip install git+$LIBCALICO_REPO@$LIBCALICO_VER && \
+  pip install git+https://github.com/jplana/python-etcd.git@0d0145f5e835aa032c97a0a5e09c4c68b7a03f66 --upgrade && \
   apk del --purge temp && \
   rm -rf /tmp/node_share
 
