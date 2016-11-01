@@ -15,9 +15,9 @@ FROM gliderlabs/alpine:3.4
 MAINTAINER Tom Denham <tom@projectcalico.org>
 
 ARG LIBCALICO_REPO="https://github.com/projectcalico/libcalico.git"
-ARG LIBCALICO_VER="master"
+ARG LIBCALICO_VER="v0.18.0"
 ARG LIBNETWORK_REPO="https://github.com/projectcalico/libnetwork-plugin.git"
-ARG LIBNETWORK_VER="master"
+ARG LIBNETWORK_VER="v0.10.0"
 
 # Download and install glibc for use by non-static binaries that require it.
 RUN apk --no-cache add wget ca-certificates libgcc && \
