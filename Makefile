@@ -335,11 +335,15 @@ semaphore: clean
 	bash -c 'rm -rf /home/runner/{.npm,.phpbrew,.phpunit,.kerl,.kiex,.lein,.nvm,.npm,.phpbrew,.rbenv}'
 
 	# Actually run the tests (refreshing the images as required)
-	make st
+	# make st
 
 	# Run subset of STs with secure etcd
-	ST_TO_RUN=tests/st/no_orchestrator/ make st-ssl
-	ST_TO_RUN=tests/st/bgp/test_route_reflector_cluster.py make st-ssl
+	# ST_TO_RUN=tests/st/no_orchestrator/ make st-ssl
+	# ST_TO_RUN=tests/st/bgp/test_route_reflector_cluster.py make st-ssl
+	
+	make binary
+	make calico-node.tar
+	make node_image
 
 	bash -c 'if [ -z "$$PULL_REQUEST_NUMBER" ]; then \
 		docker push $(NODE_CONTAINER_NAME) && \
