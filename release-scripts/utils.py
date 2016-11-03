@@ -287,7 +287,7 @@ def save_release_data(release_data):
         sys.exit(1)
 
 
-def get_github_library_version(name, current, url):
+def get_github_library_version(name, current, url, skip_validation):
     """
     Ask the user for the version of a GitHub library.
     :param name: A friendly name.
@@ -304,15 +304,16 @@ def get_github_library_version(name, current, url):
             # Default to current if user just presses enter
             version = current
 
-        if not url_exists("%s/releases/tag/%s" % (url, version)):
+        if not url_exists("%s/releases/tag/%s" % (url, version), skip_validation):
             print_warning("The version of %s is not valid.  Please check the "
                           "GitHub releases for exact naming at "
                           "%s/releases" % (name, url))
-            continue
+            if not skip_validation:
+                continue
         return version
 
 
-def url_exists(url):
+def url_exists(url, skip_validation):
     """
     Check that a URL exists.
     :param url:
@@ -329,10 +330,12 @@ def url_exists(url):
         return True
     except urllib2.HTTPError, e:
         print_bullet("Hit error reading %s: %s" % (url, e))
-        return False
+        if not skip_validation:
+            return False
     except urllib2.URLError, e:
         print_bullet("Hit error reading %s: %s" % (url, e))
-        return False
+        if not skip_validation:
+            return False
 
 
 def print_paragraph(msg):
@@ -408,7 +411,7 @@ def check_or_exit(msg):
             sys.exit(1)
 
 
-def validate_markdown_uris():
+def validate_markdown_uris(skip_validation):
     """
     Validate that all of the URIs in the markdown files are accessible.
     """
@@ -424,7 +427,7 @@ def validate_markdown_uris():
                     found_analytic_url = True
                     valid = validate_analytics_url(filename, uri)
                 else:
-                    valid = validate_uri(filename, uri)
+                    valid = validate_uri(filename, uri, skip_validation)
                 all_valid = all_valid and valid
         if not found_analytic_url:
             print_bullet("%s: No analytics URL in file" % filename)
@@ -436,7 +439,7 @@ def validate_markdown_uris():
     print "Validation complete"
 
 
-def validate_uri(filename, uri):
+def validate_uri(filename, uri, skip_validation):
     """
     Validate a URI exists, either by checking the file exists, or by checking
     the URL is accessbile.
@@ -474,7 +477,7 @@ def validate_uri(filename, uri):
                              "specify using a relative path: %s" % (filename, uri))
                 return False
 
-        if not url_exists(uri):
+        if not url_exists(uri, skip_validation):
             print_bullet("%s: URL is not valid: %s" % (filename, uri))
             return False
         else:

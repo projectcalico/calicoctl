@@ -139,9 +139,11 @@ def start_release():
          "the master branch.")
     utils.check_or_exit("Are you currently on the correct revision")
 
-    if not arguments["--skip-validation"]:
+    skip_validation = arguments["--skip-validation"]
+
+    if not skip_validation :
         # Before asking for version info, perform validation on the current code.
-        utils.validate_markdown_uris()
+        utils.validate_markdown_uris(skip_validation)
 
     old_version = utils.get_calicoctl_version()
     para("Current version is: %s" % old_version)
@@ -151,7 +153,7 @@ def start_release():
         while True:
             new_version = raw_input("New calicoctl version?: ")
             release_type = utils.check_version_increment(old_version, new_version)
-            if release_type:
+            if release_type or skip_validation:
                 para("Release type: %s" % release_type)
                 break
 
@@ -167,13 +169,13 @@ def start_release():
 
         calico_version = \
             utils.get_github_library_version("calico (felix)", __felix_version__,
-                                             "https://github.com/projectcalico/felix")
+                                             "https://github.com/projectcalico/felix", skip_validation)
         libcalico_version = \
             utils.get_github_library_version("libcalico", __libcalico_version__,
-                                             "https://github.com/projectcalico/libcalico")
+                                             "https://github.com/projectcalico/libcalico", skip_validation)
         libnetwork_version = \
             utils.get_github_library_version("libnetwork-plugin", __libnetwork_plugin_version__,
-                                             "https://github.com/projectcalico/libnetwork-plugin")
+                                             "https://github.com/projectcalico/libnetwork-plugin", skip_validation)
 
     release_data["versions"] = {"version": new_version,
                                 "version-no-v": new_version[1:],
