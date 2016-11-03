@@ -2,8 +2,6 @@
 default: help
 all: test                ## Run all the tests
 binary: dist/calicoctl   ## Create the calicoctl binary
-calico/node: $(NODE_CONTAINER_CREATED) ## Create the calico/node image
-calico/ctl: calicoctl/.calico_ctl.created ## Create the calico/node image
 node_image: calico/node
 ctl_image: calico/ctl
 test: st ut              ## Run all the tests
@@ -43,6 +41,8 @@ NODE_CONTAINER_BIN_DIR=$(NODE_CONTAINER_DIR)/filesystem/bin
 NODE_CONTAINER_BINARIES=startup allocate-ipip-addr calico-felix bird calico-bgp-daemon confd libnetwork-plugin
 FELIX_CONTAINER_NAME?=calico/felix:latest
 LIBNETWORK_PLUGIN_CONTAINER_NAME?=calico/libnetwork-plugin:latest
+
+calico/node: $(NODE_CONTAINER_CREATED) ## Create the calico/node image
 
 calico-node.tar: $(NODE_CONTAINER_CREATED)
 	docker save --output $@ $(NODE_CONTAINER_NAME)
@@ -118,6 +118,8 @@ CALICOCTL_DIR=calicoctl
 CTL_CONTAINER_NAME?=calico/ctl:latest
 CALICOCTL_FILE=$(CALICOCTL_DIR)/calicoctl.py $(wildcard $(CALICOCTL_DIR)/calico_ctl/*.py) calicoctl.spec
 CTL_CONTAINER_CREATED=$(CALICOCTL_DIR)/.calico_ctl.created
+
+calico/ctl: $(CTL_CONTAINER_CREATED) ## Create the calico/ctl image
 
 dist/calicoctl: $(CALICOCTL_FILE) birdcl gobgp
 	# Ignore errors on docker command. CircleCI throws a benign error
