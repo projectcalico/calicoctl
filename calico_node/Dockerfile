@@ -15,7 +15,7 @@ FROM gliderlabs/alpine:3.4
 MAINTAINER Tom Denham <tom@projectcalico.org>
 
 ARG LIBCALICO_REPO="https://github.com/projectcalico/libcalico.git"
-ARG LIBCALICO_VER="master"
+ARG LIBCALICO_VER="1.0.0-beta-rc1"
 
 # Download and install glibc for use by non-static binaries that require it.
 RUN apk --no-cache add wget ca-certificates libgcc && \
