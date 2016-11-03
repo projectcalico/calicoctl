@@ -136,6 +136,9 @@ def check_version_increment(old_version, new_version):
     :param new_version:
     :return: The increment type
     """
+    #releaseweek2016
+    return True
+
     old_version_tuple = _get_version_tuple(old_version)
     new_version_tuple = _get_version_tuple(new_version)
 
@@ -308,7 +311,8 @@ def get_github_library_version(name, current, url):
             print_warning("The version of %s is not valid.  Please check the "
                           "GitHub releases for exact naming at "
                           "%s/releases" % (name, url))
-            continue
+            #releaseweek2016
+            #continue
         return version
 
 
