@@ -23,22 +23,22 @@ CALICO_BGP_DAEMON_URL?=https://github.com/projectcalico/calico-bgp-daemon/releas
 GOBGP_URL?=https://github.com/projectcalico/calico-bgp-daemon/releases/download/v0.1.0/gobgp
 
 # we can use "custom" build image name
-BUILD_CONTAINER_NAME?=calico/build:latest
+BUILD_CONTAINER_NAME?=calico/build:v0.18.0
 ###############################################################################
 # calico/node build. Contains the following areas
 # - Populate the calico_node/filesystem
 # - Build the container itself
 ###############################################################################
 NODE_CONTAINER_DIR=calico_node
-NODE_CONTAINER_NAME?=calico/node:latest
+NODE_CONTAINER_NAME?=calico/node:v1.0.0-beta-rc3
 NODE_CONTAINER_FILES=$(shell find $(NODE_CONTAINER_DIR)/filesystem -type f)
 # we can pass --build-arg during node image building
 NODE_CONTAINER_BUILD_ARGS?=
 NODE_CONTAINER_CREATED=$(NODE_CONTAINER_DIR)/.calico_node.created
 NODE_CONTAINER_BIN_DIR=$(NODE_CONTAINER_DIR)/filesystem/bin
 NODE_CONTAINER_BINARIES=startup allocate-ipip-addr calico-felix bird calico-bgp-daemon confd libnetwork-plugin
-FELIX_CONTAINER_NAME?=calico/felix:latest
-LIBNETWORK_PLUGIN_CONTAINER_NAME?=calico/libnetwork-plugin:latest
+FELIX_CONTAINER_NAME?=calico/felix:2.0.0-beta.3
+LIBNETWORK_PLUGIN_CONTAINER_NAME?=calico/libnetwork-plugin:v1.0.0-beta-rc2
 
 calico/node: $(NODE_CONTAINER_CREATED)    ## Create the calico/node image
 
