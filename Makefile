@@ -274,7 +274,7 @@ semaphore: clean
 ###############################################################################
 .PHONY: ut
 ## Run the Unit Tests locally
-ut: dist/calicoctl
+ut:
 	# Run tests in random order find tests recursively (-r).
 	ginkgo -cover -r --skipPackage vendor
 
