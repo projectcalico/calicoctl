@@ -307,7 +307,6 @@ test-containerized: dist/calicoctl
 CALICOCTL_DIR=calicoctl
 CTL_CONTAINER_NAME?=calico/ctl:latest
 CALICOCTL_FILES=$(shell find $(CALICOCTL_DIR) -name '*.go')
-GLIDE_FILES=$(shell find . -name 'glide.*')
 CTL_CONTAINER_CREATED=$(CALICOCTL_DIR)/.calico_ctl.created
 VENDOR_CREATED=vendor/.vendor.created
 
@@ -331,9 +330,18 @@ calico/ctl: $(CTL_CONTAINER_CREATED)      ## Create the calico/ctl image
 .PHONY: vendor
 ## Use this to populate the vendor directory after checking out the repository.
 ## To update upstream dependencies, delete the glide.lock file first.
-vendor: $(VENDOR_CREATED)
+vendor: glide.lock $(VENDOR_CREATED)
 
-$(VENDOR_CREATED): $(GLIDE_FILES)
+# If glide.lock is missing then do the vendoring which will create the lock file
+# (delete the vendor created flag if it exists to force vendoring).
+glide.lock:
+	rm -f $(VENDOR_CREATED)
+	$(MAKE) $(VENDOR_CREATED)
+
+# Perform the vendoring.  This writes a created flag file only after the vendoring
+# completed successfully - this allows us to easily re-run in the event of a partially
+# incomplete vendoring.
+$(VENDOR_CREATED):
 	# To build without Docker just run "glide install -strip-vendor"
 	if [ "$(LIBCALICOGO_PATH)" != "none" ]; then \
           EXTRA_DOCKER_BIND="-v $(LIBCALICOGO_PATH):/go/src/github.com/projectcalico/libcalico-go:ro"; \
@@ -341,7 +349,6 @@ $(VENDOR_CREATED): $(GLIDE_FILES)
 	docker run --rm -v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw $$EXTRA_DOCKER_BIND \
       --entrypoint /bin/sh $(GO_CONTAINER_NAME) -e -c ' \
         cd /go/src/github.com/projectcalico/calico-containers && \
-        chown -R $(shell id -u):$(shell id -u) vendor && \
         glide install -strip-vendor && \
         chown -R $(shell id -u):$(shell id -u) vendor'
 	touch $(VENDOR_CREATED)
