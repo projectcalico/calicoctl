@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
+import logging
 import netaddr
 import yaml
 from nose_parameterized import parameterized
@@ -38,8 +39,36 @@ else:
     ADDITIONAL_DOCKER_OPTIONS = "--cluster-store=etcd://%s:2379 " % \
                                 get_ip()
 
+logging.basicConfig(level=logging.DEBUG, format="%(message)s")
+logger = logging.getLogger(__name__)
+
 
 class MultiHostMainline(TestBase):
+    @classmethod
+    def setUpClass(cls):
+        super(TestBase, cls).setUpClass()
+        cls.hosts = []
+        cls.hosts.append(DockerHost("host1",
+                                    additional_docker_options=ADDITIONAL_DOCKER_OPTIONS,
+                                    post_docker_commands=POST_DOCKER_COMMANDS,
+                                    start_calico=False))
+        cls.hosts.append(DockerHost("host2",
+                                    additional_docker_options=ADDITIONAL_DOCKER_OPTIONS,
+                                    post_docker_commands=POST_DOCKER_COMMANDS,
+                                    start_calico=False))
+        cls._setup_workloads(cls.hosts[0], cls.hosts[1])
+
+    @classmethod
+    def tearDownClass(cls):
+        # Tidy up
+        for host in cls.hosts:
+            host.remove_workloads()
+        for network in cls.networks:
+            network.delete()
+        for host in cls.hosts:
+            host.cleanup()
+            del host
+
     @parameterized.expand([
         #"tags",
         "rules.tags",
@@ -67,171 +96,156 @@ class MultiHostMainline(TestBase):
         - Re-apply the original profile
         - Check that connectivity goes back to what it was originally.
         """
-        with DockerHost("host1",
-                        additional_docker_options=ADDITIONAL_DOCKER_OPTIONS,
-                        post_docker_commands=POST_DOCKER_COMMANDS,
-                        start_calico=False) as host1, \
-                DockerHost("host2",
-                           additional_docker_options=ADDITIONAL_DOCKER_OPTIONS,
-                           post_docker_commands=POST_DOCKER_COMMANDS,
-                           start_calico=False) as host2:
-            (n1_workloads, n2_workloads, networks) = \
-                self._setup_workloads(host1, host2)
+        host1 = self.hosts[0]
 
-            # Get the original profiles:
-            output = host1.calicoctl("get profile -o yaml")
-            original_profiles = yaml.safe_load(output)
-            # Make a copy of the profiles to mess about with.
-            new_profiles = copy.deepcopy(original_profiles)
+        # Get the original profiles:
+        output = host1.calicoctl("get profile -o yaml")
+        original_profiles = yaml.safe_load(output)
+        # Make a copy of the profiles to mess about with.
+        new_profiles = copy.deepcopy(original_profiles)
 
-            if test_type == "tags":
-                profile0_tag = new_profiles[0]['spec']['tags'][0]
-                profile1_tag = new_profiles[1]['spec']['tags'][0]
-                # Make a new profiles dict where the two networks have each
-                # other in their tags list
-                new_profiles[0]['spec']['tags'].append(profile1_tag)
-                new_profiles[1]['spec']['tags'].append(profile0_tag)
+        if test_type == "tags":
+            profile0_tag = new_profiles[0]['spec']['tags'][0]
+            profile1_tag = new_profiles[1]['spec']['tags'][0]
+            # Make a new profiles dict where the two networks have each
+            # other in their tags list
+            new_profiles[0]['spec']['tags'].append(profile1_tag)
+            new_profiles[1]['spec']['tags'].append(profile0_tag)
 
-                self._apply_new_profile(new_profiles, host1)
-                # Check everything can contact everything else now
-                self.assert_connectivity(retries=2,
-                                         pass_list=n1_workloads + n2_workloads)
+            self._apply_new_profile(new_profiles, host1)
+            # Check everything can contact everything else now
+            self.assert_connectivity(retries=2,
+                                     pass_list=self.n1_workloads + self.n2_workloads)
 
-            elif test_type == "rules.tags":
-                profile0_tag = new_profiles[0]['spec']['tags'][0]
-                profile1_tag = new_profiles[1]['spec']['tags'][0]
-                rule0 = {'action': 'allow',
-                         'source':
-                             {'tag': profile1_tag}}
-                rule1 = {'action': 'allow',
-                         'source':
-                             {'tag': profile0_tag}}
-                new_profiles[0]['spec']['ingress'].append(rule0)
-                new_profiles[1]['spec']['ingress'].append(rule1)
-                self._apply_new_profile(new_profiles, host1)
-                # Check everything can contact everything else now
-                self.assert_connectivity(retries=2,
-                                         pass_list=n1_workloads + n2_workloads)
+        elif test_type == "rules.tags":
+            profile0_tag = new_profiles[0]['spec']['tags'][0]
+            profile1_tag = new_profiles[1]['spec']['tags'][0]
+            rule0 = {'action': 'allow',
+                     'source':
+                         {'tag': profile1_tag}}
+            rule1 = {'action': 'allow',
+                     'source':
+                         {'tag': profile0_tag}}
+            new_profiles[0]['spec']['ingress'].append(rule0)
+            new_profiles[1]['spec']['ingress'].append(rule1)
+            self._apply_new_profile(new_profiles, host1)
+            # Check everything can contact everything else now
+            self.assert_connectivity(retries=2,
+                                     pass_list=self.n1_workloads + self.n2_workloads)
 
-            elif test_type == "rules.protocol.icmp":
+        elif test_type == "rules.protocol.icmp":
+            rule = {'action': 'allow',
+                    'source':
+                        {'protocol': 'icmp'}}
+            # The copy.deepcopy(rule) is needed to ensure that we don't
+            # end up with a yaml document with a reference to the same
+            # rule.  While this is probably legal, it isn't main line.
+            new_profiles[0]['spec']['ingress'].append(rule)
+            new_profiles[1]['spec']['ingress'].append(copy.deepcopy(rule))
+            self._apply_new_profile(new_profiles, host1)
+            # Check everything can contact everything else now
+            self.assert_connectivity(retries=2,
+                                     pass_list=self.n1_workloads + self.n2_workloads)
+
+        elif test_type == "rules.ip.addr":
+            prof_n1, prof_n2 = self._get_profiles(new_profiles)
+            for workload in self.n1_workloads:
+                ip = workload.ip
                 rule = {'action': 'allow',
                         'source':
-                            {'protocol': 'icmp'}}
-                # The copy.deepcopy(rule) is needed to ensure that we don't
-                # end up with a yaml document with a reference to the same
-                # rule.  While this is probably legal, it isn't main line.
-                new_profiles[0]['spec']['ingress'].append(rule)
-                new_profiles[1]['spec']['ingress'].append(copy.deepcopy(rule))
-                self._apply_new_profile(new_profiles, host1)
-                # Check everything can contact everything else now
-                self.assert_connectivity(retries=2,
-                                         pass_list=n1_workloads + n2_workloads)
-
-            elif test_type == "rules.ip.addr":
-                prof_n1, prof_n2 = self._get_profiles(new_profiles)
-                for workload in n1_workloads:
-                    ip = workload.ip
-                    rule = {'action': 'allow',
-                            'source':
-                                {'net': '%s/32' % ip}}
-                    prof_n2['spec']['ingress'].append(rule)
-                for workload in n2_workloads:
-                    ip = workload.ip
-                    rule = {'action': 'allow',
-                            'source':
-                                {'net': '%s/32' % ip}}
-                    prof_n1['spec']['ingress'].append(rule)
-                self._apply_new_profile(new_profiles, host1)
-                self.assert_connectivity(retries=2,
-                                         pass_list=n1_workloads + n2_workloads)
-
-            elif test_type == "rules.ip.net":
-                prof_n1, prof_n2 = self._get_profiles(new_profiles)
-                n1_ips = [workload.ip for workload in n1_workloads]
-                n2_ips = [workload.ip for workload in n2_workloads]
-                n1_subnet = netaddr.spanning_cidr(n1_ips)
-                n2_subnet = netaddr.spanning_cidr(n2_ips)
-                rule = {'action': 'allow',
-                        'source':
-                            {'net': str(n1_subnet)}}
+                            {'net': '%s/32' % ip}}
                 prof_n2['spec']['ingress'].append(rule)
+            for workload in self.n2_workloads:
+                ip = workload.ip
                 rule = {'action': 'allow',
                         'source':
-                            {'net': str(n2_subnet)}}
+                            {'net': '%s/32' % ip}}
                 prof_n1['spec']['ingress'].append(rule)
-                self._apply_new_profile(new_profiles, host1)
-                self.assert_connectivity(retries=2,
-                                         pass_list=n1_workloads + n2_workloads)
+            self._apply_new_profile(new_profiles, host1)
+            self.assert_connectivity(retries=2,
+                                     pass_list=self.n1_workloads + self.n2_workloads)
 
-            elif test_type == "rules.selector":
-                new_profiles[0]['metadata']['labels'] = {'net': 'n1'}
-                new_profiles[1]['metadata']['labels'] = {'net': 'n2'}
-                rule = {'action': 'allow',
-                        'source':
-                            {'selector': 'net=="n2"'}}
-                new_profiles[0]['spec']['ingress'].append(rule)
-                rule = {'action': 'allow',
-                        'source':
-                            {'selector': "net=='n1'"}}
-                new_profiles[1]['spec']['ingress'].append(rule)
-                self._apply_new_profile(new_profiles, host1)
-                self.assert_connectivity(retries=2,
-                                         pass_list=n1_workloads + n2_workloads)
+        elif test_type == "rules.ip.net":
+            prof_n1, prof_n2 = self._get_profiles(new_profiles)
+            n1_ips = [workload.ip for workload in self.n1_workloads]
+            n2_ips = [workload.ip for workload in self.n2_workloads]
+            n1_subnet = netaddr.spanning_cidr(n1_ips)
+            n2_subnet = netaddr.spanning_cidr(n2_ips)
+            rule = {'action': 'allow',
+                    'source':
+                        {'net': str(n1_subnet)}}
+            prof_n2['spec']['ingress'].append(rule)
+            rule = {'action': 'allow',
+                    'source':
+                        {'net': str(n2_subnet)}}
+            prof_n1['spec']['ingress'].append(rule)
+            self._apply_new_profile(new_profiles, host1)
+            self.assert_connectivity(retries=2,
+                                     pass_list=self.n1_workloads + self.n2_workloads)
 
-            elif test_type == "rules.tcp.port":
-                rule = {'action': 'allow',
-                        'protocol': 'tcp',
-                        'destination':
-                            {'ports': [80]}}
-                # The copy.deepcopy(rule) is needed to ensure that we don't
-                # end up with a yaml document with a reference to the same
-                # rule.  While this is probably legal, it isn't main line.
-                new_profiles[0]['spec']['ingress'].append(rule)
-                new_profiles[1]['spec']['ingress'].append(copy.deepcopy(rule))
-                self._apply_new_profile(new_profiles, host1)
-                self.assert_connectivity(retries=2,
-                                         pass_list=n1_workloads + n2_workloads,
-                                         type_list=['tcp'])
-                self.assert_connectivity(retries=2,
-                                         pass_list=n1_workloads,
-                                         fail_list=n2_workloads,
-                                         type_list=['icmp', 'udp'])
+        elif test_type == "rules.selector":
+            new_profiles[0]['metadata']['labels'] = {'net': 'n1'}
+            new_profiles[1]['metadata']['labels'] = {'net': 'n2'}
+            rule = {'action': 'allow',
+                    'source':
+                        {'selector': 'net=="n2"'}}
+            new_profiles[0]['spec']['ingress'].append(rule)
+            rule = {'action': 'allow',
+                    'source':
+                        {'selector': "net=='n1'"}}
+            new_profiles[1]['spec']['ingress'].append(rule)
+            self._apply_new_profile(new_profiles, host1)
+            self.assert_connectivity(retries=2,
+                                     pass_list=self.n1_workloads + self.n2_workloads)
 
-            elif test_type == "rules.udp.port":
-                rule = {'action': 'allow',
-                        'protocol': 'udp',
-                        'destination':
-                            {'ports': [69]}}
-                # The copy.deepcopy(rule) is needed to ensure that we don't
-                # end up with a yaml document with a reference to the same
-                # rule.  While this is probably legal, it isn't main line.
-                new_profiles[0]['spec']['ingress'].append(rule)
-                new_profiles[1]['spec']['ingress'].append(copy.deepcopy(rule))
-                self._apply_new_profile(new_profiles, host1)
-                self.assert_connectivity(retries=2,
-                                         pass_list=n1_workloads + n2_workloads,
-                                         type_list=['udp'])
-                self.assert_connectivity(retries=2,
-                                         pass_list=n1_workloads,
-                                         fail_list=n2_workloads,
-                                         type_list=['icmp', 'tcp'])
+        elif test_type == "rules.tcp.port":
+            rule = {'action': 'allow',
+                    'protocol': 'tcp',
+                    'destination':
+                        {'ports': [80]}}
+            # The copy.deepcopy(rule) is needed to ensure that we don't
+            # end up with a yaml document with a reference to the same
+            # rule.  While this is probably legal, it isn't main line.
+            new_profiles[0]['spec']['ingress'].append(rule)
+            new_profiles[1]['spec']['ingress'].append(copy.deepcopy(rule))
+            self._apply_new_profile(new_profiles, host1)
+            self.assert_connectivity(retries=2,
+                                     pass_list=self.n1_workloads + self.n2_workloads,
+                                     type_list=['tcp'])
+            self.assert_connectivity(retries=2,
+                                     pass_list=self.n1_workloads,
+                                     fail_list=self.n2_workloads,
+                                     type_list=['icmp', 'udp'])
 
-            else:
-                print "******************* " \
-                      "ERROR - Unrecognised test type " \
-                      "*******************"
-                assert False, "Unrecognised test type: %s" % test_type
+        elif test_type == "rules.udp.port":
+            rule = {'action': 'allow',
+                    'protocol': 'udp',
+                    'destination':
+                        {'ports': [69]}}
+            # The copy.deepcopy(rule) is needed to ensure that we don't
+            # end up with a yaml document with a reference to the same
+            # rule.  While this is probably legal, it isn't main line.
+            new_profiles[0]['spec']['ingress'].append(rule)
+            new_profiles[1]['spec']['ingress'].append(copy.deepcopy(rule))
+            self._apply_new_profile(new_profiles, host1)
+            self.assert_connectivity(retries=2,
+                                     pass_list=self.n1_workloads + self.n2_workloads,
+                                     type_list=['udp'])
+            self.assert_connectivity(retries=2,
+                                     pass_list=self.n1_workloads,
+                                     fail_list=self.n2_workloads,
+                                     type_list=['icmp', 'tcp'])
 
-            # Now restore the original profile and check it all works as before
-            self._apply_new_profile(original_profiles, host1)
-            host1.calicoctl("get profile -o yaml")
-            self._check_original_connectivity(n1_workloads, n2_workloads)
+        else:
+            print "******************* " \
+                  "ERROR - Unrecognised test type " \
+                  "*******************"
+            assert False, "Unrecognised test type: %s" % test_type
 
-            # Tidy up
-            host1.remove_workloads()
-            host2.remove_workloads()
-            for network in networks:
-                network.delete()
+        # Now restore the original profile and check it all works as before
+        self._apply_new_profile(original_profiles, host1)
+        host1.calicoctl("get profile -o yaml")
+        self._check_original_connectivity(self.n1_workloads, self.n2_workloads)
 
     @staticmethod
     def _get_profiles(profiles):
@@ -276,67 +290,59 @@ class MultiHostMainline(TestBase):
             pass
         return host.create_network(net_name, ipam_driver="calico-ipam")
 
-    def _setup_workloads(self, host1, host2):
+    @classmethod
+    def _setup_workloads(cls, host1, host2):
         # TODO work IPv6 into this test too
         host1.start_calico_node()
         host2.start_calico_node()
 
-        # Create the networks on host1, but it should be usable from all
+        # Create the cls.networks on host1, but it should be usable from all
         # hosts.  We create one network using the default driver, and the
         # other using the Calico driver.
-        network1 = self.create_network(host1, "testnet1")
-        network2 = self.create_network(host2, "testnet2")
-        networks = [network1, network2]
+        network1 = cls.create_network(host1, "testnet1")
+        network2 = cls.create_network(host2, "testnet2")
+        cls.networks = [network1, network2]
 
-        # Assert that the networks can be seen on host2
+        # Assert that the cls.networks can be seen on host2
         assert_network(host2, network2)
         assert_network(host2, network1)
 
-        n1_workloads = []
-        n2_workloads = []
+        cls.n1_workloads = []
+        cls.n2_workloads = []
 
         # Create two workloads on host1 and one on host2 all in network 1.
-        n1_workloads.append(host2.create_workload("workload_h2n1_1",
-                                                  image="workload",
-                                                  network=network1))
-        n1_workloads.append(host1.create_workload("workload_h1n1_1",
-                                                  image="workload",
-                                                  network=network1))
-        n1_workloads.append(host1.create_workload("workload_h1n1_2",
-                                                  image="workload",
-                                                  network=network1))
+        cls.n1_workloads.append(host2.create_workload("workload_h2n1_1",
+                                                      image="workload",
+                                                      network=network1))
+        cls.n1_workloads.append(host1.create_workload("workload_h1n1_1",
+                                                      image="workload",
+                                                      network=network1))
+        cls.n1_workloads.append(host1.create_workload("workload_h1n1_2",
+                                                      image="workload",
+                                                      network=network1))
 
         # Create similar workloads in network 2.
-        n2_workloads.append(host1.create_workload("workload_h1n2_1",
-                                                  image="workload",
-                                                  network=network2))
-        n2_workloads.append(host1.create_workload("workload_h1n2_2",
-                                                  image="workload",
-                                                  network=network2))
-        n2_workloads.append(host2.create_workload("workload_h2n2_1",
-                                                  image="workload",
-                                                  network=network2))
+        cls.n2_workloads.append(host1.create_workload("workload_h1n2_1",
+                                                      image="workload",
+                                                      network=network2))
+        cls.n2_workloads.append(host1.create_workload("workload_h1n2_2",
+                                                      image="workload",
+                                                      network=network2))
+        cls.n2_workloads.append(host2.create_workload("workload_h2n2_1",
+                                                      image="workload",
+                                                      network=network2))
         print "*******************"
         print "Network1 is:\n%s\n%s" % (
-            [x.ip for x in n1_workloads],
-            [x.name for x in n1_workloads])
+            [x.ip for x in cls.n1_workloads],
+            [x.name for x in cls.n1_workloads])
         print "Network2 is:\n%s\n%s" % (
-            [x.ip for x in n2_workloads],
-            [x.name for x in n2_workloads])
+            [x.ip for x in cls.n2_workloads],
+            [x.name for x in cls.n2_workloads])
         print "*******************"
 
         # Assert that endpoints are in Calico
         assert_number_endpoints(host1, 4)
         assert_number_endpoints(host2, 2)
-
-        self._check_original_connectivity(n1_workloads, n2_workloads)
-
-        # Test deleting the network. It will fail if there are any
-        # endpoints connected still.
-        self.assertRaises(CommandExecError, network1.delete)
-        self.assertRaises(CommandExecError, network2.delete)
-
-        return n1_workloads, n2_workloads, networks
 
     def _check_original_connectivity(self, n1_workloads, n2_workloads,
                                      types=None):
