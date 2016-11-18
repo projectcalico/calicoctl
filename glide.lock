@@ -1,5 +1,5 @@
-hash: 478d26cbe1a1140690242e7dd9fec4bf313d9ba49a2339b54a402c3a4fde4341
-updated: 2016-11-05T22:16:24.100569482-07:00
+hash: 7935c6d0a612256edb3548186eb3f569ad12dee50d5134a342fafdb3c680a634
+updated: 2016-11-18T09:13:29.728800757-08:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -107,7 +107,7 @@ imports:
 - name: github.com/pborman/uuid
   version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
 - name: github.com/projectcalico/libcalico-go
-  version: ac7658948424d886ebb34a0205501e74999a482b
+  version: c3038033665942c39cf958a6e145267eb1157ca3
   subpackages:
   - lib
   - lib/api
@@ -167,7 +167,7 @@ imports:
   - jws
   - jwt
 - name: golang.org/x/sys
-  version: 076b546753157f758b316e59bcb51e6807c04057
+  version: c200b10b5d5e122be351b67af224adc6128af5bf
   subpackages:
   - unix
 - name: golang.org/x/text
