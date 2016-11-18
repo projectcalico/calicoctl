@@ -62,6 +62,13 @@ class MultiHostIpam(TestBase):
         cls.network = cls.create_network(cls.hosts[0], "testnet1")
         cls.workloads = []
 
+        new_pool = {'apiVersion': 'v1',
+                    'kind': 'ipPool',
+                    'metadata': {'cidr': '192.168.0.0/25'},
+                    }
+        cls.hosts[0].writefile("pools.yaml", yaml.dump(new_pool))
+        cls.hosts[0].calicoctl("create -f pools.yaml")
+
     @classmethod
     def tearDownClass(cls):
         # Tidy up
@@ -112,10 +119,19 @@ class MultiHostIpam(TestBase):
             assert netaddr.IPAddress(workload.ip) in ipv4_subnet, \
                 "Workload IP in wrong pool. IP: %s, Pool: %s" % (workload.ip, ipv4_subnet.ipv4())
 
-    def test_pool_wrap(self):
+    @parameterized.expand([
+        # Can't use boolean values here :(
+        "False",
+        "True",
+    ])
+    def test_pool_wrap(self, make_static_workload_str):
         """
         Repeatedly create and delete workloads until the system re-assigns an IP.
         """
+        # Convert make_static_workload_str into a bool
+        make_static_workload = False
+        if make_static_workload_str == "True":
+            make_static_workload = True
         # Get details of the current pool.
         response = self.hosts[0].calicoctl("get IPpool -o yaml")
         pools = yaml.safe_load(response)
@@ -128,6 +144,12 @@ class MultiHostIpam(TestBase):
 
         host = self.hosts[0]
         i = 0
+        if make_static_workload:
+            static_workload = host.create_workload("static",
+                                                   image="workload",
+                                                   network=self.network)
+            i += 1
+
         new_workload = host.create_workload("wld-%s" % i,
                                             image="workload",
                                             network=self.network)
@@ -140,12 +162,20 @@ class MultiHostIpam(TestBase):
                                                 image="workload",
                                                 network=self.network)
             assert netaddr.IPAddress(new_workload.ip) in ipv4_subnet
+            if make_static_workload:
+                assert new_workload.ip != static_workload.ip, "IPAM assigned an IP which is " \
+                                                              "still in use!"
+
             if new_workload.ip == original_ip:
                 assert i >= 64, "Original IP was re-assigned before entire host pool " \
                                 "was cycled through.  Hit after %s times" % i
                 break
             if i > (len(ipv4_subnet) * 2):
                 assert False, "Cycled twice through pool - original IP still not assigned."
+
+        # Clear up static workload
+        if make_static_workload:
+            host.execute("docker rm -f %s" % static_workload.name)
 
     @staticmethod
     def create_network(host, net_name):
