@@ -112,6 +112,40 @@ class MultiHostIpam(TestBase):
             assert netaddr.IPAddress(workload.ip) in ipv4_subnet, \
                 "Workload IP in wrong pool. IP: %s, Pool: %s" % (workload.ip, ipv4_subnet.ipv4())
 
+    def test_pool_wrap(self):
+        """
+        Repeatedly create and delete workloads until the system re-assigns an IP.
+        """
+        # Get details of the current pool.
+        response = self.hosts[0].calicoctl("get IPpool -o yaml")
+        pools = yaml.safe_load(response)
+        ipv4_subnet = None
+        for pool in pools:
+            network = netaddr.IPNetwork(pool['metadata']['cidr'])
+            if network.version == 4:
+                ipv4_subnet = netaddr.IPNetwork(pool['metadata']['cidr'])
+        assert ipv4_subnet is not None
+
+        host = self.hosts[0]
+        i = 0
+        new_workload = host.create_workload("wld-%s" % i,
+                                            image="workload",
+                                            network=self.network)
+        assert netaddr.IPAddress(new_workload.ip) in ipv4_subnet
+        original_ip = new_workload.ip
+        while True:
+            host.execute("docker rm -f %s" % new_workload.name)
+            i += 1
+            new_workload = host.create_workload("wld-%s" % i,
+                                                image="workload",
+                                                network=self.network)
+            assert netaddr.IPAddress(new_workload.ip) in ipv4_subnet
+            if new_workload.ip == original_ip:
+                assert i >= 64, "Original IP was re-assigned before entire host pool " \
+                                "was cycled through.  Hit after %s times" % i
+                break
+            if i > (len(ipv4_subnet) * 2):
+                assert False, "Cycled twice through pool - original IP still not assigned."
 
     @staticmethod
     def create_network(host, net_name):
