@@ -15,12 +15,14 @@
 package node
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/docopt/docopt-go"
 	gops "github.com/mitchellh/go-ps"
@@ -129,11 +131,31 @@ func printBGPPeers(ipv string) {
 		os.Exit(1)
 	}
 
-	buf := make([]byte, 1024)
+	timeOut := 2 * time.Second
+	bufReader := bufio.NewReader(c)
 
-	n, err := c.Read(buf[:])
-	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+	birdOut := ""
+
+	for {
+		// Set a deadline for reading. Read operation will fail if no data
+		// is received after deadline.
+		c.SetReadDeadline(time.Now().Add(timeOut))
+
+		// Read string with \n as delim.
+		str, err := bufReader.ReadString('\n')
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fmt.Println("in str", str)
+		// "0000" output from BIRD means end of output.
+		if strings.Contains(str, "0000") {
+			break
+		} else {
+			birdOut = birdOut + str
+		}
+
 	}
 
 	data := [][]string{}
@@ -141,7 +163,7 @@ func printBGPPeers(ipv string) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Peer address", "Peer type", "State", "Since", "Info"})
 
-	birdOut := string(buf[:n])
+	//birdOut := string(buf[:n])
 
 	for _, line := range strings.Split(birdOut, "\n") {
 
