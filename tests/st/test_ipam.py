@@ -62,13 +62,6 @@ class MultiHostIpam(TestBase):
         cls.network = cls.create_network(cls.hosts[0], "testnet1")
         cls.workloads = []
 
-        new_pool = {'apiVersion': 'v1',
-                    'kind': 'ipPool',
-                    'metadata': {'cidr': '192.168.0.0/25'},
-                    }
-        cls.hosts[0].writefile("pools.yaml", yaml.dump(new_pool))
-        cls.hosts[0].calicoctl("create -f pools.yaml")
-
     @classmethod
     def tearDownClass(cls):
         # Tidy up
@@ -167,7 +160,12 @@ class MultiHostIpam(TestBase):
                                                               "still in use!"
 
             if new_workload.ip == original_ip:
-                assert i >= 64, "Original IP was re-assigned before entire host pool " \
+                # We assign pools to hosts in /26's - so 64 addresses.
+                poolsize = 64
+                # But if we're using one for a static workload, there will be one less
+                if make_static_workload:
+                    poolsize -= 1
+                assert i >= poolsize, "Original IP was re-assigned before entire host pool " \
                                 "was cycled through.  Hit after %s times" % i
                 break
             if i > (len(ipv4_subnet) * 2):
