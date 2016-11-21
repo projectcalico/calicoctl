@@ -131,14 +131,15 @@ func printBGPPeers(ipv string) {
 		os.Exit(1)
 	}
 
+	// BIRD socket read timeout.
 	timeOut := 2 * time.Second
 	bufReader := bufio.NewReader(c)
 
 	birdOut := ""
 
 	for {
-		// Set a deadline for reading. Read operation will fail if no data
-		// is received after deadline.
+		// Set a time-out for reading from the socket connection.
+		// Read operation will fail if no data is received until the timeout.
 		c.SetReadDeadline(time.Now().Add(timeOut))
 
 		// Read string with \n as delim.
@@ -148,22 +149,21 @@ func printBGPPeers(ipv string) {
 			return
 		}
 
-		fmt.Println("in str", str)
+		fmt.Println("[DEBUG] in str", str)
+
 		// "0000" output from BIRD means end of output.
 		if strings.Contains(str, "0000") {
 			break
 		} else {
+			// Append the line to birdOut string if it's not the end of the output.
 			birdOut = birdOut + str
 		}
-
 	}
 
 	data := [][]string{}
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Peer address", "Peer type", "State", "Since", "Info"})
-
-	//birdOut := string(buf[:n])
 
 	for _, line := range strings.Split(birdOut, "\n") {
 
