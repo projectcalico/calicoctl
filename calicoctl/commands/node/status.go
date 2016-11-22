@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docopt/docopt-go"
 	gops "github.com/mitchellh/go-ps"
 	"github.com/olekukonko/tablewriter"
@@ -135,7 +136,7 @@ func printBGPPeers(ipv string) {
 	timeOut := 2 * time.Second
 	bufReader := bufio.NewReader(c)
 
-	birdOut := ""
+	birdOut := []string{}
 
 	for {
 		// Set a time-out for reading from the socket connection.
@@ -146,17 +147,17 @@ func printBGPPeers(ipv string) {
 		str, err := bufReader.ReadString('\n')
 		if err != nil {
 			fmt.Println(err)
-			return
+			break
 		}
 
-		fmt.Println("[DEBUG] in str", str)
+		log.Debugf("Reading line from BIRD sock: %s\n", str)
 
 		// "0000" output from BIRD means end of output.
-		if strings.Contains(str, "0000") {
+		if str == "0000 \n" {
 			break
 		} else {
-			// Append the line to birdOut string if it's not the end of the output.
-			birdOut = birdOut + str
+			// Append the line to birdOut slice of strings if it's not the end of the output.
+			birdOut = append(birdOut, str)
 		}
 	}
 
@@ -165,7 +166,7 @@ func printBGPPeers(ipv string) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Peer address", "Peer type", "State", "Since", "Info"})
 
-	for _, line := range strings.Split(birdOut, "\n") {
+	for _, line := range birdOut {
 
 		ipString := bgpPeerRegex.FindString(line)
 
