@@ -152,7 +152,7 @@ func printBGPPeers(ipv string) {
 
 		log.Debugf("Reading line from BIRD sock: %s\n", str)
 
-		// "0000" output from BIRD means end of output.
+		// "0000 \n" output from BIRD means end of output.
 		if str == "0000 \n" {
 			break
 		} else {
