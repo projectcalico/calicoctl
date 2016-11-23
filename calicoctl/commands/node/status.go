@@ -33,6 +33,7 @@ import (
 // Check for Word_<IP> where every octate is seperated by "_", regardless of IP protocols
 // Example match: "Mesh_192_168_56_101" or "Mesh_fd80_24e2_f998_72d7__2"
 var bgpPeerRegex, _ = regexp.Compile(`[A-Za-z]+\_\w+\b`)
+var birdCodeRegex, _ = regexp.Compile(`^\d00\d[a-zA-Z0-9\s-]+`)
 
 // Status prings status of the node and returns error (if any)
 func Status(args []string) {
@@ -134,31 +135,58 @@ func printBGPPeers(ipv string) {
 
 	// BIRD socket read timeout.
 	timeOut := 2 * time.Second
-	bufReader := bufio.NewReader(c)
+	scanner := bufio.NewScanner(c)
 
 	birdOut := []string{}
+	// Reference output from BIRD socket:
+	// 0001 BIRD 1.5.0 ready.
+	// show protocols
+	// 2002-name     proto    table    state  since       info
+	// 1002-kernel1  Kernel   master   up     2016-11-21
+	//  device1  Device   master   up     2016-11-21
+	//  direct1  Direct   master   up     2016-11-21
+	//  Mesh_172_17_8_102 BGP      master   up     2016-11-21  Established
+	// 0000
+	for scanner.Scan() {
 
-	for {
 		// Set a time-out for reading from the socket connection.
 		// Read operation will fail if no data is received until the timeout.
 		c.SetReadDeadline(time.Now().Add(timeOut))
 
 		// Read string with \n as delim.
-		str, err := bufReader.ReadString('\n')
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
+		str := scanner.Text()
+		log.Debugf("Read from BIRD: %s\n", str)
 
-		log.Debugf("Reading line from BIRD sock: %s\n", str)
-
-		// "0000 \n" output from BIRD means end of output.
-		if str == "0000 \n" {
-			break
-		} else {
+		if birdCodeRegex.MatchString(str) {
+			// "0000 " output from BIRD means end of output.
+			if str == "0000 " {
+				break
+			} else if strings.HasPrefix(str, "0001") {
+				// "0001" code means BIRD is ready.
+			} else if strings.HasPrefix(str, "2002-") {
+				f := strings.Fields(str[5:])
+				expectedHeader := []string{"name", "proto", "table", "state", "since", "info"}
+				for i, v := range f {
+					if v != expectedHeader[i] {
+						fmt.Println("Error executing command: unknown BIRD table output format")
+						os.Exit(1)
+					}
+				}
+			} else if strings.HasPrefix(str, "1002-") {
+				// Append the line to birdOut slice of strings if it's not the end of the output.
+				birdOut = append(birdOut, str[5:])
+			} else {
+				fmt.Println("Error executing command: unexpected output line from BIRD")
+				os.Exit(1)
+			}
+		} else if strings.HasPrefix(str, " ") {
 			// Append the line to birdOut slice of strings if it's not the end of the output.
 			birdOut = append(birdOut, str)
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading data from BIRD socket:", err)
 	}
 
 	data := [][]string{}
