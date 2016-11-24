@@ -15,8 +15,11 @@ import copy
 import netaddr
 import logging
 import netaddr
+import random
+import unittest
 import yaml
 from nose_parameterized import parameterized
+from multiprocessing.dummy import Pool
 
 from tests.st.test_base import TestBase
 from tests.st.utils.docker_host import DockerHost
@@ -74,10 +77,11 @@ class MultiHostIpam(TestBase):
 
     def test_pools_add(self):
         """
-        Add a pool, create containers, check IPs assigned from pool.
+        (Add a pool), create containers, check IPs assigned from pool.
         Then Delete that pool.
         Add a new pool, create containers, check IPs assigned from NEW pool
         """
+        unittest.skip("remove me")
         response = self.hosts[0].calicoctl("get IPpool -o yaml")
         pools = yaml.safe_load(response)
         self.hosts[0].writefile("pools.yaml", response)
@@ -90,7 +94,7 @@ class MultiHostIpam(TestBase):
         assert ipv4_subnet is not None
 
         for host in self.hosts:
-            workload = host.create_workload("wld-%s" % host.name,
+            workload = host.create_workload("wlda-%s" % host.name,
                                             image="workload",
                                             network=self.network)
             assert netaddr.IPAddress(workload.ip) in ipv4_subnet
@@ -106,11 +110,67 @@ class MultiHostIpam(TestBase):
         self.hosts[0].calicoctl("create -f pools.yaml")
 
         for host in self.hosts:
-            workload = host.create_workload("wld2-%s" % host.name,
+            workload = host.create_workload("wlda2-%s" % host.name,
                                             image="workload",
                                             network=self.network)
             assert netaddr.IPAddress(workload.ip) in ipv4_subnet, \
                 "Workload IP in wrong pool. IP: %s, Pool: %s" % (workload.ip, ipv4_subnet.ipv4())
+
+    def test_ipam_show(self):
+        """
+        Create some workloads, then ask calicoctl to tell you about the IPs in the pool.
+        Check that the correct IPs are shown as in use.
+        """
+        num_workloads = 10
+        workloads = []
+        workload_ips = []
+
+        # Get existing pools and write to file to restore later
+        response = self.hosts[0].calicoctl("get IPpool -o yaml")
+        self.hosts[0].writefile("pools.yaml", response)
+        # Delete any existing pools
+        self.hosts[0].calicoctl("delete -f pools.yaml")
+
+        ipv4_subnet = netaddr.IPNetwork("192.168.45.0/25")
+        new_pool = {'apiVersion': 'v1',
+                    'kind': 'ipPool',
+                    'metadata': {'cidr': str(ipv4_subnet.ipv4())},
+                    }
+        self.hosts[0].writefile("newpool.yaml", yaml.dump(new_pool))
+        self.hosts[0].calicoctl("create -f newpool.yaml")
+
+        for i in range(num_workloads):
+            host = random.choice(self.hosts)
+            workload = host.create_workload("wlds-%s" % i,
+                                            image="workload",
+                                            network=self.network)
+            workloads.append((workload, host))
+            workload_ips.append(workload.ip)
+
+        print workload_ips
+
+        for ip in ipv4_subnet:
+            response = self.hosts[0].calicoctl("ipam show --ip=%s" % ip)
+            if "No attributes defined for" in response:
+                # This means the IP is assigned
+                assert str(ip) in workload_ips, "ipam show says IP %s is assigned when it is not" % ip
+            if "not currently assigned in block" in response:
+                # This means the IP is not assigned
+                assert str(ip) not in workload_ips, \
+                    "ipam show says IP %s is not assigned when it is!" % ip
+
+        pool = Pool(3)
+        result = pool.map(self.delete_workload, workloads)
+        pool.close()
+        pool.join()
+
+        # Tidy up workloads
+        for workload, host in workloads:
+            self.delete_workload(host, workload)
+        # Delete new pool
+        self.hosts[0].calicoctl("delete -f newpool.yaml")
+        # Restore IP pools
+        self.hosts[0].calicoctl("create -f pools.yaml")
 
     @parameterized.expand([
         # Can't use boolean values here :(
@@ -121,19 +181,25 @@ class MultiHostIpam(TestBase):
         """
         Repeatedly create and delete workloads until the system re-assigns an IP.
         """
+        unittest.skip("remove me")
         # Convert make_static_workload_str into a bool
         make_static_workload = False
         if make_static_workload_str == "True":
             make_static_workload = True
-        # Get details of the current pool.
+
+        # Get existing pools and write to file to restore later
         response = self.hosts[0].calicoctl("get IPpool -o yaml")
-        pools = yaml.safe_load(response)
-        ipv4_subnet = None
-        for pool in pools:
-            network = netaddr.IPNetwork(pool['metadata']['cidr'])
-            if network.version == 4:
-                ipv4_subnet = netaddr.IPNetwork(pool['metadata']['cidr'])
-        assert ipv4_subnet is not None
+        self.hosts[0].writefile("pools.yaml", response)
+        # Delete any existing pools
+        self.hosts[0].calicoctl("delete -f pools.yaml")
+
+        ipv4_subnet = netaddr.IPNetwork("192.168.46.0/25")
+        new_pool = {'apiVersion': 'v1',
+                    'kind': 'ipPool',
+                    'metadata': {'cidr': str(ipv4_subnet.ipv4())},
+                    }
+        self.hosts[0].writefile("newpool.yaml", yaml.dump(new_pool))
+        self.hosts[0].calicoctl("create -f newpool.yaml")
 
         host = self.hosts[0]
         i = 0
@@ -143,15 +209,15 @@ class MultiHostIpam(TestBase):
                                                    network=self.network)
             i += 1
 
-        new_workload = host.create_workload("wld-%s" % i,
+        new_workload = host.create_workload("wldw-%s" % i,
                                             image="workload",
                                             network=self.network)
         assert netaddr.IPAddress(new_workload.ip) in ipv4_subnet
         original_ip = new_workload.ip
         while True:
-            host.execute("docker rm -f %s" % new_workload.name)
+            self.delete_workload(host, new_workload)
             i += 1
-            new_workload = host.create_workload("wld-%s" % i,
+            new_workload = host.create_workload("wldw-%s" % i,
                                                 image="workload",
                                                 network=self.network)
             assert netaddr.IPAddress(new_workload.ip) in ipv4_subnet
@@ -170,10 +236,12 @@ class MultiHostIpam(TestBase):
                 break
             if i > (len(ipv4_subnet) * 2):
                 assert False, "Cycled twice through pool - original IP still not assigned."
+        # Clear out any lingering workloads
+        self.delete_workload(host, new_workload)
 
         # Clear up static workload
         if make_static_workload:
-            host.execute("docker rm -f %s" % static_workload.name)
+            self.delete_workload(host, static_workload)
 
     @staticmethod
     def create_network(host, net_name):
@@ -192,3 +260,8 @@ class MultiHostIpam(TestBase):
             # Network didn't exist, no problem.
             pass
         return host.create_network(net_name, ipam_driver="calico-ipam")
+
+    @staticmethod
+    def delete_workload(host, workload):
+        host.calicoctl("ipam release --ip=%s" % workload.ip)
+        host.execute("docker rm -f %s" % workload.name)
