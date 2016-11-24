@@ -1,0 +1,7 @@
+FROM dockerepo/glide
+MAINTAINER Neil Jerram <neil@tigera.io>
+
+RUN apk update
+RUN apk add openssh
+RUN mkdir ~/.ssh
+RUN echo 'StrictHostKeyChecking no' > ~/.ssh/config
