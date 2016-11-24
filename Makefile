@@ -17,6 +17,18 @@ CURL=curl -sSf
 # Default value: directory with Makefile
 SOURCE_DIR?=$(dir $(lastword $(MAKEFILE_LIST)))
 SOURCE_DIR:=$(abspath $(SOURCE_DIR))
+
+# Figure out the users UID/GID.  These are needed to run docker containers
+# as the current user and ensure that files built inside containers are
+# owned by the current user.
+MY_UID:=$(shell id -u)
+MY_GID:=$(shell id -g)
+
+# Pre-configured docker run command that runs as this user with the repo
+# checked out to /code, uses the --rm flag to avoid leaving the container
+# around afterwards.
+DOCKER_RUN_RM:=docker run --rm --user $(MY_UID):$(MY_GID)
+DOCKER_RUN_RM_ROOT:=docker run --rm
 ###############################################################################
 # URL for Calico binaries
 # confd binary
@@ -68,7 +80,7 @@ $(NODE_CONTAINER_CREATED): $(NODE_CONTAINER_DIR)/Dockerfile $(NODE_CONTAINER_FIL
 $(NODE_CONTAINER_BIN_DIR)/%: $(NODE_CONTAINER_DIR)/%.py
 	-docker run -v $(SOURCE_DIR):/code --rm \
 	 $(PYTHON_BUILD_CONTAINER_NAME) \
-	 sh -c 'pyinstaller -ayF --specpath /tmp/spec --workpath /tmp/build --distpath $(@D) $< && chown $(shell id -u):$(shell id -g) -R $(@D)'
+	 sh -c 'pyinstaller -ayF --specpath /tmp/spec --workpath /tmp/build --distpath $(@D) $< && chown $(MY_UID):$(MY_GID) -R $(@D)'
 
 # Get felix binaries
 $(NODE_CONTAINER_BIN_DIR)/calico-felix:
@@ -317,9 +329,20 @@ ut: dist/calicoctl
 PHONY: test-containerized
 ## Run the tests in a container. Useful for CI, Mac dev.
 test-containerized: dist/calicoctl calicoctl_test_container.created
-	docker run --rm -v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw \
+	$(DOCKER_RUN_RM_ROOT) -v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw \
 	$(TEST_CALICOCTL_CONTAINER_NAME) bash -c 'make ut'
 
+###############################################################################
+# build glide related stuff
+###############################################################################
+# Build a docker image used for building our go code into a binary.
+.PHONY: calico-build/golang
+calico-build/golang:
+	cd docker-build-images && docker build \
+		--build-arg=UID=$(MY_UID) \
+		--build-arg=GID=$(MY_GID) \
+		-f golang-build.Dockerfile \
+		-t calico-build/golang .
 ###############################################################################
 # calicoctl build
 # - Building the calicoctl binary in a container
@@ -348,20 +371,26 @@ LIBCALICOGO_PATH?=none
 
 calico/ctl: $(CTL_CONTAINER_CREATED)      ## Create the calico/ctl image
 
-## Use this to populate the vendor directory after checking out the repository.
-## To update upstream dependencies, delete the glide.lock file first.
-vendor: glide.lock
-	# To build without Docker just run "glide install -strip-vendor"
+# vendor is a shortcut for force rebuilding the go vendor directory.
+.PHONY: vendor
+vendor vendor/.up-to-date: glide.lock
+	# Make sure the docker image exists.  Since it's a PHONY, we can't add it
+	# as a dependency or this job will run every time.  Docker does its own
+	# freshness checking for us.
+	$(MAKE) calico-build/golang
+	mkdir -p $$HOME/.glide
 	if [ "$(LIBCALICOGO_PATH)" != "none" ]; then \
-          EXTRA_DOCKER_BIND="-v $(LIBCALICOGO_PATH):/go/src/github.com/projectcalico/libcalico-go:ro"; \
+	  EXTRA_DOCKER_BIND="-v $(LIBCALICOGO_PATH):/go/src/github.com/projectcalico/libcalico-go:ro"; \
 	fi; \
-	docker run --rm \
-		-v ${HOME}/.glide:/root/.glide:rw \
-		-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw $$EXTRA_DOCKER_BIND \
-      --entrypoint /bin/sh $(GLIDE_CONTAINER_NAME) -e -c ' \
-        cd /go/src/github.com/projectcalico/calico-containers && \
-        glide install -strip-vendor && \
-        chown $(shell id -u):$(shell id -u) -R vendor'
+	$(DOCKER_RUN_RM) \
+	    --net=host \
+	    -v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw \
+	    -v ${HOME}/.glide:/.glide:rw $$EXTRA_DOCKER_BIND \
+	    -w /go/src/github.com/projectcalico/calico-containers \
+	    calico-build/golang \
+	    glide install --strip-vendor
+	touch vendor/.up-to-date
+
 
 $(TEST_CALICOCTL_CONTAINER_MARKER): calicoctl/Dockerfile.calicoctl.build
 	docker build -f calicoctl/Dockerfile.calicoctl.build -t $(TEST_CALICOCTL_CONTAINER_NAME) .
@@ -373,34 +402,34 @@ $(CTL_CONTAINER_CREATED): calicoctl/Dockerfile.calicoctl dist/calicoctl
 	touch $@
 
 ## Build calicoctl
-binary: $(CALICOCTL_FILES) vendor
+binary: $(CALICOCTL_FILES) vendor/.up-to-date
 	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -v -o dist/calicoctl-$(OS)-$(ARCH) $(LDFLAGS) "./calicoctl/calicoctl.go"
 
-dist/calicoctl: $(CALICOCTL_FILES) vendor
-	$(MAKE) dist/calicoctl-linux-amd64 
+dist/calicoctl: $(CALICOCTL_FILES) vendor/.up-to-date
+	$(MAKE) dist/calicoctl-linux-amd64
 	mv dist/calicoctl-linux-amd64 dist/calicoctl
 
-dist/calicoctl-linux-amd64: $(CALICOCTL_FILES) vendor
+dist/calicoctl-linux-amd64: $(CALICOCTL_FILES) vendor/.up-to-date
 	$(MAKE) OS=linux ARCH=amd64 binary-containerized
 
-dist/calicoctl-darwin-amd64: $(CALICOCTL_FILES) vendor
+dist/calicoctl-darwin-amd64: $(CALICOCTL_FILES) vendor/.up-to-date
 	$(MAKE) OS=darwin ARCH=amd64 binary-containerized
 
-dist/calicoctl-windows-amd64: $(CALICOCTL_FILES) vendor
+dist/calicoctl-windows-amd64: $(CALICOCTL_FILES) vendor/.up-to-date
 	$(MAKE) OS=windows ARCH=amd64 binary-containerized
 
 
 ## Run the build in a container. Useful for CI
-binary-containerized: $(CALICOCTL_FILES) vendor
+binary-containerized: $(CALICOCTL_FILES) vendor/.up-to-date
 	mkdir -p dist
-	docker run --rm \
+	$(DOCKER_RUN_RM_ROOT) \
 	  -e OS=$(OS) -e ARCH=$(ARCH) \
 	  -v ${PWD}:/go/src/github.com/projectcalico/calico-containers:ro \
 	  -v ${PWD}/dist:/go/src/github.com/projectcalico/calico-containers/dist \
 	  golang:1.7 bash -c '\
 	    cd /go/src/github.com/projectcalico/calico-containers && \
 	    make OS=$(OS) ARCH=$(ARCH) binary && \
-	    chown -R $(shell id -u):$(shell id -u) dist'
+	    chown -R $(MY_UID):$(MY_GID) dist'
 
 ## Etcd is used by the tests
 .PHONY: run-etcd
@@ -433,7 +462,7 @@ update-tools:
 
 ## Perform static checks on the code. The golint checks are allowed to fail, the others must pass.
 .PHONY: static-checks
-static-checks: vendor
+static-checks: vendor/.up-to-date
 	# Format the code and clean up imports
 	goimports -w $(CALICOCTL_FILES)
 
@@ -495,7 +524,7 @@ endif
 clean:
 	find . -name '*.created' -exec rm -f {} +
 	find . -name '*.pyc' -exec rm -f {} +
-	rm -rf dist build certs *.tar vendor $(NODE_CONTAINER_DIR)/filesystem/bin
+	rm -rf dist build certs *.tar vendor vendor/.up-to-date $(NODE_CONTAINER_DIR)/filesystem/bin
 
 	# Delete images that we built in this repo
 	docker rmi calico/node:latest || true
