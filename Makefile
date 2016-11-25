@@ -356,10 +356,13 @@ vendor: $(GLIDE_CONTAINER_MARKER) glide.lock
 	if [ "$(LIBCALICOGO_PATH)" != "none" ]; then \
           EXTRA_DOCKER_BIND="-v $(LIBCALICOGO_PATH):/go/src/github.com/projectcalico/libcalico-go:ro"; \
 	fi; \
+	if [ -n "$$SSH_AUTH_SOCK" ]; then \
+          SSH_AGENT_FORWARD="-v $$SSH_AUTH_SOCK:/ssh-agent --env SSH_AUTH_SOCK=/ssh-agent"; \
+	fi; \
 	docker run --rm \
 		-v ${HOME}/.glide:/root/.glide:rw \
-		-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw $$EXTRA_DOCKER_BIND \
-		-v $$SSH_AUTH_SOCK:/ssh-agent --env SSH_AUTH_SOCK=/ssh-agent \
+		-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw \
+		$$EXTRA_DOCKER_BIND $$SSH_AGENT_FORWARD \
       --entrypoint /bin/sh $(GLIDE_CONTAINER_NAME) -e -c ' \
         cd /go/src/github.com/projectcalico/calico-containers && \
         glide install -strip-vendor && \
@@ -383,7 +386,7 @@ binary: $(CALICOCTL_FILES) vendor
 	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -v -o dist/calicoctl-$(OS)-$(ARCH) $(LDFLAGS) "./calicoctl/calicoctl.go"
 
 dist/calicoctl: $(CALICOCTL_FILES) vendor
-	$(MAKE) dist/calicoctl-linux-amd64 
+	$(MAKE) dist/calicoctl-linux-amd64
 	mv dist/calicoctl-linux-amd64 dist/calicoctl
 
 dist/calicoctl-linux-amd64: $(CALICOCTL_FILES) vendor
@@ -461,7 +464,7 @@ endif
 	git tag $(VERSION)
 
 	# Build the calicoctl binaries, as well as the calico/ctl and calico/node images.
-	CALICOCTL_NODE_VERSION=$(VERSION) $(MAKE) dist/calicoctl dist/calicoctl-darwin-amd64 dist/calicoctl-windows-amd64 
+	CALICOCTL_NODE_VERSION=$(VERSION) $(MAKE) dist/calicoctl dist/calicoctl-darwin-amd64 dist/calicoctl-windows-amd64
 	CALICOCTL_NODE_VERSION=$(VERSION) $(MAKE) calico/ctl calico/node
 
 	# Check that the version output includes the version specified.
