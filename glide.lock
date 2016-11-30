@@ -1,5 +1,5 @@
-hash: e32522a5a5e0d481b1d7e76f217dfd701846af7a8f7062ab6c67998f48ab2b72
-updated: 2016-11-23T19:03:55.831120072-08:00
+hash: c3f27ae2b02f6493a7eed47adc9336cffeb5b83256943511f51ef3b44f83e396
+updated: 2016-11-30T12:00:34.773863772-08:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -131,7 +131,7 @@ imports:
 - name: github.com/projectcalico/go-yaml-wrapper
   version: d8ff4587e9570b667ccc1a4583e3fe9fe3af49e4
 - name: github.com/projectcalico/libcalico-go
-  version: ef0ff501cca9fe87dd1580f1f7442884a551dc4b
+  version: 4f8e776f5a552fa031911ad19d7fc8aa691cfd0f
   subpackages:
   - lib
   - lib/api
@@ -229,9 +229,9 @@ imports:
   subpackages:
   - patricia
 - name: gopkg.in/yaml.v2
-  version: a5b47d31c556af34a302ce5d659e6fea44d90de0
+  version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
 - name: k8s.io/kubernetes
-  version: 1dfd64f4378ad9dd974bbfbef8e90127dce6aafe
+  version: 545f749a0deb8535656ce93ac1f35a59887839bf
   subpackages:
   - pkg/api
   - pkg/api/errors
@@ -310,6 +310,7 @@ imports:
   - pkg/labels
   - pkg/master/ports
   - pkg/runtime
+  - pkg/runtime/schema
   - pkg/runtime/serializer
   - pkg/runtime/serializer/json
   - pkg/runtime/serializer/protobuf
