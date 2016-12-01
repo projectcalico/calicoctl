@@ -20,7 +20,7 @@ SOURCE_DIR:=$(abspath $(SOURCE_DIR))
 ###############################################################################
 # URL for Calico binaries
 # confd binary
-CONFD_URL?=https://github.com/kelseyhightower/confd/releases/download/v0.12.0-alpha3/confd-0.12.0-alpha3-linux-amd64
+CONFD_URL?=https://github.com/kelseyhightower/confd/releases/download/v0.11.0/confd-0.11.0-linux-amd64
 # bird binaries
 BIRD_URL?=https://github.com/projectcalico/calico-bird/releases/download/v0.1.0/bird
 BIRD6_URL?=https://github.com/projectcalico/calico-bird/releases/download/v0.1.0/bird6
