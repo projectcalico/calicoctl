@@ -346,7 +346,8 @@ LDFLAGS=-ldflags "-X github.com/projectcalico/calico-containers/calicoctl/comman
 	-X github.com/projectcalico/calico-containers/calicoctl/commands.BUILD_DATE=$(CALICOCTL_BUILD_DATE) \
 	-X github.com/projectcalico/calico-containers/calicoctl/commands.GIT_REVISION=$(CALICOCTL_GIT_REVISION) -s -w"
 
-GLIDE_CONTAINER_NAME?=dockerepo/glide
+GLIDE_CONTAINER_NAME=calico/glide
+GLIDE_CONTAINER_MARKER=calico-build/glide_container.created
 TEST_CALICOCTL_CONTAINER_NAME=calico/calicoctl_test_container
 TEST_CALICOCTL_CONTAINER_MARKER=calicoctl_test_container.created
 
@@ -356,14 +357,24 @@ calico/ctl: $(CTL_CONTAINER_CREATED)      ## Create the calico/ctl image
 
 ## Use this to populate the vendor directory after checking out the repository.
 ## To update upstream dependencies, delete the glide.lock file first.
-vendor: glide.lock
+##
+## If your glide.lock has any repositories that need an SSH key, run
+## an SSH agent (if there isn't already one running - most Linux
+## desktops already do this) and use ssh-add to add the needed key(s)
+## into that agent.  Then the SSH agent forwarding - implemented below
+## by SSH_AGENT_FORWARD - will make the key(s) available when glide runs.
+vendor: $(GLIDE_CONTAINER_MARKER) glide.lock
 	# To build without Docker just run "glide install -strip-vendor"
 	if [ "$(LIBCALICOGO_PATH)" != "none" ]; then \
           EXTRA_DOCKER_BIND="-v $(LIBCALICOGO_PATH):/go/src/github.com/projectcalico/libcalico-go:ro"; \
 	fi; \
+	if [ -n "$$SSH_AUTH_SOCK" ]; then \
+          SSH_AGENT_FORWARD="-v $$SSH_AUTH_SOCK:/ssh-agent --env SSH_AUTH_SOCK=/ssh-agent"; \
+	fi; \
 	docker run --rm \
 		-v ${HOME}/.glide:/root/.glide:rw \
-		-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw $$EXTRA_DOCKER_BIND \
+		-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw \
+		$$EXTRA_DOCKER_BIND $$SSH_AGENT_FORWARD \
       --entrypoint /bin/sh $(GLIDE_CONTAINER_NAME) -e -c ' \
         cd /go/src/github.com/projectcalico/calico-containers && \
         glide install -strip-vendor && \
@@ -371,6 +382,10 @@ vendor: glide.lock
 
 $(TEST_CALICOCTL_CONTAINER_MARKER): calicoctl/Dockerfile.calicoctl.build
 	docker build -f calicoctl/Dockerfile.calicoctl.build -t $(TEST_CALICOCTL_CONTAINER_NAME) .
+	touch $@
+
+$(GLIDE_CONTAINER_MARKER): calico-build/Dockerfile.glide
+	cd calico-build && docker build -f Dockerfile.glide -t $(GLIDE_CONTAINER_NAME) .
 	touch $@
 
 # build calico_ctl image
@@ -383,7 +398,7 @@ binary: $(CALICOCTL_FILES) vendor
 	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -v -o dist/calicoctl-$(OS)-$(ARCH) $(LDFLAGS) "./calicoctl/calicoctl.go"
 
 dist/calicoctl: $(CALICOCTL_FILES) vendor
-	$(MAKE) dist/calicoctl-linux-amd64 
+	$(MAKE) dist/calicoctl-linux-amd64
 	mv dist/calicoctl-linux-amd64 dist/calicoctl
 
 dist/calicoctl-linux-amd64: $(CALICOCTL_FILES) vendor
@@ -465,7 +480,7 @@ endif
 	git tag $(VERSION)
 
 	# Build the calicoctl binaries, as well as the calico/ctl and calico/node images.
-	CALICOCTL_NODE_VERSION=$(VERSION) $(MAKE) dist/calicoctl dist/calicoctl-darwin-amd64 dist/calicoctl-windows-amd64 
+	CALICOCTL_NODE_VERSION=$(VERSION) $(MAKE) dist/calicoctl dist/calicoctl-darwin-amd64 dist/calicoctl-windows-amd64
 	CALICOCTL_NODE_VERSION=$(VERSION) $(MAKE) calico/ctl calico/node
 
 	# Check that the version output includes the version specified.
@@ -512,6 +527,7 @@ clean:
 	docker rmi calico/node:latest || true
 	docker rmi calico/ctl:latest || true
 	docker rmi calico/calicoctl_test_container:latest || true
+	docker rmi calico/glide:latest || true
 
 	# Retag and remove external images so that they will be pulled again
 	# We avoid just deleting the image. We didn't build them here so it would be impolite to delete it.
