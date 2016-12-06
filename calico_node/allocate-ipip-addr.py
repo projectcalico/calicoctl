@@ -22,7 +22,7 @@ def main():
 	    # No IPIP pools, clean up any old address.
 	    _remove_host_tunnel_addr()
 
-hostname = os.getenv("HOSTNAME")
+hostname = os.getenv("NODENAME")
 client = IPAMClient()
 
 if __name__ == "__main__":

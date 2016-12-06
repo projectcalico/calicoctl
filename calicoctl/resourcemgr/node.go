@@ -25,12 +25,14 @@ func init() {
 		api.NewNode(),
 		api.NewNodeList(),
 		[]string{"NAME"},
-		[]string{"NAME", "ASN", "IPV4", "IPV6"},
+		[]string{"NAME", "ASN", "IPV4", "NETV4", "IPV6", "NETV6"},
 		map[string]string{
-			"NAME": "{{.Metadata.Name}}",
-			"ASN":  "{{if .Spec.BGP}}{{if .Spec.BGP.ASNumber}}{{.Spec.BGP.ASNumber}}{{else}}({{config \"asnumber\"}}){{end}}{{end}}",
-			"IPV4": "{{if .Spec.BGP}}{{if .Spec.BGP.IPv4Address}}{{.Spec.BGP.IPv4Address}}{{end}}{{end}}",
-			"IPV6": "{{if .Spec.BGP}}{{if .Spec.BGP.IPv6Address}}{{.Spec.BGP.IPv6Address}}{{end}}{{end}}",
+			"NAME":  "{{.Metadata.Name}}",
+			"ASN":   "{{if .Spec.BGP}}{{if .Spec.BGP.ASNumber}}{{.Spec.BGP.ASNumber}}{{else}}({{config \"asnumber\"}}){{end}}{{end}}",
+			"IPV4":  "{{if .Spec.BGP}}{{if .Spec.BGP.IPv4Address}}{{.Spec.BGP.IPv4Address}}{{end}}{{end}}",
+			"IPV6":  "{{if .Spec.BGP}}{{if .Spec.BGP.IPv6Address}}{{.Spec.BGP.IPv6Address}}{{end}}{{end}}",
+			"NETV4": "{{if .Spec.BGP}}{{if .Spec.BGP.IPv4Network}}{{.Spec.BGP.IPv4Network}}{{end}}{{end}}",
+			"NETV6": "{{if .Spec.BGP}}{{if .Spec.BGP.IPv6Network}}{{.Spec.BGP.IPv6Network}}{{end}}{{end}}",
 		},
 		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
 			r := resource.(api.Node)
