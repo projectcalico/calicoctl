@@ -17,6 +17,11 @@ CURL=curl -sSf
 # Default value: directory with Makefile
 SOURCE_DIR?=$(dir $(lastword $(MAKEFILE_LIST)))
 SOURCE_DIR:=$(abspath $(SOURCE_DIR))
+# Figure out the users UID/GID.  These are needed to run docker containers
+# as the current user and ensure that files built inside containers are
+# owned by the current user.
+MY_UID:=$(shell id -u)
+MY_GID:=$(shell id -g)
 ###############################################################################
 # URL for Calico binaries
 # confd binary
@@ -68,7 +73,7 @@ $(NODE_CONTAINER_CREATED): $(NODE_CONTAINER_DIR)/Dockerfile $(NODE_CONTAINER_FIL
 $(NODE_CONTAINER_BIN_DIR)/%: $(NODE_CONTAINER_DIR)/%.py
 	-docker run -v $(SOURCE_DIR):/code --rm \
 	 $(PYTHON_BUILD_CONTAINER_NAME) \
-	 sh -c 'pyinstaller -ayF --specpath /tmp/spec --workpath /tmp/build --distpath $(@D) $< && chown $(shell id -u):$(shell id -g) -R $(@D)'
+	 sh -c 'pyinstaller -ayF --specpath /tmp/spec --workpath /tmp/build --distpath $(@D) $< && chown $(MY_UID):$(MY_GID) -R $(@D)'
 
 # Get felix binaries
 $(NODE_CONTAINER_BIN_DIR)/calico-felix:
@@ -364,16 +369,18 @@ calico/ctl: $(CTL_CONTAINER_CREATED)      ## Create the calico/ctl image
 ## Use this to populate the vendor directory after checking out the repository.
 ## To update upstream dependencies, delete the glide.lock file first.
 vendor: glide.lock
+	mkdir -p ${HOME}/.glide
 	# To build without Docker just run "glide install -strip-vendor"
 	if [ "$(LIBCALICOGO_PATH)" != "none" ]; then \
           EXTRA_DOCKER_BIND="-v $(LIBCALICOGO_PATH):/go/src/github.com/projectcalico/libcalico-go:ro"; \
 	fi; \
 	docker run --rm \
+		-v ${HOME}/.glide:/root/.glide:rw \
 		-v ${PWD}:/go/src/github.com/projectcalico/calico-containers:rw $$EXTRA_DOCKER_BIND \
       --entrypoint /bin/sh $(GLIDE_CONTAINER_NAME) -e -c ' \
         cd /go/src/github.com/projectcalico/calico-containers && \
         glide install -strip-vendor && \
-        chown $(shell id -u):$(shell id -u) -R vendor'
+        chown $(MY_UID):$(MY_GID) -R vendor /root/.glide'
 
 $(TEST_CALICOCTL_CONTAINER_MARKER): calicoctl/Dockerfile.calicoctl.build
 	docker build -f calicoctl/Dockerfile.calicoctl.build -t $(TEST_CALICOCTL_CONTAINER_NAME) .
@@ -396,14 +403,14 @@ dist/startup-go: $(CALICOCTL_FILES) vendor
 	  golang:1.7 bash -c '\
 	    cd /go/src/github.com/projectcalico/calico-containers && \
 	    make startup-go && \
-	    chown -R $(shell id -u):$(shell id -u) dist'
+	    chown -R $(MY_UID):$(MY_GID) dist'
 
 ## Build calicoctl
 binary: $(CALICOCTL_FILES) vendor
 	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -v -o dist/calicoctl-$(OS)-$(ARCH) $(LDFLAGS) "./calicoctl/calicoctl.go"
 
 dist/calicoctl: $(CALICOCTL_FILES) vendor
-	$(MAKE) dist/calicoctl-linux-amd64 
+	$(MAKE) dist/calicoctl-linux-amd64
 	mv dist/calicoctl-linux-amd64 dist/calicoctl
 
 dist/calicoctl-linux-amd64: $(CALICOCTL_FILES) vendor
@@ -431,7 +438,7 @@ binary-containerized: $(CALICOCTL_FILES) vendor
 	         CALICOCONTAINERS_VERSION=$(CALICOCONTAINERS_VERSION) CALICOCTL_NODE_VERSION=$(CALICOCTL_NODE_VERSION) \
 	         CALICOCTL_BUILD_DATE=$(CALICOCTL_BUILD_DATE) CALICOCTL_GIT_REVISION=$(CALICOCTL_GIT_REVISION) \
 	         binary && \
-	      chown -R $(shell id -u):$(shell id -u) dist'
+	      chown -R $(MY_UID):$(MY_GID) dist'
 
 ## Etcd is used by the tests
 .PHONY: run-etcd
@@ -488,7 +495,7 @@ endif
 	git tag $(VERSION)
 
 	# Build the calicoctl binaries, as well as the calico/ctl and calico/node images.
-	CALICOCTL_NODE_VERSION=$(VERSION) $(MAKE) dist/calicoctl dist/calicoctl-darwin-amd64 dist/calicoctl-windows-amd64.exe 
+	CALICOCTL_NODE_VERSION=$(VERSION) $(MAKE) dist/calicoctl dist/calicoctl-darwin-amd64 dist/calicoctl-windows-amd64.exe
 	CALICOCTL_NODE_VERSION=$(VERSION) $(MAKE) calico/ctl calico/node
 
 	# Check that the version output includes the version specified.
