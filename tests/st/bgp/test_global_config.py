@@ -61,11 +61,9 @@ class TestBGP(TestBase):
                         additional_docker_options=ADDITIONAL_DOCKER_OPTIONS,
                         start_calico=False) as host2:
 
-            # Set the default AS number.
-            host1.calicoctl("config set asNumber %s" % LARGE_AS_NUM)
-
             # Start host1 using the inherited AS, and host2 using a specified
-            # AS (same as default).
+            # AS.  Inherited AS is different from configured, so peering will
+            # fail until we update the global.
             host1.start_calico_node()
             host2.start_calico_node("--as=%s" % LARGE_AS_NUM)
 
@@ -73,6 +71,11 @@ class TestBGP(TestBase):
             network1 = host1.create_network("subnet1", subnet=DEFAULT_IPV4_POOL_CIDR)
             workload_host1 = host1.create_workload("workload1", network=network1, ip=DEFAULT_IPV4_ADDR_1)
             workload_host2 = host2.create_workload("workload2", network=network1, ip=DEFAULT_IPV4_ADDR_2)
+
+            # Set the global AS number, the two hosts should now be able to peer with
+            # each other correctly - this is testing our confd templates get re-generated
+            # with a global AS update.
+            host1.calicoctl("config set asNumber %s" % LARGE_AS_NUM)
 
             # Allow network to converge
             self.assert_true(workload_host1.check_can_ping(DEFAULT_IPV4_ADDR_2, retries=10))
