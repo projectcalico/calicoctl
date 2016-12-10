@@ -308,7 +308,7 @@ semaphore: clean
 ###############################################################################
 .PHONY: ut
 ## Run the Unit Tests locally
-ut: dist/calicoctl
+ut:
 	# Run tests in random order find tests recursively (-r).
 	ginkgo -cover -r --skipPackage vendor
 
@@ -342,6 +342,7 @@ CALICOCTL_DIR=calicoctl
 CTL_CONTAINER_NAME?=calico/ctl
 CALICOCTL_FILES=$(shell find $(CALICOCTL_DIR) -name '*.go')
 CTL_CONTAINER_CREATED=$(CALICOCTL_DIR)/.calico_ctl.created
+VENDOR_CREATED=vendor/.vendor.created
 
 CALICOCTL_NODE_VERSION?="latest"
 CALICOCTL_BUILD_DATE?=$(shell date -u +'%FT%T%z')
@@ -360,9 +361,21 @@ LIBCALICOGO_PATH?=none
 
 calico/ctl: $(CTL_CONTAINER_CREATED)      ## Create the calico/ctl image
 
+.PHONY: vendor
 ## Use this to populate the vendor directory after checking out the repository.
 ## To update upstream dependencies, delete the glide.lock file first.
-vendor: glide.lock
+vendor: glide.lock $(VENDOR_CREATED)
+
+# If glide.lock is missing then do the vendoring which will create the lock file
+# (delete the vendor created flag if it exists to force vendoring).
+glide.lock:
+	rm -f $(VENDOR_CREATED)
+	$(MAKE) $(VENDOR_CREATED)
+
+# Perform the vendoring.  This writes a created flag file only after the vendoring
+# completed successfully - this allows us to easily re-run in the event of a partially
+# incomplete vendoring.
+$(VENDOR_CREATED):
 	# To build without Docker just run "glide install -strip-vendor"
 	if [ "$(LIBCALICOGO_PATH)" != "none" ]; then \
           EXTRA_DOCKER_BIND="-v $(LIBCALICOGO_PATH):/go/src/github.com/projectcalico/libcalico-go:ro"; \
@@ -372,7 +385,8 @@ vendor: glide.lock
       --entrypoint /bin/sh $(GLIDE_CONTAINER_NAME) -e -c ' \
         cd /go/src/github.com/projectcalico/calico-containers && \
         glide install -strip-vendor && \
-        chown $(shell id -u):$(shell id -u) -R vendor'
+        chown -R $(shell id -u):$(shell id -u) vendor'
+	touch $(VENDOR_CREATED)
 
 $(TEST_CALICOCTL_CONTAINER_MARKER): calicoctl/Dockerfile.calicoctl.build
 	docker build -f calicoctl/Dockerfile.calicoctl.build -t $(TEST_CALICOCTL_CONTAINER_NAME) .
