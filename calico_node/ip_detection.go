@@ -1,10 +1,10 @@
-package ip_detection
+package main
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"regexp"
+	"strings"
 )
 
 func detectIPs(ignoreInterfaces []string) ([]string, error) {
@@ -38,7 +38,13 @@ func detectIPs(ignoreInterfaces []string) ([]string, error) {
 			}
 			
 			for _, addr := range addrs {
-				ips = append(ips, addr.String())
+
+				ip := strings.Split(addr.String(), "/")[0]
+				valid_ip := net.ParseIP(ip)
+
+				if valid_ip.To4() != nil{
+					ips = append(ips, ip)
+				}
 					
 				}
 			}
