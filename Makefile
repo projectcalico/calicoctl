@@ -45,7 +45,7 @@ NODE_CONTAINER_NAME?=calico/node
 NODE_CONTAINER_FILES=$(shell find $(NODE_CONTAINER_DIR)/filesystem -type f)
 NODE_CONTAINER_CREATED=$(NODE_CONTAINER_DIR)/.calico_node.created
 NODE_CONTAINER_BIN_DIR=$(NODE_CONTAINER_DIR)/filesystem/bin
-NODE_CONTAINER_BINARIES=startup startup-go allocate-ipip-addr calico-felix bird calico-bgp-daemon confd libnetwork-plugin
+NODE_CONTAINER_BINARIES=startup allocate-ipip-addr calico-felix bird calico-bgp-daemon confd libnetwork-plugin
 FELIX_CONTAINER_NAME?=calico/felix:2.0.0
 LIBNETWORK_PLUGIN_CONTAINER_NAME?=calico/libnetwork-plugin:v1.0.0
 
@@ -64,7 +64,7 @@ $(NODE_CONTAINER_CREATED): $(NODE_CONTAINER_DIR)/Dockerfile $(NODE_CONTAINER_FIL
 	docker build -t $(NODE_CONTAINER_NAME) $(NODE_CONTAINER_DIR)
 	touch $@
 
-# Build binary from python files, e.g. startup.py or allocate-ipip-addr.py
+# Build binary from python files, e.g. allocate-ipip-addr.py
 $(NODE_CONTAINER_BIN_DIR)/%: $(NODE_CONTAINER_DIR)/%.py
 	-docker run -v $(SOURCE_DIR):/code --rm \
 	 $(PYTHON_BUILD_CONTAINER_NAME) \
@@ -108,8 +108,9 @@ $(NODE_CONTAINER_BIN_DIR)/bird:
 	$(CURL) -L $(BIRD_URL) -o $@
 	chmod +x $(@D)/*
 
-$(NODE_CONTAINER_BIN_DIR)/startup-go: dist/startup-go
-	cp dist/startup-go $(NODE_CONTAINER_BIN_DIR)
+$(NODE_CONTAINER_BIN_DIR)/startup: dist/startup
+	mkdir -p $(NODE_CONTAINER_BIN_DIR)
+	cp dist/startup $(NODE_CONTAINER_BIN_DIR)/startup
 
 ###############################################################################
 # Tests
@@ -385,17 +386,17 @@ $(CTL_CONTAINER_CREATED): calicoctl/Dockerfile.calicoctl dist/calicoctl
 	touch $@
 
 ## Build startup.go
-startup-go:
-	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -v -o dist/startup-go $(LDFLAGS) "./calico_node/startup.go"
+startup:
+	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -v -o dist/startup $(LDFLAGS) "./calico_node/startup.go"
 
-dist/startup-go: $(CALICOCTL_FILES) vendor
+dist/startup: $(CALICOCTL_FILES) vendor
 	mkdir -p dist
 	docker run --rm \
 	  -v ${PWD}:/go/src/github.com/projectcalico/calicoctl:ro \
 	  -v ${PWD}/dist:/go/src/github.com/projectcalico/calicoctl/dist \
 	  golang:1.7 bash -c '\
 	    cd /go/src/github.com/projectcalico/calicoctl && \
-	    make startup-go && \
+	    make startup && \
 	    chown -R $(shell id -u):$(shell id -u) dist'
 
 ## Build calicoctl
