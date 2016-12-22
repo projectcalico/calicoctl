@@ -233,7 +233,6 @@ def main():
         print "Using k8s backend"
         with open('startup.env', 'w') as f:
             f.write("export DATASTORE_TYPE=kubernetes\n")
-            f.write("export HOSTNAME=%s\n" % hostname)
         return
 
     # Check to see if etcd is available.  If not, wait until it is before

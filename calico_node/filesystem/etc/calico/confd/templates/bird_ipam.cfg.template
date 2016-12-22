@@ -2,7 +2,7 @@
 filter calico_pools {
   calico_aggr();
   custom_filters();
-{{range ls "/pool"}}{{$data := json (getv (printf "/pool/%s" .))}}
+{{range ls "/v1/ipam/v4/pool"}}{{$data := json (getv (printf "/v1/ipam/v4/pool/%s" .))}}
   if ( net ~ {{$data.cidr}} ) then {
     accept;
   }
@@ -10,12 +10,23 @@ filter calico_pools {
   reject;
 }
 
+{{$network_key := printf "/bgp/v1/host/%s/network_v4" (getenv "NODENAME")}}{{$network := getv $network_key}}
 filter calico_ipip {
-{{range ls "/pool"}}{{$data := json (getv (printf "/pool/%s" .))}}{{if $data.ipip}}
+{{range ls "/v1/ipam/v4/pool"}}{{$data := json (getv (printf "/v1/ipam/v4/pool/%s" .))}}
   if ( net ~ {{$data.cidr}} ) then {
+{{if $network}}
+    if ( from ~ {{$network}} ) then
+      krt_tunnel = "";
+    else
+      krt_tunnel = "{{$data.ipip}}";
+
+    accept;
+  }
+{{else}}
     krt_tunnel = "{{$data.ipip}}";
     accept;
   }
 {{end}}{{end}}
   accept;
 }
+
