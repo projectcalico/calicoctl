@@ -5,6 +5,8 @@ owners:
 - name: Rob Brockbank
   email: rob@tigera.io
 import:
+- package: google.golang.org/grpc/tap
+  version: b85d2b0be5a8e626ecdeff1f9f5c149f9c0876a5
 - package: github.com/Sirupsen/logrus
   version: ^0.10.0
 - package: github.com/docopt/docopt-go
