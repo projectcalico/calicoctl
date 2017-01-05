@@ -1,4 +1,4 @@
-> You are viewing the calico-containers documentation for release v0.23.0.
+> You are viewing the calico-containers documentation for release v0.23.1.
 
 # External Connectivity - Hosts on their own Layer 2 segment
 

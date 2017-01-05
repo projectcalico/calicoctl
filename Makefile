@@ -34,14 +34,14 @@ BUILD_CONTAINER_NAME?=calico/build:v0.18.0
 # - Build the container itself
 ###############################################################################
 NODE_CONTAINER_DIR=calico_node
-NODE_CONTAINER_NAME?=calico/node:v0.23.0
+NODE_CONTAINER_NAME?=calico/node:v0.23.1
 NODE_CONTAINER_FILES=$(shell find $(NODE_CONTAINER_DIR)/filesystem/{etc,sbin} -type f)
 # we can pass --build-arg during node image building
 NODE_CONTAINER_BUILD_ARGS?=
 NODE_CONTAINER_CREATED=$(NODE_CONTAINER_DIR)/.calico_node.created
 NODE_CONTAINER_BIN_DIR=$(NODE_CONTAINER_DIR)/filesystem/bin
 NODE_CONTAINER_BINARIES=startup allocate-ipip-addr calico-felix bird calico-bgp-daemon confd
-FELIX_CONTAINER_NAME?=calico/felix:1.4.4
+FELIX_CONTAINER_NAME?=calico/felix:1.4.6
 
 calico-node.tar: $(NODE_CONTAINER_CREATED)
 	docker save --output $@ $(NODE_CONTAINER_NAME)

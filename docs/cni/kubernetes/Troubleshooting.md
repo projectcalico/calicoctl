@@ -1,4 +1,4 @@
-> You are viewing the calico-docker documentation for release v0.23.0.
+> You are viewing the calico-docker documentation for release v0.23.1.
 
 # Troubleshooting
 
