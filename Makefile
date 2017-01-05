@@ -34,14 +34,14 @@ BUILD_CONTAINER_NAME?=calico/build:v0.18.0
 # - Build the container itself
 ###############################################################################
 NODE_CONTAINER_DIR=calico_node
-NODE_CONTAINER_NAME?=calico/node:v0.23.0
+NODE_CONTAINER_NAME?=calico/node:v0.23.1
 NODE_CONTAINER_FILES=$(shell find $(NODE_CONTAINER_DIR)/filesystem/{etc,sbin} -type f)
 # we can pass --build-arg during node image building
 NODE_CONTAINER_BUILD_ARGS?=
 NODE_CONTAINER_CREATED=$(NODE_CONTAINER_DIR)/.calico_node.created
 NODE_CONTAINER_BIN_DIR=$(NODE_CONTAINER_DIR)/filesystem/bin
 NODE_CONTAINER_BINARIES=startup allocate-ipip-addr calico-felix bird calico-bgp-daemon confd
-FELIX_CONTAINER_NAME?=calico/felix:1.4.4
+FELIX_CONTAINER_NAME?=calico/felix:1.4.6
 
 calico-node.tar: $(NODE_CONTAINER_CREATED)
 	docker save --output $@ $(NODE_CONTAINER_NAME)
@@ -200,9 +200,9 @@ routereflector.tar:
 
 ## Run the UTs in a container.
 ut:
-	docker run --rm -v $(SOURCE_DIR)/calicoctl:/code calico/test \
+	docker run --rm -v $(SOURCE_DIR)/calicoctl:/code calico/test:v0.18.0 \
 		nosetests $(UT_TO_RUN) -c nose.cfg
-	docker run --rm -v $(SOURCE_DIR)/$(NODE_CONTAINER_DIR):/code calico/test \
+	docker run --rm -v $(SOURCE_DIR)/$(NODE_CONTAINER_DIR):/code calico/test:v0.18.0 \
 		nosetests tests --with-coverage --cover-package=startup
 
 ut-circle: dist/calicoctl
@@ -213,13 +213,13 @@ ut-circle: dist/calicoctl
 	-v $(SOURCE_DIR):/code \
 	-v $(CIRCLE_TEST_REPORTS):/circle_output \
 	-e COVERALLS_REPO_TOKEN=$(COVERALLS_REPO_TOKEN) \
-	calico/test \
+	calico/test:v0.18.0 \
 	sh -c '\
 	cd calicoctl; nosetests tests/unit -c nose.cfg \
 	--with-xunit --xunit-file=/circle_output/output.xml; RC=$$?;\
 	[[ ! -z "$$COVERALLS_REPO_TOKEN" ]] && coveralls || true; exit $$RC'
 
-	docker run --rm -v $(SOURCE_DIR)/$(NODE_CONTAINER_DIR):/code calico/test \
+	docker run --rm -v $(SOURCE_DIR)/$(NODE_CONTAINER_DIR):/code calico/test:v0.18.0 \
 		nosetests tests --with-coverage --cover-package=startup
 
 ## Run etcd in a container. Used by the STs and generally useful.
@@ -278,7 +278,7 @@ st: run-etcd dist/calicoctl busybox.tar routereflector.tar calico-node.tar
 	           --rm -ti \
 	           -v /var/run/docker.sock:/var/run/docker.sock \
 	           -v $(SOURCE_DIR):/code \
-	           calico/test \
+	           calico/test:v0.18.0 \
 	           sh -c 'cp -ra tests/st/* /tests/st && cd / && nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer $(ST_OPTIONS)'
 	$(MAKE) stop-etcd
 
@@ -309,7 +309,7 @@ st-ssl: run-etcd-ssl dist/calicoctl busybox.tar calico-node.tar routereflector.t
 	           -v /var/run/docker.sock:/var/run/docker.sock \
 	           -v $(SOURCE_DIR):/code \
 	           -v $(SOURCE_DIR)/certs:$(SOURCE_DIR)/certs \
-	           calico/test \
+	           calico/test:v0.18.0 \
 	           sh -c 'cp -ra tests/st/* /tests/st && cd / && nosetests $(ST_TO_RUN) -sv --nologcapture --with-timer $(ST_OPTIONS)'
 	$(MAKE) stop-etcd
 

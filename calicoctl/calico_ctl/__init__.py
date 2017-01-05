@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "0.23.0"
+__version__ = "0.23.1"
 __libnetwork_plugin_version__ = "v0.10.0"
 __libcalico_version__ = "v0.18.0"
-__felix_version__ = "1.4.4"
+__felix_version__ = "1.4.6"

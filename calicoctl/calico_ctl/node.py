@@ -74,7 +74,7 @@ Options:
   --log-dir=<LOG_DIR>       The directory for logs [default: /var/log/calico]
   --no-pull                 Prevent from pulling the Calico node Docker images.
   --node-image=<DOCKER_IMAGE_NAME>    Docker image to use for Calico's per-node
-                            container. [default: calico/node:v0.23.0]
+                            container. [default: calico/node:v0.23.1]
   --remove-endpoints        Remove the endpoint data when deleting the node
                             from the Calico network.
   --runtime=<RUNTIME>       Specify how Calico services should be
@@ -492,9 +492,9 @@ def _start_node_container_rkt(ip, ip6, as_num, node_image, etcd_envs,
     :param backend:
     :return: None.
     """
-    if node_image == "calico/node:v0.23.0":
+    if node_image == "calico/node:v0.23.1":
         # The default image is being used so convert to the rkt format.
-        node_image = "registry-1.docker.io/calico/node:v0.23.0"
+        node_image = "registry-1.docker.io/calico/node:v0.23.1"
 
     no_default_pools = os.getenv(NO_DEFAULT_POOLS_ENV)
 
