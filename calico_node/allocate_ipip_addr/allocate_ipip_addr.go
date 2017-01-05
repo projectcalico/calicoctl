@@ -1,112 +1,127 @@
 package allocateIPIPAddr
 
 import (
+	"fmt"
+	"os"
+
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/client"
-	"debug/pe"
+	"github.com/projectcalico/libcalico-go/lib/net"
 )
 
-func allocateIPIPAddr(client *client.Client, string nodename) {
+// main sets the host's tunnel address to an IPIP-enabled address if
+// there are any available, otherwise sets the tunnel to nil.
+func main() {
+	cfg, err := client.LoadClientConfig("")
+	if err != nil {
+		panic(fmt.Sprintf("Error loading config: %s", err))
+	}
+	c, err := client.New(*cfg)
+	if err != nil {
+		panic(fmt.Sprintf("Error creating client: %s", err))
+	}
+	nodename := os.Getenv("NODENAME")
+
 	meta := api.IPPoolMetadata{}
-	ipPoolList, err := client.IPPools().List(meta)
+	ipPoolList, err := c.IPPools().List(meta)
 	if err != nil {
 		log.Warnf("error retrieving pools: %s", err)
 	}
-    ipv4Pools := getIPv4Pools(ipPoolList.Items)
-    enabledPools := getIPIPEnabledPools(ipv4Pools)
-    if len(enabledPools) > 0 {
-        ensureHostTunnelAddress(ipv4Pools, enabledPools, client, nodename)
-    } else {
-        removeHostTunnelAddr(client, nodename)
-    }
+	enabledPools := getIPIPEnabledPools(ipPoolList.Items)
+	if len(enabledPools) > 0 {
+		ensureHostTunnelAddress(enabledPools, c, nodename)
+	} else {
+		removeHostTunnelAddr(c, nodename)
+	}
 }
 
-func ensureHostTunnelAddress(ipv4Pools, enabledPools []api.IPPool, client *client.Client, string nodename){
-    cnf = client.Config()
-    ipAddr, err := cnf.GetNodeIPIPTunnelAddress(nodename)
-    if err != nil {
-        panic(fmt.Sprintf("Could not retrieve IPIP tunnel address: %s", err))
-    }
-    if ipAddr != nil {
-        pool, _ := findPool(ipAddr, ipv4Pools)
-        if pool != nil {
-            if pool.Spec.IPPoolSpec.IPIP == false {
-                _, err := client.IPAM().ReleaseIPs([]*net.IP{ipAddr})
-                if err != nil {
-                    panic(fmt.Sprintf("Error releasing non IPIP address: %s", err))
-                }
-                ipAddr = nil
-            }
-        } else {
-            ipAddr = nil
-        }
-    }
-    if ipAddr == nil {
-        assignHostTunnelAddr(enabledPools, client, nodename)
-    }
+// ensureHostTunnelAddress that ensures the host
+// has a valid IP address for its IPIP tunnel device.
+// This must be an IP address claimed from one of the IPIP pools.
+// Handles re-allocating the address if it finds an existing address
+// that is not from an IPIP pool.
+func ensureHostTunnelAddress(enabledPools []api.IPPool, c *client.Client, nodename string) {
+	cnf := c.Config()
+	ipAddr, err := cnf.GetNodeIPIPTunnelAddress(nodename)
+	if err != nil {
+		panic(fmt.Sprintf("Could not retrieve IPIP tunnel address: %s", err))
+	}
+	if ipAddr != nil {
+		pool, _ := findIPNet(ipAddr, enabledPools)
+		if pool.String() == "" {
+			ipsToRelease := []net.IP{*ipAddr}
+			_, err := c.IPAM().ReleaseIPs(ipsToRelease)
+			if err != nil {
+				log.Warnf("Error releasing non IPIP address: %s", err)
+				os.Exit(1)
+			}
+			ipAddr = nil
+		}
+	} else {
+		assignHostTunnelAddr(enabledPools, c, nodename)
+	}
 }
 
-
+// removeHostTunnelAddr removes any existing IP address for this
+// host's IPIP tunnel device. Idempotent; does nothing if there is
+// no IP assigned. Releases the IP from IPAM.
 func removeHostTunnelAddr(client *client.Client, nodename string) {
-    ipAddr, err := cnf.GetNodeIPIPTunnelAddress(nodename)
-    if err != nil {
-        panic(fmt.Sprintf("Could not retrieve IPIP tunnel address for cleanup: %s", err))
-    }
-    if ipAddr != nil {
-        _, err := client.IPAM().ReleaseIPs([]*net.IP{ipAddr})
-        if err != nil {
-            panic(fmt.Sprintf("Error releasing address: %s", err))
-        }
-    }
-    ipam := client.IPAM()
-    err := ipam.UnsetFelixConfig("IpInIpTunnelAddr", nodename)
+	ipAddr, err := client.Config().GetNodeIPIPTunnelAddress(nodename)
+	if err != nil {
+		panic(fmt.Sprintf("Could not retrieve IPIP tunnel address for cleanup: %s", err))
+	}
+	if ipAddr != nil {
+		_, err := client.IPAM().ReleaseIPs([]net.IP{*ipAddr})
+		if err != nil {
+			panic(fmt.Sprintf("Error releasing address: %s", err))
+		}
+	}
+	cfg := client.Config()
+	err = cfg.SetNodeIPIPTunnelAddress("IpInIpTunnelAddr", nil)
 }
 
-func assignHostTunnelAddr(ipipPools []api.IPPool, *client.Client, nodename string) {
-    args := AutoAssignArgs{Num4: 1, Num6:0, HandleID: nil, Attrs: nil, Hostname: nodename, IPv4Pools: ipipPools}
-    ipam := client.IPAM()
-    ipv4Addrs, _, err := ipam.AutoAssign(args)
-    if err != nil {
-        panic(fmt.Sprintf("Could not autoassign host tunnel address: %s", err))
-    }
-    if len(ipv4Addrs) > 0 {
-        config := client.Config()
-        config.SetFelixConfig("IpInIpTunnelAddr", nodename, ipv4Addrs[0].String())
-    } else {
-        panic(fmt.Sprintf("Failed to allocate an IP address from an IPIP-enabled pool 
-for the host's IPIP tunnel device.  Pools are likely exhausted."))
-    } 
+// assignHostTunnelAddr claims an IPIP-enabled IP address from
+// the first pool with some space. Stores the result in the host's
+// config as its tunnel address. Exits on failure.
+func assignHostTunnelAddr(ipipPools []api.IPPool, c *client.Client, nodename string) {
+	var ipNets []net.IPNet
+	for _, p := range ipipPools {
+		ipNets = append(ipNets, p.Metadata.CIDR)
+	}
+	args := client.AutoAssignArgs{Num4: 1, Num6: 0, HandleID: nil, Attrs: nil, Hostname: nodename, IPv4Pools: ipNets}
+	ipam := c.IPAM()
+	ipv4Addrs, _, err := ipam.AutoAssign(args)
+	if err != nil {
+		panic(fmt.Sprintf("Could not autoassign host tunnel address: %s", err))
+	}
+	if len(ipv4Addrs) > 0 {
+		cfg := c.Config()
+		cfg.SetNodeIPIPTunnelAddress("IpInIpTunnelAddr", &ipv4Addrs[0])
+	} else {
+		panic(fmt.Sprintf("Failed to allocate an IP address from an IPIP-enabled pool for the host's IPIP tunnel device.  Pools are likely exhausted."))
+	}
 }
 
-func findPool(ipAddr *net.IP, ipv4Pools []api.IPPool) (net.IPNet, error) {
-    for _, p in range ipv4Pools {
-        poolIP := p.IPPoolMetadata.CIDR.String()
-        if strings.HasPrefix(poolIP, ipAddr) {
-            return p, nil
-        }
-    }
-    return nil, nil
+// findPool returns the IPNet containing the given IP.
+func findIPNet(ipAddr *net.IP, ipPools []api.IPPool) (net.IPNet, error) {
+	for _, pool := range ipPools {
+		poolIPNet := pool.Metadata.CIDR
+		if poolIPNet.Contains(ipAddr.IP) {
+			return poolIPNet, nil
+		}
+	}
+	return net.IPNet{}, nil
 }
 
-func getIPv4Pools(ipPools []api.IPPool) {
-    result := []api.IPPool{}
-    for _, ipPool in ipPoolList.Items {
-        if ipPool.Metadata.CIDR.version == 4 {
-            append(result, ipPool)
-        }
-    }
-    return result
+// getIPIPEnabledPools returns all IPIP enabled pools.
+func getIPIPEnabledPools(ipPools []api.IPPool) []api.IPPool {
+	result := []api.IPPool{}
+	for _, ipPool := range ipPools {
+		if ipPool.Spec.IPIP.Enabled {
+			result = append(result, ipPool)
+		}
+	}
+	return result
 }
-
-func getIPIPEnabledPools(ipPools []api.IPPool) {
-    result := []api.IPPool{}
-    for _, ipPool in ipPoolList.Items {
-        if ipPool.Spec.IPIP.enabled == true {
-            append(result, ipPool)
-        }
-    }
-    return result
-}
-
