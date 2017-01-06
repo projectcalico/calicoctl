@@ -29,6 +29,7 @@ func main() {
 	if err != nil {
 		log.Warnf("error retrieving pools: %s", err)
 	}
+	fmt.Println(ipPoolList)
 	enabledPools := getIPIPEnabledPools(ipPoolList.Items)
 	if len(enabledPools) > 0 {
 		ensureHostTunnelAddress(enabledPools, c, nodename)
@@ -44,6 +45,7 @@ func main() {
 // that is not from an IPIP pool.
 func ensureHostTunnelAddress(enabledPools []api.IPPool, c *client.Client, nodename string) {
 	cnf := c.Config()
+	fmt.Println(nodename)
 	ipAddr, err := cnf.GetNodeIPIPTunnelAddress(nodename)
 	if err != nil {
 		panic(fmt.Sprintf("Could not retrieve IPIP tunnel address: %s", err))
@@ -79,7 +81,7 @@ func removeHostTunnelAddr(client *client.Client, nodename string) {
 		}
 	}
 	cfg := client.Config()
-	err = cfg.SetNodeIPIPTunnelAddress("IpInIpTunnelAddr", nil)
+	err = cfg.SetNodeIPIPTunnelAddress(nodename, nil)
 }
 
 // assignHostTunnelAddr claims an IPIP-enabled IP address from
@@ -96,9 +98,11 @@ func assignHostTunnelAddr(ipipPools []api.IPPool, c *client.Client, nodename str
 	if err != nil {
 		panic(fmt.Sprintf("Could not autoassign host tunnel address: %s", err))
 	}
+	fmt.Println("IPV4 ADDRESSES")
+	fmt.Println(ipv4Addrs)
 	if len(ipv4Addrs) > 0 {
 		cfg := c.Config()
-		cfg.SetNodeIPIPTunnelAddress("IpInIpTunnelAddr", &ipv4Addrs[0])
+		cfg.SetNodeIPIPTunnelAddress(nodename, &ipv4Addrs[0])
 	} else {
 		panic(fmt.Sprintf("Failed to allocate an IP address from an IPIP-enabled pool for the host's IPIP tunnel device.  Pools are likely exhausted."))
 	}
@@ -117,9 +121,9 @@ func findIPNet(ipAddr *net.IP, ipPools []api.IPPool) (net.IPNet, error) {
 
 // getIPIPEnabledPools returns all IPIP enabled pools.
 func getIPIPEnabledPools(ipPools []api.IPPool) []api.IPPool {
-	result := []api.IPPool{}
+	var result []api.IPPool
 	for _, ipPool := range ipPools {
-		if ipPool.Spec.IPIP.Enabled {
+		if ipPool.Spec.IPIP != nil && ipPool.Spec.IPIP.Enabled {
 			result = append(result, ipPool)
 		}
 	}

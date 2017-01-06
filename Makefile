@@ -400,7 +400,7 @@ dist/startup-go: $(CALICOCTL_FILES) vendor
 
 ## Build allocate_ipip_addr.go
 allocateIPIPAddr:
-	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -v -o dist/allocateIPIPAddr $(LDFLAGS) "./calico_node/allocate_ipip_addr/allocate_ipip_addr.go"
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o dist/allocateIPIPAddr $(LDFLAGS) "./calico_node/allocate_ipip_addr/allocate_ipip_addr.go"
 
 dist/allocateIPIPAddr: $(CALICOCTL_FILES) vendor
 	mkdir -p dist
