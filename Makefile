@@ -64,12 +64,6 @@ $(NODE_CONTAINER_CREATED): $(NODE_CONTAINER_DIR)/Dockerfile $(NODE_CONTAINER_FIL
 	docker build -t $(NODE_CONTAINER_NAME) $(NODE_CONTAINER_DIR)
 	touch $@
 
-# Build binary from python files, e.g. allocate-ipip-addr.py
-$(NODE_CONTAINER_BIN_DIR)/%: $(NODE_CONTAINER_DIR)/%.py
-	-docker run -v $(SOURCE_DIR):/code --rm \
-	 $(PYTHON_BUILD_CONTAINER_NAME) \
-	 sh -c 'pyinstaller -ayF --specpath /tmp/spec --workpath /tmp/build --distpath $(@D) $< && chown $(shell id -u):$(shell id -g) -R $(@D)'
-
 # Get felix binaries
 $(NODE_CONTAINER_BIN_DIR)/calico-felix:
 	-docker rm -f calico-felix
@@ -397,6 +391,20 @@ dist/startup: $(CALICOCTL_FILES) vendor
 	  golang:1.7 bash -c '\
 	    cd /go/src/github.com/projectcalico/calicoctl && \
 	    make startup && \
+	    chown -R $(shell id -u):$(shell id -u) dist'
+
+## Build allocate_ipip_addr.go
+allocate_ipip_addr:
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o dist/allocate_ipip_addr $(LDFLAGS) "./calico_node/allocate_ipip_addr/allocate_ipip_addr.go"
+
+dist/allocate_ipip_addr: $(CALICOCTL_FILES) vendor
+	mkdir -p dist
+	docker run --rm \
+	  -v ${PWD}:/go/src/github.com/projectcalico/calicoctl:ro \
+	  -v ${PWD}/dist:/go/src/github.com/projectcalico/calicoctl/dist \
+	  golang:1.7 bash -c '\
+	    cd /go/src/github.com/projectcalico/calicoctl && \
+	    make allocate_ipip_addr && \
 	    chown -R $(shell id -u):$(shell id -u) dist'
 
 ## Build calicoctl
