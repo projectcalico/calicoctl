@@ -1,3 +1,16 @@
+// Copyright (c) 2016 Tigera, Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package autodetection
 
 import (
@@ -31,7 +44,6 @@ func (a Addr) String() string {
 // name matches any of the exclusion list regexes, and including those on the
 // inclusion list.
 func GetInterfaces(includeRegexes []string, excludeRegexes []string, version int) ([]Interface, error) {
-	// Create a single regex to perform the interface check.
 	netIfaces, err := net.Interfaces()
 	if err != nil {
 		log.Warnf("Interfaces unavailable: %v", err)
@@ -41,12 +53,17 @@ func GetInterfaces(includeRegexes []string, excludeRegexes []string, version int
 	var filteredIfaces []Interface
 	var includeRegexp *regexp.Regexp
 	var excludeRegexp *regexp.Regexp
+
+	// Create single include and exclude regexes to perform the interface
+	// check.
 	if len(includeRegexes) > 0 {
 		includeRegexp = regexp.MustCompile("(" + strings.Join(includeRegexes, ")|(") + ")")
 	}
 	if len(excludeRegexes) > 0 {
 		excludeRegexp = regexp.MustCompile("(" + strings.Join(excludeRegexes, ")|(") + ")")
 	}
+
+	// Loop through interfaces filtering on the regexes.
 	for _, iface := range netIfaces {
 		include := (includeRegexp == nil) || includeRegexp.MatchString(iface.Name)
 		exclude := (excludeRegexp != nil) && excludeRegexp.MatchString(iface.Name)
@@ -86,12 +103,12 @@ func convertInterface(i *net.Interface, version int) (*Interface, error) {
 		}
 
 		if ia.IPAddress == nil {
-			log.WithField("Address", addrStr).Info("Unable to parse IP address")
+			log.WithField("Address", addrStr).Warn("Unable to parse IP address")
 			continue
 		}
 
 		if ia.IPAddress.Version() == version {
-			log.WithField("Addr", ia).Info("Storing IP and network in interface")
+			log.WithField("Addr", ia).Debug("Storing IP address")
 			iface.Addrs = append(iface.Addrs, ia)
 		}
 	}

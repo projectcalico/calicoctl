@@ -35,6 +35,9 @@ const (
 	DEFAULT_IPV6_POOL_CIDR = "fd80:24e2:f998:72d6::/64"
 )
 
+// For testing purposes we define an exit function that we can override.
+var exitFunction = os.Exit
+
 // This file contains the main startup processing for the calico/node.  This
 // includes:
 // -  Detecting IP address and Network to use for BGP
@@ -65,26 +68,13 @@ func main() {
 			terminate()
 		}
 		log.Info("Kubernetes is initialized as a Calico datastore")
-		writeStartupEnv(nodeName, "", "")
+		writeStartupEnv(nodeName, nil, nil)
 		return
 	}
 
 	// Query the current Node resources.  We update our node resource with
 	// updated IP data and use the full list of nodes for validation.
 	node := getNode(client, nodeName)
-
-	// If running in policy only mode, apply the node resource and exit.
-	// This ensures we have an entry that can be queried, and also ensures
-	// the datastore is initialized.
-	if strings.ToLower(os.Getenv("CALICO_NETWORKING_BACKEND")) == "none" {
-		if _, err := client.Nodes().Apply(node); err != nil {
-			fatal("Unable to set node resource configuration: %s", err)
-			terminate()
-		}
-		message("Running calico/node in policy only mode")
-		writeStartupEnv(nodeName, "", "")
-		return
-	}
 
 	// Configure and verify the node IP addresses and subnets.
 	configureIPsAndSubnets(node)
@@ -112,11 +102,7 @@ func main() {
 
 	// Write the startup.env file now that we are ready to start other
 	// components.
-	ipv6Str := ""
-	if node.Spec.BGP.IPv6Address != nil {
-		ipv6Str = node.Spec.BGP.IPv6Address.String()
-	}
-	writeStartupEnv(nodeName, node.Spec.BGP.IPv4Address.String(), ipv6Str)
+	writeStartupEnv(nodeName, node.Spec.BGP.IPv4Address, node.Spec.BGP.IPv6Address)
 
 	// Tell the user what the name of the node is.
 	message("Using node name: %s", nodeName)
@@ -148,7 +134,7 @@ func determineNodeName() string {
 		message("* Auto-detecting node name.  It is recommended that an explicit fixed value  *")
 		message("* is supplied using the NODENAME environment variable.  Using a fixed value  *")
 		message("* ensures that any changes to the compute host's hostname will not affect    *")
-		message("* the Calico configuration when the Calico node restarts.                    *")
+		message("* the Calico configuration when calico/node restarts.                        *")
 		message("******************************************************************************")
 	}
 	return nodeName
@@ -173,13 +159,13 @@ func createClient() (*api.CalicoAPIConfig, *client.Client) {
 
 	// An explicit value of false is required to skip waiting for the
 	// datastore.
-	if os.Getenv("WAIT_FOR_DATASTORE") == "false" {
+	if os.Getenv("WAIT_FOR_DATASTORE") != "true" {
 		message("Skipping datastore connection test")
 		return cfg, client
 	}
 
 	message("Checking datastore connection")
-	for i := 0; i <= 120; i++ {
+	for ;; {
 		// Query some arbitrary configuration to see if the connection
 		// is working.  Getting a specific node is a good option, even
 		// if the node does not exist.
@@ -197,13 +183,6 @@ func createClient() (*api.CalicoAPIConfig, *client.Client) {
 				continue
 			}
 		}
-
-		err = nil
-		break
-	}
-	if err != nil {
-		fatal("Connection to the datastore has failed: %s", err)
-		terminate()
 	}
 
 	message("Datastore connection verified")
@@ -214,13 +193,17 @@ func createClient() (*api.CalicoAPIConfig, *client.Client) {
 // writeStartupEnv writes out the startup.env file to set environment variables
 // that are required by confd/bird etc. but may not have been passed into the
 // container.
-func writeStartupEnv(nodeName string, ip string, ip6 string) {
+func writeStartupEnv(nodeName string, ip, ip6 *net.IP) {
 	text := "export HOSTNAME=" + nodeName + "\n"
 	text += "export NODENAME=" + nodeName + "\n"
-	text += "export IP=" + ip + "\n"
-	text += "export IP6=" + ip6 + "\n"
+	if ip != nil {
+		text += "export IP=" + ip.String() + "\n"
+	}
+	if ip6 != nil {
+		text += "export IP6=" + ip6.String() + "\n"
+	}
 
-	// Write out the startup.env file to ensure require environments are
+	// Write out the startup.env file to ensure required environments are
 	// set (which they might not otherwise be).
 	if err := ioutil.WriteFile("startup.env", []byte(text), 0666); err != nil {
 		log.WithError(err).Info("Unable to write to startup.env")
@@ -229,9 +212,8 @@ func writeStartupEnv(nodeName string, ip string, ip6 string) {
 	}
 }
 
-// getNode returns the current node configuration and a list of all configured
-// nodes.  If this node has not yet been created, it returns a blank node
-// resource.
+// getNode returns the current node configuration.  If this node has not yet
+// been created, it returns a blank node resource.
 func getNode(client *client.Client, nodeName string) *api.Node {
 	meta := api.NodeMetadata{Name: nodeName}
 	node, err := client.Nodes().Get(meta)
@@ -243,7 +225,7 @@ func getNode(client *client.Client, nodeName string) *api.Node {
 			terminate()
 		}
 
-		log.WithField("Name", nodeName).Info("Returning empty node configuration")
+		log.WithField("Name", nodeName).Info("Building new node resource")
 		node = &api.Node{Metadata: api.NodeMetadata{Name: nodeName}}
 	}
 
@@ -270,7 +252,6 @@ func configureIPsAndSubnets(node *api.Node) {
 	ipv4Env := os.Getenv("IP")
 	if ipv4Env == "autodetect" || (ipv4Env == "" && node.Spec.BGP.IPv4Address == nil) {
 		adm := os.Getenv("IP_AUTODETECT_METHOD")
-		//node.Spec.BGP.IPv4Address, node.Spec.BGP.IPv4Network = autoDetectIPAndNetwork(adm, 4)
 		node.Spec.BGP.IPv4Address, _ = autoDetectIPAndNetwork(adm, 4)
 
 		// We must have an IPv4 address configured for BGP to run.
@@ -281,77 +262,53 @@ func configureIPsAndSubnets(node *api.Node) {
 			message("  -  if auto-detecting, use a different autodetection method.")
 			terminate()
 		}
-
 	} else {
-		node.Spec.BGP.IPv4Address, _ = fetchAndValidateIPAndNetwork(
-			ipv4Env, 4,
-			node.Spec.BGP.IPv4Address, nil)
+		if ipv4Env != "" {
+			node.Spec.BGP.IPv4Address = parseIPEnvironment("IP", ipv4Env, 4)
+		}
+		validateIP(node.Spec.BGP.IPv4Address)
 	}
 
 	ipv6Env := os.Getenv("IP6")
 	if ipv6Env == "autodetect" {
 		adm := os.Getenv("IP6_AUTODETECT_METHOD")
-		//node.Spec.BGP.IPv6Address, node.Spec.BGP.IPv6Network = autoDetectIPAndNetwork(adm, 6)
 		node.Spec.BGP.IPv6Address, _ = autoDetectIPAndNetwork(adm, 6)
 	} else {
-		node.Spec.BGP.IPv6Address, _ = fetchAndValidateIPAndNetwork(
-			ipv6Env, 6,
-			node.Spec.BGP.IPv6Address, nil)
+		if ipv6Env != "" {
+			node.Spec.BGP.IPv6Address = parseIPEnvironment("IP6", ipv6Env, 6)
+		}
+		validateIP(node.Spec.BGP.IPv6Address)
 	}
 
 }
 
 // fetchAndValidateIPAndNetwork fetches and validates the IP configuration from
-// either the environments, from pre-configured values.  In addition, missing
-// network is autodetected from the interface configuration based on the configured
-// IP address.
-func fetchAndValidateIPAndNetwork(ipEnv string, version int, ip *net.IP, ipNet *net.IPNet) (*net.IP, *net.IPNet) {
-	// If we don't yet have an IP and an IP has not been specified, return
-	// the existing values.
-	if ip == nil && ipEnv == "" {
-		return ip, ipNet
+// either the environment variables or from the values already configured in the
+// node.
+func parseIPEnvironment(envName, envValue string, version int) *net.IP {
+	ip := &net.IP{}
+	err := ip.UnmarshalText([]byte(envValue))
+	if err != nil || ip.Version() != version {
+		fatal("Environment does not contain a valid IPv%d address: %s=%s", version, envName, envValue)
+		terminate()
+	}
+	message("Using IPv%d address from environment: %s=%s", ip.Version(), envName, envValue)
+
+	return ip
+}
+
+
+// validateIP checks that the IP address is actually on one of the host
+// interfaces and warns if not.
+func validateIP(ip *net.IP) {
+	// No validation required if no IP address is specified.
+	if ip == nil {
+		return
 	}
 
-	// If an IP address has been specified in the environment, attempt to
-	// extract the IP and possibly the subnet if that was also included.
-	if ipEnv != "" {
-		log.WithField("IP Env", ipEnv).Info("Using specified IP address")
-
-		// We allow the IP address env to contain the subnet as well.
-		var err error
-		if strings.Contains(ipEnv, "/") {
-			ip, ipNet, err = net.ParseCIDR(ipEnv)
-			if err != nil {
-				message("Using IPv%d address from environment: %s", ip.Version(), ipEnv)
-				message("Using IPv%d network from environment: %s", ip.Version(), ipEnv)
-			}
-		} else {
-			ip = &net.IP{}
-			err = ip.UnmarshalText([]byte(ipEnv))
-			if err != nil {
-				message("Using IPv%d address from environment: %s", ip.Version(), ipEnv)
-			}
-		}
-
-		if err != nil {
-			fatal("IP address '%s' is not valid", ip)
-			terminate()
-		}
-		if ip.Version() != version {
-			fatal("IP address '%s' version is incorrect, should be IPv%d", ip, version)
-			terminate()
-		}
-	} else {
-		message("Using IPv%d address configured in node: %s", ip.Version(), ip)
-		if ipNet != nil {
-			message("Using IPv%d network configured in node: %s", ipNet.Version(), ipNet)
-		}
-	}
-
-	// Get a complete list of interfaces with their addresses.  We use this
-	// to validate the IP address being used, and to update the subnet if it
-	// is not specified.
-	ifaces, err := autodetection.GetInterfaces(nil, nil, version)
+	// Get a complete list of interfaces with their addresses and check if
+	// the IP address can be found.
+	ifaces, err := autodetection.GetInterfaces(nil, nil, ip.Version())
 	if err != nil {
 		fatal("Unable to query host interfaces: %s", err)
 		terminate()
@@ -360,35 +317,15 @@ func fetchAndValidateIPAndNetwork(ipEnv string, version int, ip *net.IP, ipNet *
 		message("No interfaces found for validating IP configuration")
 	}
 
-	found := false
-outer:
 	for _, i := range ifaces {
 		for _, a := range i.Addrs {
 			if ip.Equal(a.IPAddress.IP) {
-				// Found the IP address.  Either set or validate
-				// the subnet.
-				if ipNet == nil {
-					message("Using IPv%d network discovered on interface %s: %s",
-						version, i.Name, a.IPNetwork)
-					ipNet = a.IPNetwork
-				} else if a.IPNetwork == nil {
-					warning("Unable to confirm configured network %s matches interface %s",
-						ipNet, i.Name)
-				} else if netEqual(ipNet, a.IPNetwork) {
-					warning("Configured network %s does not match network %s on interface %s",
-						ipNet, a.IPNetwork, i.Name)
-				}
-
-				found = true
-				break outer
+				message("IPv%d address %s discovered on interface %s", ip.Version(), ip.String(), i.Name)
+				return
 			}
 		}
 	}
-	if !found {
-		warning("Unable to confirm IP address %s is assigned to this host", ip)
-	}
-
-	return ip, ipNet
+	warning("Unable to confirm IPv%d address %s is assigned to this host", ip.Version(), ip)
 }
 
 // autoDetectIPAndNetwork auto-detects the IP and Network using the requested
@@ -399,9 +336,16 @@ func autoDetectIPAndNetwork(detectionMethod string, version int) (*net.IP, *net.
 		"virbr.*", "lxcbr.*", "veth.*", "lo",
 		"cali.*", "tunl.*", "flannel.*"}
 
+	// At the moment, we don't support anything other than the default
+	// (blank) auto-detection method.
+	if detectionMethod != "" {
+		fatal("IP detection method is not supported: %s", detectionMethod)
+		terminate()
+	}
+
 	iface, addr, err := autodetection.FilteredEnumeration(incl, excl, version)
 	if err != nil {
-		message("Unable to auto-detect any valid interfaces: %s", err)
+		message("Unable to auto-detect any valid IPv%d addresses: %s", version, err)
 		return nil, nil
 	}
 
@@ -421,21 +365,25 @@ func autoDetectIPAndNetwork(detectionMethod string, version int) (*net.IP, *net.
 	return addr.IPAddress, addr.IPNetwork
 }
 
-// configureASNumber configures the Node resource with the AS numnber specified
-// in the environment.
+// configureASNumber configures the Node resource with the AS number specified
+// in the environment, or is a no-op if not specified.
 func configureASNumber(node *api.Node) {
 	// Extract the AS number from the environment
 	asStr := os.Getenv("AS")
 	if asStr != "" {
 		if asNum, err := numorstring.ASNumberFromString(asStr); err != nil {
-			fatal("The AS number specified in the environment is not valid: %s", asStr)
+			fatal("The AS number specified in the environment (AS=%s) is not valid: %s", asStr, err)
 			terminate()
 		} else {
-			message("Using AS number specified in environment: %s", asNum)
+			message("Using AS number specified in environment: AS=%s", asNum)
 			node.Spec.BGP.ASNumber = &asNum
 		}
 	} else {
-		message("AS number not specified in environment, using current value")
+		if node.Spec.BGP.ASNumber == nil {
+			message("No AS number configured on node resource, using global value")
+		} else {
+			message("Using AS number configured in node resource: %s", node.Spec.BGP.ASNumber)
+		}
 	}
 }
 
@@ -443,7 +391,7 @@ func configureASNumber(node *api.Node) {
 // requested otherwise).
 func configureIPPools(client *client.Client) {
 	if strings.ToLower(os.Getenv("NO_DEFAULT_POOLS")) == "true" {
-		log.Info("Not required to configured IP pools")
+		log.Info("Skipping IP pool configuration")
 		return
 	}
 
@@ -454,7 +402,7 @@ func configureIPPools(client *client.Client) {
 		terminate()
 	}
 
-	// Check for IPv4 and IPv6 pools and filter for IPIP pools.
+	// Check for IPv4 and IPv6 pools.
 	ipv4Present := false
 	ipv6Present := false
 	for _, p := range poolList.Items {
@@ -468,29 +416,41 @@ func configureIPPools(client *client.Client) {
 
 	// Ensure there are pools created for each IP version.
 	if !ipv4Present {
+		log.Debug("Create default IPv4 IP pool")
 		createIPPool(client, DEFAULT_IPV4_POOL_CIDR)
 	}
 	if !ipv6Present && ipv6Supported() {
+		log.Debug("Create default IPv6 IP pool")
 		createIPPool(client, DEFAULT_IPV6_POOL_CIDR)
 	}
 }
 
 // ipv6Supported returns true if IPv6 is supported on this platform.  This performs
-// a simplistic check of /proc/sys/net/ipv6 since platforms that do not have IPv6
-// compiled in will not have this entry.
+// a check on the appropriate Felix parameter and if supported also performs a
+// simplistic check of /proc/sys/net/ipv6 (since platforms that do not have IPv6
+// compiled in will not have this entry).
 func ipv6Supported() bool {
+	// First check the Felix parm.
+	switch strings.ToLower(os.Getenv("FELIX_IPV6SUPPORT")) {
+	case "false", "0", "no", "n", "f":
+		log.Info("IPv6 support disabled through environment")
+		return false
+	}
+
+	// If supported, then also check /proc/sys/net/ipv6.
 	_, err := os.Stat("/proc/sys/net/ipv6")
 	supported := (err == nil)
 	log.Infof("IPv6 supported on this platform: %v", supported)
 	return supported
 }
 
-// createIPPool creates an IP pool using the specified CIDR string.
+// createIPPool creates an IP pool using the specified CIDR string.  This
+// method is a no-op if the pool already exists.
 func createIPPool(client *client.Client, cs string) {
 	_, cidr, _ := net.ParseCIDR(cs)
 	version := cidr.Version()
 
-	log.Info("Creating default IPv%d pool", version)
+	log.Info("Ensure default IPv%d pool is created", version)
 	pool := &api.IPPool{
 		Metadata: api.IPPoolMetadata{
 			CIDR: *cidr,
@@ -499,16 +459,21 @@ func createIPPool(client *client.Client, cs string) {
 			NATOutgoing: true,
 		},
 	}
-	if _, err := client.IPPools().Apply(pool); err != nil {
+
+	// Create the pool.  There is a small chance that another node may
+	// beat us to it, so handle the fact that the pool already exists.
+	if _, err := client.IPPools().Create(pool); err != nil {
 		if _, ok := err.(errors.ErrorResourceAlreadyExists); !ok {
 			fatal("Failed to create default IPv%d IP pool: %s", version, err)
 			terminate()
 		}
+	} else {
+		message("Created default IPv%d pool (%s) with NAT outgoing enabled", version, cidr)
 	}
-	message("Created default IPv%d pool (%s) with NAT outgoing enabled", version, cidr)
 }
 
-// Check whether any other nodes have been configured with the same IP addresses.
+// checkConflictingNodes checks whether any other nodes have been configured
+// with the same IP addresses.
 func checkConflictingNodes(client *client.Client, node *api.Node) {
 	// Get the full set of nodes.
 	var nodes []api.Node
@@ -602,8 +567,6 @@ func ensureDefaultConfig(c *client.Client, node *api.Node) error {
 		return err
 	} else if err = ensureGlobalBGPConfig(c, "loglevel", client.GlobalDefaultLogLevel); err != nil {
 		return err
-	} else if err = ensureGlobalBGPConfig(c, "LogSeverityScreen", client.GlobalDefaultLogLevel); err != nil {
-		return err
 	} else if err = c.Backend.EnsureCalicoNodeInitialized(node.Metadata.Name); err != nil {
 		return err
 	}
@@ -618,7 +581,7 @@ func ensureGlobalFelixConfig(c *client.Client, key, def string) error {
 	} else if !assigned {
 		return c.Config().SetFelixConfig(key, "", def)
 	} else {
-		log.Infof("Global Felix value already assigned %s=%s", key, val)
+		log.WithField(key, val).Debug("Global Felix value already assigned")
 		return nil
 	}
 }
@@ -631,7 +594,7 @@ func ensureGlobalBGPConfig(c *client.Client, key, def string) error {
 	} else if !assigned {
 		return c.Config().SetBGPConfig(key, "", def)
 	} else {
-		log.Infof("Global BGP value already assigned %s=%s", key, val)
+		log.WithField(key, val).Debug("Global BGP value already assigned")
 		return nil
 	}
 }
@@ -660,11 +623,5 @@ func fatal(format string, args ...interface{}) {
 // terminate() prints a terminate message and exists with status 1.
 func terminate() {
 	message("Terminating")
-	os.Exit(1)
-}
-
-// netEqual returns true if the two networks are equal.  Neither network
-// can be nil.
-func netEqual(net1, net2 *net.IPNet) bool {
-	return net1.String() == net2.String()
+	exitFunction(1)
 }
