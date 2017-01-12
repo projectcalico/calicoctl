@@ -499,7 +499,7 @@ endif
 	git tag $(VERSION)
 
 	# Check to make sure the tag isn't "-dirty".
-	if git describe --tags --dirty | grep dirty; then echo current git working tree is "dirty" ;false; fi
+	if git describe --tags --dirty | grep dirty; then echo current git working tree is "dirty". Make sure you do not have any uncommitted changes ;false; fi
 
 	# Build the calicoctl binaries, as well as the calico/ctl and calico/node images.
 	CALICOCTL_NODE_VERSION=$(VERSION) $(MAKE) dist/calicoctl dist/calicoctl-darwin-amd64 dist/calicoctl-windows-amd64.exe 

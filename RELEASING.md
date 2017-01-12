@@ -15,18 +15,29 @@ Creating a new release creates the following artifacts:
 ## Preparing for a release
 1. Make sure you are on the master branch and don't have any local uncommitted changes. e.g. Update the libcalico-go pin to the latest release in glide.yaml and run `glide up -v`, create PR, ensure test pass and merge.
 
-2. Login using your dockerhub credentials (`docker longin` in your terminal). Make sure you have write access to calico orgs on Dockerhub and quay.io. 
+2. Pre-requisits for pushing container images:
+  - Make sure you have write access to calico orgs on Dockerhub and quay.io. 
+  - Login using your dockerhub credentials.
+  - `docker longin` in your terminal. 
+  - For quay.io: 
+    a. Go to your account on quay.io
+    b. Go to the account settings
+    c. Go to the "settings" tab
+    d. Click on "Generate Encrypted Password", it will popup a new sub-window
+    e. Go to "Docker Login" tab in that window
+    f. Copy the command with encrypted password and paste it in your terminal
+  - Now you should be able to push the container images with `docker push` command.
 
 3. Update the sub-component versions in the `Makefile` 
-- `CONFD_VER := v0.10.0-scale`
-- `BIRD_VER := v0.2.0`
-- `GOBGPD_VER := v0.1.1`
-- `FELIX_VER := 2.0.0`
-- `LIBNETWORK_PLUGIN_VER := v1.0.0`
-- `LIBCALICOGO_VER := v1.0.0`
-- `LIBCALICO_VER := v0.19.0`- Currently, the startup.py script relies on the Python version of libcalico
+  - `CONFD_VER := v0.10.0-scale`
+  - `BIRD_VER := v0.2.0`
+  - `GOBGPD_VER := v0.1.1`
+  - `FELIX_VER := 2.0.0`
+  - `LIBNETWORK_PLUGIN_VER := v1.0.0`
+  - `LIBCALICOGO_VER := v1.0.0`
+  - `LIBCALICO_VER := v0.19.0`- Currently, the startup.py script relies on the Python version of libcalico.
 
-3. Follow the steps from [Creating the release](https://github.com/projectcalico/calicoctl/blob/master/RELEASING.md#creating-the-release) section
+4. If build fails during `make release`, make sure git tag is deleted before doing `make release` again. (This can be done with `git tag -d <tag>`)
 
 ## Creating the release
 1. Choose a version e.g. `export VERSION=v1.0.0`
