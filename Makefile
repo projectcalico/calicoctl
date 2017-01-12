@@ -491,7 +491,10 @@ static-checks: vendor
 .PHONY: install
 install:
 	CGO_ENABLED=0 go install github.com/projectcalico/calicoctl/calicoctl
-
+blah:
+	@echo "\nAdd release notes from the following sub-component version releases:"
+	@echo "\nAdd release notes from the following sub-component \
+	\nversion releases:"
 release: clean
 ifndef VERSION
 	$(error VERSION is undefined - run using make release VERSION=vX.Y.Z)
@@ -529,7 +532,7 @@ endif
 	docker run $(NODE_CONTAINER_NAME) libnetwork-plugin -v
 
 	@echo "\nNow push the tag and images. Then create a release on Github and attach dist/calicoctl, dist/calicoctl-darwin-amd64, and dist/calicoctl-windows-amd64.exe binaries"
-	@echo "\nAdd release notes for calicoctl and calico/node. Use this URL to find commit messages for this release: https://github.com/projectcalico/calicoctl/compare/<old_release_version>...$(VERSION)"
+	@echo "\nAdd release notes for calicoctl and calico/node. Use this command to find commit messages for this release: git log --oneline <old_release_version>...$(VERSION)"
 	@echo "\nRelease notes for sub-components can be found at https://github.com/projectcalico/<component_name>/releases/tag/<version>"	
 	@echo "\nAdd release notes from the following sub-component version releases:"
 	@echo "\nfelix:$(FELIX_VER)"
