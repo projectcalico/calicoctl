@@ -51,7 +51,8 @@ var exitFunction = os.Exit
 func main() {
 	var err error
 
-	// Determine the name for this node.
+	// Determine the name for this node and ensure the environment is always
+	// available in the startup env file that is sourced in rc.local.
 	nodeName := determineNodeName()
 
 	// Create the Calico API client.
@@ -176,14 +177,18 @@ func waitForConnection(c *client.Client) {
 // writeStartupEnv writes out the startup.env file to set environment variables
 // that are required by confd/bird etc. but may not have been passed into the
 // container.
-func writeStartupEnv(nodeName string, ip, ip6 *net.IP) {
-	text := "export HOSTNAME=" + nodeName + "\n"
-	text += "export NODENAME=" + nodeName + "\n"
+func writeStartupEnv(nodeName string, ip, ip6 *net.IPNet) {
+	text := "export NODENAME=" + nodeName + "\n"
+
+	// TODO:  See https://github.com/projectcalico/calico-bgp-daemon/issues/18
+	// The following entries are required for go-bgp.  Once updated to use
+	// NODENAME and the node IP parameters, these entries can be removed.
+	text += "export HOSTNAME=" + nodeName + "\n"
 	if ip != nil {
-		text += "export IP=" + ip.String() + "\n"
+		text += "export IP=" + ip.IP.String() + "\n"
 	}
 	if ip6 != nil {
-		text += "export IP6=" + ip6.String() + "\n"
+		text += "export IP6=" + ip6.IP.String() + "\n"
 	}
 
 	// Write out the startup.env file to ensure required environments are
@@ -194,7 +199,6 @@ func writeStartupEnv(nodeName string, ip, ip6 *net.IP) {
 		terminate()
 	}
 }
-
 // getNode returns the current node configuration.  If this node has not yet
 // been created, it returns a blank node resource.
 func getNode(client *client.Client, nodeName string) *api.Node {
@@ -268,9 +272,12 @@ func configureIPsAndSubnets(node *api.Node) {
 // fetchAndValidateIPAndNetwork fetches and validates the IP configuration from
 // either the environment variables or from the values already configured in the
 // node.
-func parseIPEnvironment(envName, envValue string, version int) *net.IP {
-	ip := &net.IP{}
-	err := ip.UnmarshalText([]byte(envValue))
+func parseIPEnvironment(envName, envValue string, version int) *net.IPNet {
+	// To parse the environment (which could be an IP or a CIDR), convert
+	// to a JSON string and use the UnmarshalJSON method on the IPNet
+	// struct to parse the value.
+	ip := &net.IPNet{}
+	err := ip.UnmarshalJSON([]byte("\"" + envValue + "\""))
 	if err != nil || ip.Version() != version {
 		fatal("Environment does not contain a valid IPv%d address: %s=%s", version, envName, envValue)
 		terminate()
@@ -282,11 +289,14 @@ func parseIPEnvironment(envName, envValue string, version int) *net.IP {
 
 // validateIP checks that the IP address is actually on one of the host
 // interfaces and warns if not.
-func validateIP(ip *net.IP) {
+func validateIP(ipn *net.IPNet) {
 	// No validation required if no IP address is specified.
-	if ip == nil {
+	if ipn == nil {
 		return
 	}
+
+	// Pull out the IP as a net.IP (it has useful string and version methods).
+	ip := net.IP{ipn.IP}
 
 	// Get a complete list of interfaces with their addresses and check if
 	// the IP address can be found.
@@ -312,7 +322,7 @@ func validateIP(ip *net.IP) {
 
 // autoDetectCIDR auto-detects the IP and Network using the requested
 // detection method.
-func autoDetectCIDR(detectionMethod string, version int) *net.IP {
+func autoDetectCIDR(detectionMethod string, version int) *net.IPNet {
 	incl := []string{}
 	excl := []string{"^docker.*", "^cbr.*", "dummy.*",
 		"virbr.*", "lxcbr.*", "veth.*", "lo",
@@ -338,7 +348,7 @@ func autoDetectCIDR(detectionMethod string, version int) *net.IP {
 
 	message("Using autodetected IPv%d address on interface %s: %s", version, iface.Name, cidr.String())
 
-	return &net.IP{cidr.IP}
+	return cidr
 }
 
 // configureASNumber configures the Node resource with the AS number specified
@@ -509,34 +519,34 @@ func checkConflictingNodes(client *client.Client, node *api.Node) {
 		// an indication of multiple nodes using the same name.  This
 		// is not an error condition as the IPs could actually change.
 		if theirNode.Metadata.Name == node.Metadata.Name {
-			if theirIPv4 != nil && !theirIPv4.Equal(ourIPv4.IP) {
+			if theirIPv4 != nil && ourIPv4 != nil && !theirIPv4.IP.Equal(ourIPv4.IP) {
 				warning("Calico node '%s' IPv4 address has changed:",
 					theirNode.Metadata.Name)
 				message(" -  This could happen if multiple nodes are configured with the same name")
-				message(" -  Original IP: %s", theirIPv4)
-				message(" -  Updated IP: %s", ourIPv4)
+				message(" -  Original IP: %s", theirIPv4.IP)
+				message(" -  Updated IP: %s", ourIPv4.IP)
 			}
-			if theirIPv6 != nil && ourIPv6 != nil && !theirIPv6.Equal(ourIPv6.IP) {
+			if theirIPv6 != nil && ourIPv6 != nil && !theirIPv6.IP.Equal(ourIPv6.IP) {
 				warning("Calico node '%s' IPv6 address has changed:",
 					theirNode.Metadata.Name)
 				message(" -  This could happen if multiple nodes are configured with the same name")
-				message(" -  Original IP: %s", theirIPv6)
-				message(" -  Updated IP: %s", ourIPv6)
+				message(" -  Original IP: %s", theirIPv6.IP)
+				message(" -  Updated IP: %s", ourIPv6.IP)
 			}
 			continue
 		}
 
 		// Check that other nodes aren't using the same IP addresses.
 		// This is an error condition.
-		if theirIPv4 != nil && theirIPv4.Equal(ourIPv4.IP) {
+		if theirIPv4 != nil && ourIPv4 != nil && theirIPv4.IP.Equal(ourIPv4.IP) {
 			message("Calico node '%s' is already using the IPv4 address %s:",
-				theirNode.Metadata.Name, ourIPv4)
+				theirNode.Metadata.Name, ourIPv4.IP)
 			message(" -  Check the node configuration to remove the IP address conflict")
 			errored = true
 		}
-		if theirIPv6 != nil && theirIPv6.Equal(ourIPv6.IP) {
+		if theirIPv6 != nil && ourIPv6 != nil && theirIPv6.IP.Equal(ourIPv6.IP) {
 			message("Calico node '%s' is already using the IPv6 address %s:",
-				theirNode.Metadata.Name, ourIPv6)
+				theirNode.Metadata.Name, ourIPv6.IP)
 			message(" -  Check the node configuration to remove the IP address conflict")
 			errored = true
 		}
