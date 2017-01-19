@@ -48,11 +48,19 @@ NODE_CONTAINER_BIN_DIR=$(NODE_CONTAINER_DIR)/filesystem/bin
 NODE_CONTAINER_BINARIES=startup allocate-ipip-addr calico-felix bird calico-bgp-daemon confd libnetwork-plugin
 FELIX_CONTAINER_NAME?=calico/felix:2.0.1-rc1
 LIBNETWORK_PLUGIN_CONTAINER_NAME?=calico/libnetwork-plugin:v1.0.0
+TEST_CONTAINER_NAME?=calico/test:latest
+TEST_CONTAINER_FILES=$(shell find tests/ -type f ! -name '*.created')
 
 STARTUP_DIR=$(NODE_CONTAINER_DIR)/startup
 STARTUP_FILES=$(shell find $(STARTUP_DIR) -name '*.go')
 ALLOCATE_IPIP_DIR=$(NODE_CONTAINER_DIR)/allocateipip
 ALLOCATE_IPIP_FILES=$(shell find $(ALLOCATE_IPIP_DIR) -name '*.go')
+
+test_image: calico_test.created ## Create the calico/test image
+
+calico_test.created: $(TEST_CONTAINER_FILES)
+	docker build -f Dockerfile.calico_test -t $(TEST_CONTAINER_NAME) .
+	touch calico_test.created
 
 calico/node: $(NODE_CONTAINER_CREATED)    ## Create the calico/node image
 
@@ -209,7 +217,7 @@ st-checks:
 
 ## Run the STs in a container
 .PHONY: st
-st: dist/calicoctl busybox.tar routereflector.tar calico-node.tar workload.tar run-etcd-st
+st: dist/calicoctl busybox.tar routereflector.tar calico-node.tar workload.tar run-etcd-st calico_test.created
 	# Use the host, PID and network namespaces from the host.
 	# Privileged is needed since 'calico node' write to /proc (to enable ip_forwarding)
 	# Map the docker socket in so docker can be used from inside the container
