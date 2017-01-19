@@ -1,0 +1,4 @@
+FROM calico/dind:latest
+MAINTAINER Lance Robson <lance@projectcalico.org>
+
+RUN docker load -i workload.tar && docker load -i calico-node.tar && docker load -i busybox.tar
