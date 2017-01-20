@@ -56,9 +56,16 @@ NODE_CONTAINER_NAME?=calico/node
 NODE_CONTAINER_FILES=$(shell find $(NODE_CONTAINER_DIR)/filesystem -type f)
 NODE_CONTAINER_CREATED=$(NODE_CONTAINER_DIR)/.calico_node.created
 NODE_CONTAINER_BIN_DIR=$(NODE_CONTAINER_DIR)/filesystem/bin
-NODE_CONTAINER_BINARIES=startup startup-go allocate-ipip-addr calico-felix bird calico-bgp-daemon confd libnetwork-plugin
+
+NODE_CONTAINER_BINARIES=startup allocate-ipip-addr calico-felix bird calico-bgp-daemon confd libnetwork-plugin
+
 FELIX_CONTAINER_NAME?=calico/felix:$(FELIX_VER)
 LIBNETWORK_PLUGIN_CONTAINER_NAME?=calico/libnetwork-plugin:$(LIBNETWORK_PLUGIN_VER)
+
+STARTUP_DIR=$(NODE_CONTAINER_DIR)/startup
+STARTUP_FILES=$(shell find $(STARTUP_DIR) -name '*.go')
+ALLOCATE_IPIP_DIR=$(NODE_CONTAINER_DIR)/allocateipip
+ALLOCATE_IPIP_FILES=$(shell find $(ALLOCATE_IPIP_DIR) -name '*.go')
 
 calico/node: $(NODE_CONTAINER_CREATED)    ## Create the calico/node image
 
@@ -75,19 +82,19 @@ $(NODE_CONTAINER_CREATED): $(NODE_CONTAINER_DIR)/Dockerfile $(NODE_CONTAINER_FIL
 	docker build -t $(NODE_CONTAINER_NAME) $(NODE_CONTAINER_DIR)
 	touch $@
 
-# Build binary from python files, e.g. startup.py or allocate-ipip-addr.py
-$(NODE_CONTAINER_BIN_DIR)/%: $(NODE_CONTAINER_DIR)/%.py
-	-docker run -v $(SOURCE_DIR):/code --rm \
-	 $(PYTHON_BUILD_CONTAINER_NAME) \
-	 sh -c 'pyinstaller -ayF --specpath /tmp/spec --workpath /tmp/build --distpath $(@D) $< && chown $(shell id -u):$(shell id -g) -R $(@D)'
-
 # Get felix binaries
-$(NODE_CONTAINER_BIN_DIR)/calico-felix:
+.PHONY: update-felix
+$(NODE_CONTAINER_BIN_DIR)/calico-felix update-felix:
 	-docker rm -f calico-felix
 	# Latest felix binaries are stored in automated builds of calico/felix.
-	# To get them, we pull that image, then copy the binaries out to our host
+	# To get them, we create (but don't start) a container from that image.
 	docker create --name calico-felix $(FELIX_CONTAINER_NAME)
-	docker cp calico-felix:/code/. $(@D)
+	# Then we copy the files out of the container.  Since docker preserves
+	# mtimes on its copy, check the file really did appear, then touch it
+	# to make sure that downstream targets get rebuilt.
+	docker cp calico-felix:/code/. $(NODE_CONTAINER_BIN_DIR) && \
+	  test -e $(NODE_CONTAINER_BIN_DIR)/calico-felix && \
+	  touch $(NODE_CONTAINER_BIN_DIR)/calico-felix
 	-docker rm -f calico-felix
 
 # Get libnetwork-plugin binaries
@@ -119,8 +126,13 @@ $(NODE_CONTAINER_BIN_DIR)/bird:
 	$(CURL) -L $(BIRD_URL) -o $@
 	chmod +x $(@D)/*
 
-$(NODE_CONTAINER_BIN_DIR)/startup-go: dist/startup-go
-	cp dist/startup-go $(NODE_CONTAINER_BIN_DIR)
+$(NODE_CONTAINER_BIN_DIR)/startup: dist/startup
+	mkdir -p $(NODE_CONTAINER_BIN_DIR)
+	cp dist/startup $(NODE_CONTAINER_BIN_DIR)/startup
+
+$(NODE_CONTAINER_BIN_DIR)/allocate-ipip-addr: dist/allocate-ipip-addr
+	mkdir -p $(NODE_CONTAINER_BIN_DIR)
+	cp dist/allocate-ipip-addr $(NODE_CONTAINER_BIN_DIR)/allocate-ipip-addr
 
 ###############################################################################
 # Tests
@@ -277,6 +289,9 @@ semaphore: clean
 	# Clean up unwanted files to free disk space.
 	bash -c 'rm -rf /home/runner/{.npm,.phpbrew,.phpunit,.kerl,.kiex,.lein,.nvm,.npm,.phpbrew,.rbenv}'
 
+	# Run the containerized UTs first.
+	$(MAKE) test-containerized
+
 	# Actually run the tests (refreshing the images as required), we only run a
 	# small subset of the tests for testing SSL support.  These tests are run
 	# using "latest" tagged images.
@@ -396,17 +411,31 @@ $(CTL_CONTAINER_CREATED): calicoctl/Dockerfile.calicoctl dist/calicoctl
 	touch $@
 
 ## Build startup.go
-startup-go:
-	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -v -o dist/startup-go $(LDFLAGS) "./calico_node/startup.go"
+startup:
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o dist/startup $(LDFLAGS) "./calico_node/startup/startup.go"
 
-dist/startup-go: $(CALICOCTL_FILES) vendor
+dist/startup: $(STARTUP_FILES) vendor
 	mkdir -p dist
 	docker run --rm \
 	  -v ${PWD}:/go/src/github.com/projectcalico/calicoctl:ro \
 	  -v ${PWD}/dist:/go/src/github.com/projectcalico/calicoctl/dist \
 	  golang:1.7 bash -c '\
 	    cd /go/src/github.com/projectcalico/calicoctl && \
-	    make startup-go && \
+	    make startup && \
+	    chown -R $(shell id -u):$(shell id -u) dist'
+
+## Build allocate_ipip_addr.go
+allocate-ipip-addr:
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o dist/allocate-ipip-addr $(LDFLAGS) "./calico_node/allocateipip/allocate_ipip_addr.go"
+
+dist/allocate-ipip-addr: $(ALLOCATE_IPIP_FILES) vendor
+	mkdir -p dist
+	docker run --rm \
+	  -v ${PWD}:/go/src/github.com/projectcalico/calicoctl:ro \
+	  -v ${PWD}/dist:/go/src/github.com/projectcalico/calicoctl/dist \
+	  golang:1.7 bash -c '\
+	    cd /go/src/github.com/projectcalico/calicoctl && \
+	    make allocate-ipip-addr && \
 	    chown -R $(shell id -u):$(shell id -u) dist'
 
 ## Build calicoctl
