@@ -22,7 +22,7 @@ SOURCE_DIR:=$(abspath $(SOURCE_DIR))
 CONFD_VER := v0.10.0-scale
 BIRD_VER := v0.2.0
 GOBGPD_VER := v0.1.1
-FELIX_VER := 2.0.0
+FELIX_VER := 2.0.1-rc1
 LIBNETWORK_PLUGIN_VER := v1.0.0
 # Set libcalico-go version in glide.yaml first then do a `glide up -v` to update glide.lock.
 LIBCALICOGO_VER := v1.0.0
