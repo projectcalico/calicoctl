@@ -54,11 +54,6 @@ RUN apk add --update python python-dev py2-pip py-setuptools openssl-dev libffi-
         rm -f glibc.apk glibc-bin.apk && \
         rm -rf /var/cache/apk/*
 
-# Install libcalico and its requirements
-ADD . /tmp/pycalico
-RUN pip install /tmp/pycalico
-RUN pip install -r /tmp/pycalico/calico_test/requirements.txt
-
 # Add the testing framework
 ADD calico_test/tests tests
 
