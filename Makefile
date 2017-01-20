@@ -18,19 +18,30 @@ CURL=curl -sSf
 SOURCE_DIR?=$(dir $(lastword $(MAKEFILE_LIST)))
 SOURCE_DIR:=$(abspath $(SOURCE_DIR))
 ###############################################################################
+# Subcomponent versions:
+CONFD_VER := v0.10.0-scale
+BIRD_VER := v0.2.0
+GOBGPD_VER := v0.1.1
+FELIX_VER := 2.0.1-rc1
+LIBNETWORK_PLUGIN_VER := v1.0.0
+# Set libcalico-go version in glide.yaml first then do a `glide up -v` to update glide.lock.
+LIBCALICOGO_VER := v1.0.0
+LIBCALICO_VER := v0.19.0
+SYSTEMTEST_CONTAINER_VER := latest
+###############################################################################
 # URL for Calico binaries
 # confd binary
-CONFD_URL?=https://github.com/projectcalico/confd/releases/download/v0.10.0-scale/confd.static
+CONFD_URL?=https://github.com/projectcalico/confd/releases/download/$(CONFD_VER)/confd.static
 # bird binaries
-BIRD_URL?=https://github.com/projectcalico/calico-bird/releases/download/v0.2.0/bird
-BIRD6_URL?=https://github.com/projectcalico/calico-bird/releases/download/v0.2.0/bird6
-BIRDCL_URL?=https://github.com/projectcalico/calico-bird/releases/download/v0.2.0/birdcl
-CALICO_BGP_DAEMON_URL?=https://github.com/projectcalico/calico-bgp-daemon/releases/download/v0.1.1/calico-bgp-daemon
-GOBGP_URL?=https://github.com/projectcalico/calico-bgp-daemon/releases/download/v0.1.1/gobgp
+BIRD_URL?=https://github.com/projectcalico/calico-bird/releases/download/$(BIRD_VER)/bird
+BIRD6_URL?=https://github.com/projectcalico/calico-bird/releases/download/$(BIRD_VER)/bird6
+BIRDCL_URL?=https://github.com/projectcalico/calico-bird/releases/download/$(BIRD_VER)/birdcl
+CALICO_BGP_DAEMON_URL?=https://github.com/projectcalico/calico-bgp-daemon/releases/download/$(GOBGPD_VER)/calico-bgp-daemon
+GOBGP_URL?=https://github.com/projectcalico/calico-bgp-daemon/releases/download/$(GOBGPD_VER)/gobgp
 
 # we can use "custom" build image and test image name
-PYTHON_BUILD_CONTAINER_NAME?=calico/build:v0.19.0
-SYSTEMTEST_CONTAINER?=calico/test
+PYTHON_BUILD_CONTAINER_NAME?=calico/build:$(LIBCALICO_VER)
+SYSTEMTEST_CONTAINER?=calico/test:$(SYSTEMTEST_CONTAINER_VER)
 
 # calicoctl and calico/node current share a single version - this is it.
 CALICOCONTAINERS_VERSION?=$(shell git describe --tags --dirty --always)
@@ -45,9 +56,11 @@ NODE_CONTAINER_NAME?=calico/node
 NODE_CONTAINER_FILES=$(shell find $(NODE_CONTAINER_DIR)/filesystem -type f)
 NODE_CONTAINER_CREATED=$(NODE_CONTAINER_DIR)/.calico_node.created
 NODE_CONTAINER_BIN_DIR=$(NODE_CONTAINER_DIR)/filesystem/bin
+
 NODE_CONTAINER_BINARIES=startup allocate-ipip-addr calico-felix bird calico-bgp-daemon confd libnetwork-plugin
-FELIX_CONTAINER_NAME?=calico/felix:2.0.1-rc1
-LIBNETWORK_PLUGIN_CONTAINER_NAME?=calico/libnetwork-plugin:v1.0.0
+
+FELIX_CONTAINER_NAME?=calico/felix:$(FELIX_VER)
+LIBNETWORK_PLUGIN_CONTAINER_NAME?=calico/libnetwork-plugin:$(LIBNETWORK_PLUGIN_VER)
 
 STARTUP_DIR=$(NODE_CONTAINER_DIR)/startup
 STARTUP_FILES=$(shell find $(STARTUP_DIR) -name '*.go')
@@ -507,12 +520,19 @@ static-checks: vendor
 .PHONY: install
 install:
 	CGO_ENABLED=0 go install github.com/projectcalico/calicoctl/calicoctl
-
+blah:
+	@echo "\nAdd release notes from the following sub-component version releases:"
+	@echo "\nAdd release notes from the following sub-component \
+	\nversion releases:"
 release: clean
 ifndef VERSION
 	$(error VERSION is undefined - run using make release VERSION=vX.Y.Z)
 endif
 	git tag $(VERSION)
+
+	# Check to make sure the tag isn't "-dirty".
+	if git describe --tags --dirty | grep dirty; \
+	then echo current git working tree is "dirty". Make sure you do not have any uncommitted changes ;false; fi
 
 	# Build the calicoctl binaries, as well as the calico/ctl and calico/node images.
 	CALICOCTL_NODE_VERSION=$(VERSION) $(MAKE) dist/calicoctl dist/calicoctl-darwin-amd64 dist/calicoctl-windows-amd64.exe 
@@ -521,7 +541,9 @@ endif
 	# Check that the version output includes the version specified.
 	# Tests that the "git tag" makes it into the binaries. Main point is to catch "-dirty" builds
 	# Release is currently supported on darwin / linux only.
-	if ! docker run $(CTL_CONTAINER_NAME) version | grep 'Version:\s*$(VERSION)$$'; then echo "Reported version:" `docker run $(CTL_CONTAINER_NAME) version` "\nExpected version: $(VERSION)"; false; else echo "Version check passed\n"; fi
+	if ! docker run $(CTL_CONTAINER_NAME) version | grep 'Version:\s*$(VERSION)$$'; \
+	then echo "Reported version:" `docker run $(CTL_CONTAINER_NAME) version` "\nExpected version: $(VERSION)"; \
+	false; else echo "Version check passed\n"; fi
 
 	# Retag images with corect version and quay
 	docker tag $(NODE_CONTAINER_NAME) $(NODE_CONTAINER_NAME):$(VERSION)
@@ -541,7 +563,20 @@ endif
 	docker run $(NODE_CONTAINER_NAME) calico-felix --version
 	docker run $(NODE_CONTAINER_NAME) libnetwork-plugin -v
 
-	@echo "\nNow push the tag and images. Then create a release on Github and attach the dist/calicoctl binary"
+	@echo "\nNow push the tag and images. Then create a release on Github and \
+	\nattach dist/calicoctl, dist/calicoctl-darwin-amd64, and dist/calicoctl-windows-amd64.exe binaries"
+	@echo "\nAdd release notes for calicoctl and calico/node. Use this command \
+	\nto find commit messages for this release: git log --oneline <old_release_version>...$(VERSION)"
+	@echo "\nRelease notes for sub-components can be found at \
+	\n https://github.com/projectcalico/<component_name>/releases/tag/<version>"	
+	@echo "\nAdd release notes from the following sub-component version releases:"
+	@echo "\nfelix:$(FELIX_VER)"
+	@echo "\nlibnetwork-plugin:$(LIBNETWORK_PLUGIN_VER)"
+	@echo "\nlibcalico-go:$(LIBCALICOGO_VER)"
+	@echo "\ncalico-bgp-daemon:$(GOBGPD_VER)"
+	@echo "\ncalico-bird:$(BIRD_VER)"
+	@echo "\nconfd:$(CONFD_VER)"
+	@echo "\nlibcalico:$(LIBCALICO_VER)"
 	@echo "git push origin $(VERSION)"
 	@echo "docker push calico/ctl:$(VERSION)"
 	@echo "docker push quay.io/calico/ctl:$(VERSION)"
@@ -551,6 +586,7 @@ endif
 	@echo "docker push quay.io/calico/ctl:latest"
 	@echo "docker push calico/node:latest"
 	@echo "docker push quay.io/calico/node:latest"
+	@echo "See RELEASING.md for detailed instructions."
 
 ## Clean enough that a new release build will be clean
 clean:
