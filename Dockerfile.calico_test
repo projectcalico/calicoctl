@@ -54,9 +54,6 @@ RUN apk add --update python python-dev py2-pip py-setuptools openssl-dev libffi-
         rm -f glibc.apk glibc-bin.apk && \
         rm -rf /var/cache/apk/*
 
-# Add the testing framework
-ADD calico_test/tests tests
-
 # Install etcdctl
 RUN wget https://github.com/coreos/etcd/releases/download/v2.3.3/etcd-v2.3.3-linux-amd64.tar.gz && \
     tar -xzf etcd-v2.3.3-linux-amd64.tar.gz && \
