@@ -124,7 +124,7 @@ class DockerHost(object):
         if start_calico:
             self.start_calico_node()
 
-    def execute(self, command):
+    def execute(self, command, raise_exception_on_failure=True):
         """
         Pass a command into a host container.
 
@@ -140,7 +140,7 @@ class DockerHost(object):
             command = "docker exec -it %s sh -c '%s'" % (self.name,
                                                          command)
 
-        return log_and_run(command)
+        return log_and_run(command, raise_exception_on_failure=raise_exception_on_failure)
 
     def execute_readline(self, command):
         """

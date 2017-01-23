@@ -81,7 +81,7 @@ def get_ip(v6=False):
     return ip
 
 
-def log_and_run(command):
+def log_and_run(command, raise_exception_on_failure=True):
 
     def log_output(results):
         lines = results.split("\n")
@@ -98,7 +98,8 @@ def log_and_run(command):
         # message (including command output).
         logger.info("  # Return code: %s", e.returncode)
         log_output(e.output.rstrip())
-        raise CommandExecError(e)
+        if raise_exception_on_failure:
+            raise CommandExecError(e)
 
 
 def retry_until_success(function, retries=10, ex_class=Exception):

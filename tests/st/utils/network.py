@@ -62,7 +62,7 @@ class DockerNetwork(object):
         try:
             self.uuid = retry_until_success(docker_net_create)
         except CommandExecError:
-            host.execute("docker network rm " + name)
+            host.execute("docker network rm " + name, raise_exception_on_failure=False)
             self.uuid = host.execute(cmd)
 
     def delete(self, host=None):
