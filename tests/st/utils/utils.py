@@ -11,18 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
 import logging
-import socket
-from time import sleep
 import os
 import pdb
-from subprocess import check_output, STDOUT
-from subprocess import CalledProcessError
-from exceptions import CommandExecError
 import re
-import json
+import socket
+import sys
+from subprocess import CalledProcessError
+from subprocess import check_output, STDOUT
+from time import sleep
+
 import yaml
-from pycalico.util import get_host_ips
+from netaddr import IPNetwork, IPAddress
+from exceptions import CommandExecError
 
 LOCAL_IP_ENV = "MY_IP"
 LOCAL_IPv6_ENV = "MY_IPv6"
@@ -33,6 +35,20 @@ ETCD_CA = os.environ.get("ETCD_CA_CERT_FILE", "")
 ETCD_CERT = os.environ.get("ETCD_CERT_FILE", "")
 ETCD_KEY = os.environ.get("ETCD_KEY_FILE", "")
 ETCD_HOSTNAME_SSL = "etcd-authority-ssl"
+
+
+"""
+Compile Regexes
+"""
+# Splits into groups that start w/ no whitespace and contain all lines below
+# that start w/ whitespace
+INTERFACE_SPLIT_RE = re.compile(r'(\d+:.*(?:\n\s+.*)+)')
+# Grabs interface name
+IFACE_RE = re.compile(r'^\d+: (\S+):')
+# Grabs v4 addresses
+IPV4_RE = re.compile(r'inet ((?:\d+\.){3}\d+)/\d+')
+# Grabs v6 addresses
+IPV6_RE = re.compile(r'inet6 ([a-fA-F\d:]+)/\d{1,3}')
 
 
 def get_ip(v6=False):
@@ -273,3 +289,47 @@ def assert_network(host, network):
         host.execute("docker network inspect %s" % network.name)
     except CommandExecError:
         raise AssertionError("Docker network %s not found" % network.name)
+
+
+@debug_failures
+def get_host_ips(version=4, exclude=None):
+    """
+    Gets all IP addresses assigned to this host.
+
+    Ignores Loopback Addresses
+
+    This function is fail-safe and will return an empty array instead of
+    raising any exceptions.
+
+    :param version: Desired IP address version. Can be 4 or 6. defaults to 4
+    :param exclude: list of interface name regular expressions to ignore
+                    (ex. ["^lo$","docker0.*"])
+    :return: List of IPAddress objects.
+    """
+    exclude = exclude or []
+    ip_addrs = []
+
+    # Select Regex for IPv6 or IPv4.
+    ip_re = IPV4_RE if version is 4 else IPV6_RE
+
+    # Call `ip addr`.
+    try:
+        ip_addr_output = check_output(["ip", "-%d" % version, "addr"])
+    except (CalledProcessError, OSError):
+        print("Call to 'ip addr' Failed")
+        sys.exit(1)
+
+    # Separate interface blocks from ip addr output and iterate.
+    for iface_block in INTERFACE_SPLIT_RE.findall(ip_addr_output):
+        # Try to get the interface name from the block
+        match = IFACE_RE.match(iface_block)
+        iface = match.group(1)
+        # Ignore the interface if it is explicitly excluded
+        if match and not any(re.match(regex, iface) for regex in exclude):
+            # Iterate through Addresses on interface.
+            for address in ip_re.findall(iface_block):
+                # Append non-loopback addresses.
+                if not IPNetwork(address).ip.is_loopback():
+                    ip_addrs.append(IPAddress(address))
+
+    return ip_addrs
