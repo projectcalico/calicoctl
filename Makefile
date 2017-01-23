@@ -59,7 +59,7 @@ ALLOCATE_IPIP_FILES=$(shell find $(ALLOCATE_IPIP_DIR) -name '*.go')
 test_image: calico_test.created ## Create the calico/test image
 
 calico_test.created: $(TEST_CONTAINER_FILES)
-	docker build -f Dockerfile.calico_test -t $(TEST_CONTAINER_NAME) .
+	cd calico_test && docker build -f Dockerfile.calico_test -t $(TEST_CONTAINER_NAME) .
 	touch calico_test.created
 
 calico/node: $(NODE_CONTAINER_CREATED)    ## Create the calico/node image
