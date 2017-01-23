@@ -167,7 +167,7 @@ class DockerHost(object):
             for line in proc.stdout:
                 yield line
         finally:
-            status = proc.wait(timeout=10)
+            status = proc.wait()
             logger.debug("- return: %s", status)
 
         if status:
