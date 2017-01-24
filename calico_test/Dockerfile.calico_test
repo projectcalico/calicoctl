@@ -33,7 +33,7 @@
 # - eliminate most isolation, (--uts=host --pid=host --net=host --privileged)
 # - volume mount your ST source code
 # - run 'nosetests'
-FROM docker
+FROM docker:1.13.0
 MAINTAINER Tom Denham <tom@projectcalico.org>
 
 # Running STs in this containers require that it has all dependencies installed
