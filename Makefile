@@ -159,7 +159,6 @@ workload.tar:
 	cd workload && docker build -t workload .
 	docker save --output workload.tar workload
 
-
 stop-etcd:
 	@-docker rm -f calico-etcd calico-etcd-ssl
 
