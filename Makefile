@@ -30,7 +30,7 @@ GOBGP_URL?=https://github.com/projectcalico/calico-bgp-daemon/releases/download/
 
 # we can use "custom" build image and test image name
 PYTHON_BUILD_CONTAINER_NAME?=calico/build:v0.19.0
-SYSTEMTEST_CONTAINER?=calico/test
+SYSTEMTEST_CONTAINER?=calico/test:v0.19.0
 
 # calicoctl and calico/node current share a single version - this is it.
 CALICOCONTAINERS_VERSION?=$(shell git describe --tags --dirty --always)
