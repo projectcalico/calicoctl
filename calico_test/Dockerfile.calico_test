@@ -43,15 +43,9 @@ MAINTAINER Tom Denham <tom@projectcalico.org>
 # the libc image) since glibc installs are more constant than the
 # docker-in-docker installation and configuration.
 RUN apk add --update python python-dev py2-pip py-setuptools openssl-dev libffi-dev \
-        git musl-dev gcc tshark netcat-openbsd \
+        tshark netcat-openbsd \
         iptables ip6tables iproute2 iputils ipset curl && \
-        curl -o glibc.apk -L "https://github.com/andyshinn/alpine-pkg-glibc/releases/download/2.23-r1/glibc-2.23-r1.apk" && \
-        apk add --allow-untrusted glibc.apk && \
-        curl -o glibc-bin.apk -L "https://github.com/andyshinn/alpine-pkg-glibc/releases/download/2.23-r1/glibc-bin-2.23-r1.apk" && \
-        apk add --allow-untrusted glibc-bin.apk && \
-        /usr/glibc-compat/sbin/ldconfig /lib /usr/glibc/usr/lib && \
         echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf && \
-        rm -f glibc.apk glibc-bin.apk && \
         rm -rf /var/cache/apk/*
 
 COPY requirements.txt /requirements.txt

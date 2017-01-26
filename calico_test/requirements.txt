@@ -1,16 +1,7 @@
-coverage
-coveralls
-mock==1.0.1
 nose
 nose-timer
 nose-parameterized
-docker-py
 netaddr
-prettytable
-flask
-gunicorn
-monotime
-ConcurrentLogHandler
 pyyaml
 simplejson
 deepdiff
