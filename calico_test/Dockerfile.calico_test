@@ -25,8 +25,7 @@
 #
 # This container can also be used for running STs written in python. This
 # eliminates all dependencies besides docker on the host system to enable
-# running of the ST frameworks. Additionally, this allows for sharing of
-# common ST framework code (which calico-containers and libnetwork both use).
+# running of the ST frameworks.
 # To run:
 # - volume mount the docker socket, allowing the STs to launch docker
 #   containers alongside itself.
@@ -36,15 +35,10 @@
 FROM docker:1.13.0
 MAINTAINER Tom Denham <tom@projectcalico.org>
 
-# Running STs in this containers require that it has all dependencies installed
-# for executing calicoctl. Install these dependencies (including glibc:
-# https://github.com/jeanblanchard/docker-alpine-glibc/blob/master/Dockerfile)
-# We install glibc onto the official docker image (instead of adding docker to
-# the libc image) since glibc installs are more constant than the
-# docker-in-docker installation and configuration.
-RUN apk add --update python python-dev py2-pip py-setuptools openssl-dev libffi-dev \
-        tshark netcat-openbsd \
-        iptables ip6tables iproute2 iputils ipset curl && \
+# Running STs in this container requires that it has all dependencies installed
+# for executing the tests. Install these dependencies:
+RUN apk add --update python python-dev py2-pip py-setuptools openssl-dev libffi-dev tshark \
+        netcat-openbsd iptables ip6tables iproute2 iputils ipset curl && \
         echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf && \
         rm -rf /var/cache/apk/*
 
