@@ -14,6 +14,9 @@
 package autodetection
 
 import (
+	"errors"
+	"fmt"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/projectcalico/libcalico-go/lib/net"
 )
@@ -24,6 +27,9 @@ func FilteredEnumeration(incl, excl []string, version int) (*Interface, *net.IPN
 	interfaces, err := GetInterfaces(incl, excl, version)
 	if err != nil {
 		return nil, nil, err
+	}
+	if len(interfaces) == 0 {
+		return nil, nil, errors.New("no valid host interfaces found")
 	}
 
 	// Find the first interface with a valid IP address and network.
@@ -39,5 +45,5 @@ func FilteredEnumeration(incl, excl []string, version int) (*Interface, *net.IPN
 		}
 	}
 
-	return nil, nil, nil
+	return nil, nil, fmt.Errorf("no valid IPv%d addresses found on the host interfaces", version)
 }
