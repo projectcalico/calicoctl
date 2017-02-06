@@ -217,9 +217,13 @@ class DockerHost(object):
         calicoctl node command.
         """
         args = ['node', 'run']
-        if self.ip:
+
+        # Add the IP addresses if required and we aren't explicitly specifying
+        # them in the options.  The --ip and  --ip6 options can be specified
+        # using "=" or space-separated parms.
+        if self.ip and "--ip=" not in options and "--ip " not in options:
             args.append('--ip=%s' % self.ip)
-        if self.ip6:
+        if self.ip6 and "--ip6=" not in options and "--ip6 " not in options:
             args.append('--ip6=%s' % self.ip6)
         args.append(options)
 
