@@ -127,7 +127,6 @@ Options:
                            to "none", Calico node runs in policy only mode.
                            The option to run with gobgp is currently
                            experimental.
-                           [default: bird]
      --dryrun              Output the appropriate command, without starting the
                            container.
      --init-system         Run the appropriate command to use with an init
@@ -141,7 +140,6 @@ Options:
                            Interface prefix to use for the network interface
                            within the Docker containers that have been networked
                            by the Calico driver.
-                           [default: cali]
      --use-docker-networking-container-labels
                            Extract the Calico-namespaced Docker container labels
                            (org.projectcalico.label.*) and apply them to the
@@ -204,6 +202,21 @@ Description:
 		// The calico/node image does not accept dotted notation for
 		// the AS number, so convert.
 		asNumber = argutils.ValidateASNumber(asNumber).String()
+	}
+	// CLI flags will take precedence over env vars
+	if backend == "" {
+		if env := os.Getenv("CALICO_NETWORKING_BACKEND"); env != "" {
+			backend = env
+		} else {
+			backend = "bird"
+		}
+	}
+	if ifprefix == "" {
+		if env := os.Getenv("CALICO_LIBNETWORK_IFPREFIX"); env != "" {
+			ifprefix = env
+		} else {
+			ifprefix = "cali"
+		}
 	}
 
 	if !backendMatch.MatchString(backend) {
@@ -318,6 +331,19 @@ Description:
 		vols = append(vols, vol{hostPath: etcdcfg.EtcdKeyFile, containerPath: ETCD_KEY_NODE_FILE})
 		envs["ETCD_CERT_FILE"] = ETCD_CERT_NODE_FILE
 		vols = append(vols, vol{hostPath: etcdcfg.EtcdCertFile, containerPath: ETCD_CERT_NODE_FILE})
+	}
+
+	// Parse the environment variables to catch any other CALICO_* and FELIX_* env vars
+	for _, env := range os.Environ() {
+		if strings.HasPrefix(env, "CALICO_") || strings.HasPrefix(env, "FELIX_") {
+			split_env := strings.Split(env, "=")
+			// Let's avoid clobbering anything already set
+			if _, ok := envs[split_env[0]]; !ok {
+				envs[split_env[0]] = split_env[1]
+			} else {
+				log.Info("Environment variable %s already set to %s", split_env[0], envs[split_env[0]])
+			}
+		}
 	}
 
 	// Create the Docker command to execute (or display).  Start with the

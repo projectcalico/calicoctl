@@ -59,6 +59,8 @@ class DockerHost(object):
     choose an alternate hostname for the host which it will pass to all
     calicoctl components as the HOSTNAME environment variable.  If set
     to False, the HOSTNAME environment is not explicitly set.
+    :param calico_env_vars: Optional dict of environment variables to pass to
+    DockerHost.start_calico_node()
     """
 
     # A static list of Docker networks that are created by the tests.  This
@@ -71,7 +73,8 @@ class DockerHost(object):
                                        "docker load -i /code/busybox.tar"],
                  calico_node_autodetect_ip=False,
                  simulate_gce_routing=False,
-                 override_hostname=False):
+                 override_hostname=False,
+                 calico_env_vars={}):
         self.name = name
         self.dind = dind
         self.workloads = set()
@@ -164,7 +167,7 @@ class DockerHost(object):
             self.ip6 = get_ip(v6=True)
 
         if start_calico:
-            self.start_calico_node()
+            self.start_calico_node(env_vars=calico_env_vars)
 
     def execute(self, command, raise_exception_on_failure=True):
         """
@@ -216,7 +219,7 @@ class DockerHost(object):
             raise Exception("Command %s returned non-zero exit code %s" %
                             (command, status))
 
-    def calicoctl(self, command, version=None):
+    def calicoctl(self, command, version=None, env_vars={}):
         """
         Convenience function for abstracting away calling the calicoctl
         command.
@@ -228,6 +231,7 @@ class DockerHost(object):
         :param version:  The calicoctl version to use (this is appended to the
                          executable name.  It is assumed the Makefile will ensure
                          the required versions are downloaded.
+        :param env_vars: A list of environment variables to pass to calicoctl.
         :return: The output from the command with leading and trailing
         whitespace removed.
         """
@@ -240,6 +244,11 @@ class DockerHost(object):
             etcd_auth = "%s:2379" % ETCD_HOSTNAME_SSL
         else:
             etcd_auth = "%s:2379" % get_ip()
+
+        # Add env vars to calicoctl
+        for k, v in env_vars.items():
+            calicoctl = "%s=%s %s" % (k, v, calicoctl)
+
         # Export the environment, in case the command has multiple parts, e.g.
         # use of | or ;
         #
@@ -259,10 +268,12 @@ class DockerHost(object):
 
         return self.execute(calicoctl + " " + command)
 
-    def start_calico_node(self, options=""):
+    def start_calico_node(self, options="", env_vars={}):
         """
         Start calico in a container inside a host by calling through to the
         calicoctl node command.
+
+        :param env_vars: A list of environment variables to pass to calicoctl.
         """
         args = ['node', 'run']
         if "--node-image" not in options:
@@ -278,7 +289,7 @@ class DockerHost(object):
         args.append(options)
 
         cmd = ' '.join(args)
-        self.calicoctl(cmd)
+        self.calicoctl(cmd, env_vars=env_vars)
         self.attach_log_analyzer()
 
     def set_ipip_enabled(self, enabled):
