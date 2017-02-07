@@ -269,9 +269,9 @@ func configureIPsAndSubnets(node *api.Node) {
 
 }
 
-// fetchAndValidateIPAndNetwork fetches and validates the IP configuration from
-// either the environment variables or from the values already configured in the
-// node.
+// parseIPEnvironment parses the named environment as as an IPNet.  The
+// environment may be a CIDR or an IP (in the latter case we assume a full
+// mask).  The parsed address is validated against the expected version.
 func parseIPEnvironment(envName, envValue string, version int) *net.IPNet {
 	// To parse the environment (which could be an IP or a CIDR), convert
 	// to a JSON string and use the UnmarshalJSON method on the IPNet
@@ -288,7 +288,7 @@ func parseIPEnvironment(envName, envValue string, version int) *net.IPNet {
 }
 
 // validateIP checks that the IP address is actually on one of the host
-// interfaces and warns if not.
+// interfaces and warns if not.  We do not validate the subnet.
 func validateIP(ipn *net.IPNet) {
 	// No validation required if no IP address is specified.
 	if ipn == nil {
