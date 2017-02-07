@@ -16,9 +16,6 @@ from nose.plugins.attrib import attr
 
 from tests.st.test_base import TestBase
 from tests.st.utils.docker_host import DockerHost
-from tests.st.utils.utils import assert_network, assert_profile, \
-    assert_number_endpoints, get_profile_name, ETCD_CA, ETCD_CERT, \
-    ETCD_KEY, ETCD_HOSTNAME_SSL, ETCD_SCHEME, get_ip, check_bird_status
 
 from .peer import ADDITIONAL_DOCKER_OPTIONS
 
@@ -37,9 +34,8 @@ class TestUpdateIPAddress(TestBase):
                         additional_docker_options=ADDITIONAL_DOCKER_OPTIONS,
                         start_calico=False) as host2:
 
-            # Start host1 using the inherited AS, and host2 using a specified
-            # AS (same as default).  These hosts use the gobgp backend, whereas
-            # host3 uses BIRD.
+            # Start host1 and host2 using bogus IP addresses.  The nodes should
+            # start although they won't be functional.
             host1.start_calico_node("--ip=1.2.3.4")
             host2.start_calico_node("--ip=2.3.4.5")
 
@@ -48,7 +44,8 @@ class TestUpdateIPAddress(TestBase):
             workload_host1 = host1.create_workload("workload1", network=network1)
             workload_host2 = host2.create_workload("workload2", network=network1)
 
-            # Fix the node resources to have the correct IP addresses.
+            # Fix the node resources to have the correct IP addresses, and this
+            # point BIRD should automatically fix it's configuration.
             self._fix_ip(host1)
             self._fix_ip(host2)
 
