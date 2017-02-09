@@ -65,13 +65,18 @@ class DockerHost(object):
     # list covers all Docker hosts.
     docker_networks = []
 
+    def __str__(self):
+        return self.__class__.__name__ + "<%s,dind=%s,ip=%s>" % (self.name, self.dind, self.ip)
+
     def __init__(self, name, start_calico=True, dind=True,
                  additional_docker_options="",
-                 post_docker_commands=["docker load -i /code/calico-node.tar",
-                                       "docker load -i /code/busybox.tar"],
+                 post_docker_commands=None,
                  calico_node_autodetect_ip=False,
                  simulate_gce_routing=False,
                  override_hostname=False):
+        if post_docker_commands is None:
+            post_docker_commands = ["docker load -i /code/calico-node.tar",
+                                    "docker load -i /code/busybox.tar"]
         self.name = name
         self.dind = dind
         self.workloads = set()
@@ -264,22 +269,26 @@ class DockerHost(object):
         Start calico in a container inside a host by calling through to the
         calicoctl node command.
         """
-        args = ['node', 'run']
-        if "--node-image" not in options:
-            args.append('--node-image=%s' % NODE_CONTAINER_NAME)
+        try:
+            args = ['node', 'run']
+            if "--node-image" not in options:
+                args.append('--node-image=%s' % NODE_CONTAINER_NAME)
 
-        # Add the IP addresses if required and we aren't explicitly specifying
-        # them in the options.  The --ip and  --ip6 options can be specified
-        # using "=" or space-separated parms.
-        if self.ip and "--ip=" not in options and "--ip " not in options:
-            args.append('--ip=%s' % self.ip)
-        if self.ip6 and "--ip6=" not in options and "--ip6 " not in options:
-            args.append('--ip6=%s' % self.ip6)
-        args.append(options)
+            # Add the IP addresses if required and we aren't explicitly specifying
+            # them in the options.  The --ip and  --ip6 options can be specified
+            # using "=" or space-separated parms.
+            if self.ip and "--ip=" not in options and "--ip " not in options:
+                args.append('--ip=%s' % self.ip)
+            if self.ip6 and "--ip6=" not in options and "--ip6 " not in options:
+                args.append('--ip6=%s' % self.ip6)
+            args.append(options)
 
-        cmd = ' '.join(args)
-        self.calicoctl(cmd)
-        self.attach_log_analyzer()
+            cmd = ' '.join(args)
+            self.calicoctl(cmd)
+            self.attach_log_analyzer()
+        except:
+            logger.exception("Failed to start calico/node on %s", self)
+            raise
 
     def set_ipip_enabled(self, enabled):
         pools_output = self.calicoctl("get ippool -o yaml")
