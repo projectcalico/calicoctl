@@ -136,6 +136,9 @@ Options:
                            and there are no pre-existing Calico IP pools.
      --disable-docker-networking
                            Disable Docker networking.
+     --docker-host=<DOCKER_HOST>
+                           Docker host address where Docker daemon is running.
+                           [default: unix:///var/run/docker.sock]
      --docker-networking-ifprefix=<IFPREFIX>
                            Interface prefix to use for the network interface
                            within the Docker containers that have been networked
@@ -175,6 +178,7 @@ Description:
 	disableDockerNw := argutils.ArgBoolOrFalse(arguments, "--disable-docker-networking")
 	initSystem := argutils.ArgBoolOrFalse(arguments, "--init-system")
 	ifprefix := argutils.ArgStringOrBlank(arguments, "--docker-networking-ifprefix")
+	dockerhost := argutils.ArgStringOrBlank(arguments, "--docker-host")
 
 	// Validate parameters.
 	if ipv4 != "" && ipv4 != "autodetect" {
@@ -252,9 +256,10 @@ Description:
 		os.Exit(1)
 	}
 
-	// Set CALICO_LIBNETWORK_IFPREFIX env variable if Docker network is enabled.
+	// Set DOCKER_HOST and CALICO_LIBNETWORK_IFPREFIX env variables if Docker network is enabled.
 	if !disableDockerNw {
 		envs["CALICO_LIBNETWORK_IFPREFIX"] = ifprefix
+		envs["DOCKER_HOST"] = dockerhost
 	}
 
 	// Add in optional environments.
