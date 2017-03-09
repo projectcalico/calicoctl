@@ -44,6 +44,15 @@ const (
 	actionList
 )
 
+// actionConfig provides the required configuration for the executeResourceAction
+// function.
+type actionConfig struct {
+	client        *client.Client
+	skipExists    bool
+	skipNotExists bool
+	action        action
+}
+
 // Convert loaded resources to a slice of resources for easier processing.
 // The loaded resources may be a slice containing resources and resource lists, or
 // may be a single resource or a single resource list.  This function handles the
@@ -260,10 +269,18 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 		results.singleKind = kind
 	}
 
+	// Create the action config
+	ac := actionConfig{
+		client:        client,
+		action:        action,
+		skipExists:    argutils.ArgBoolOrFalse(args, "--skip-exists"),
+		skipNotExists: argutils.ArgBoolOrFalse(args, "--skip-not-exists"),
+	}
+
 	// Now execute the command on each resource in order, exiting as soon as we hit an
 	// error.
 	for _, r := range resources {
-		r, err = executeResourceAction(args, client, r, action)
+		r, err = executeResourceAction(ac, r)
 		if err != nil {
 			results.err = err
 			break
@@ -277,22 +294,22 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 
 // execureResourceAction fans out the specific resource action to the appropriate method
 // on the ResourceManager for the specific resource.
-func executeResourceAction(args map[string]interface{}, client *client.Client, resource unversioned.Resource, action action) (unversioned.Resource, error) {
+func executeResourceAction(ac actionConfig, resource unversioned.Resource) (unversioned.Resource, error) {
 	rm := resourcemgr.GetResourceManager(resource)
 	var err error
 	var resourceOut unversioned.Resource
 
-	switch action {
+	switch ac.action {
 	case actionApply:
-		resourceOut, err = rm.Apply(client, resource)
+		resourceOut, err = rm.Apply(ac.client, resource)
 	case actionCreate:
-		resourceOut, err = rm.Create(client, resource)
+		resourceOut, err = rm.Create(ac.client, resource)
 	case actionUpdate:
-		resourceOut, err = rm.Update(client, resource)
+		resourceOut, err = rm.Update(ac.client, resource)
 	case actionDelete:
-		resourceOut, err = rm.Delete(client, resource)
+		resourceOut, err = rm.Delete(ac.client, resource)
 	case actionList:
-		resourceOut, err = rm.List(client, resource)
+		resourceOut, err = rm.List(ac.client, resource)
 	}
 
 	// Skip over some errors depending on command line options.
@@ -300,9 +317,9 @@ func executeResourceAction(args map[string]interface{}, client *client.Client, r
 		skip := false
 		switch err.(type) {
 		case calicoErrors.ErrorResourceAlreadyExists:
-			skip = argutils.ArgBoolOrFalse(args, "--skip-exists")
+			skip = ac.skipExists
 		case calicoErrors.ErrorResourceDoesNotExist:
-			skip = argutils.ArgBoolOrFalse(args, "--skip-not-exists")
+			skip = ac.skipNotExists
 		}
 		if skip {
 			resourceOut = resource

@@ -52,7 +52,7 @@
     name: profile1
     labels:
       type: database
-      THING4: VALUE10/2-F
+      THING4: VALUE102F
     tags: [a, b, c, a1, update]
   spec:
     ingress:

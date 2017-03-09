@@ -36,6 +36,8 @@ func main() {
               name.
     get       Get a resource identified by file, stdin or resource type and
               name.
+    edit      Edit a resource identified by file, stdin or resource type and
+              name.
     config    Manage system-wide and low-level node configuration options.
     ipam      IP address management.
     node      Calico node management.
@@ -82,6 +84,8 @@ Description:
 			commands.Delete(args)
 		case "get":
 			commands.Get(args)
+		case "edit":
+			commands.Edit(args)
 		case "version":
 			commands.Version(args)
 		case "node":

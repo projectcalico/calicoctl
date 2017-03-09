@@ -130,13 +130,14 @@ func newResource(tm unversioned.TypeMetadata) (unversioned.Resource, error) {
 	return new.Interface().(unversioned.Resource), nil
 }
 
-// Create the resource from the specified byte array encapsulating the resource.
+// CreateResourcesFromBytes creates the resource from the specified byte array
+// encapsulating the resource.
 // -  The byte array may be JSON or YAML encoding of either a single resource or list of
 //    resources as defined by the API objects in /api.
 //
 // The returned Resource will either be a single resource document or a List of documents.
 // If the file does not contain any valid Resources this function returns an error.
-func createResourcesFromBytes(b []byte) ([]unversioned.Resource, error) {
+func CreateResourcesFromBytes(b []byte) ([]unversioned.Resource, error) {
 	// Start by unmarshalling the bytes into a TypeMetadata structure - this will ignore
 	// other fields.
 	var err error

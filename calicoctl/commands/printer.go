@@ -16,6 +16,7 @@ package commands
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"reflect"
 	"strings"
@@ -33,15 +34,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var (
+	CR = []byte("\n")
+)
+
+func printResources(rp resourcePrinter, client *client.Client, resources []unversioned.Resource) error {
+	return rp.write(os.Stdout, client, resources)
+}
+
 type resourcePrinter interface {
-	print(client *client.Client, resources []unversioned.Resource) error
+	write(w io.Writer, client *client.Client, resources []unversioned.Resource) error
 }
 
 // resourcePrinterJSON implements the resourcePrinter interface and is used to display
 // a slice of resources in JSON format.
 type resourcePrinterJSON struct{}
 
-func (r resourcePrinterJSON) print(client *client.Client, resources []unversioned.Resource) error {
+func (r resourcePrinterJSON) write(w io.Writer, client *client.Client, resources []unversioned.Resource) error {
 	// The supplied slice of resources may contain actual resource types as well as
 	// resource lists (which themselves contain a slice of actual resources).
 	// For simplicity, expand any resource lists so that we have a flat slice of
@@ -50,7 +59,8 @@ func (r resourcePrinterJSON) print(client *client.Client, resources []unversione
 	if output, err := json.MarshalIndent(resources, "", "  "); err != nil {
 		return err
 	} else {
-		fmt.Printf("%s\n", string(output))
+		w.Write(output)
+		w.Write(CR)
 	}
 	return nil
 }
@@ -59,7 +69,7 @@ func (r resourcePrinterJSON) print(client *client.Client, resources []unversione
 // a slice of resources in YAML format.
 type resourcePrinterYAML struct{}
 
-func (r resourcePrinterYAML) print(client *client.Client, resources []unversioned.Resource) error {
+func (r resourcePrinterYAML) write(w io.Writer, client *client.Client, resources []unversioned.Resource) error {
 	// The supplied slice of resources may contain actual resource types as well as
 	// resource lists (which themselves contain a slice of actual resources).
 	// For simplicity, expand any resource lists so that we have a flat slice of
@@ -68,7 +78,8 @@ func (r resourcePrinterYAML) print(client *client.Client, resources []unversione
 	if output, err := yaml.Marshal(resources); err != nil {
 		return err
 	} else {
-		fmt.Printf("%s", string(output))
+		w.Write(output)
+		w.Write(CR)
 	}
 	return nil
 }
@@ -86,7 +97,7 @@ type resourcePrinterTable struct {
 	wide bool
 }
 
-func (r resourcePrinterTable) print(client *client.Client, resources []unversioned.Resource) error {
+func (r resourcePrinterTable) write(w io.Writer, client *client.Client, resources []unversioned.Resource) error {
 	log.Infof("Output in table format (wide=%v)", r.wide)
 	for _, resource := range resources {
 		// Get the resource manager for the resource type.
@@ -117,7 +128,7 @@ func (r resourcePrinterTable) print(client *client.Client, resources []unversion
 		}
 
 		// Use a tabwriter to write out the teplate - this provides better formatting.
-		writer := tabwriter.NewWriter(os.Stdout, 5, 1, 3, ' ', 0)
+		writer := tabwriter.NewWriter(w, 5, 1, 3, ' ', 0)
 		err = tmpl.Execute(writer, resource)
 		if err != nil {
 			panic(err)
@@ -131,7 +142,7 @@ func (r resourcePrinterTable) print(client *client.Client, resources []unversion
 		}
 
 		// Leave a gap after each table.
-		fmt.Printf("\n")
+		w.Write(CR)
 	}
 	return nil
 }
@@ -142,13 +153,13 @@ type resourcePrinterTemplateFile struct {
 	templateFile string
 }
 
-func (r resourcePrinterTemplateFile) print(client *client.Client, resources []unversioned.Resource) error {
+func (r resourcePrinterTemplateFile) write(w io.Writer, client *client.Client, resources []unversioned.Resource) error {
 	template, err := ioutil.ReadFile(r.templateFile)
 	if err != nil {
 		return err
 	}
 	rp := resourcePrinterTemplate{template: string(template)}
-	return rp.print(client, resources)
+	return rp.write(w, client, resources)
 }
 
 // resourcePrinterTemplate implements the resourcePrinter interface and is used to display
@@ -157,7 +168,7 @@ type resourcePrinterTemplate struct {
 	template string
 }
 
-func (r resourcePrinterTemplate) print(client *client.Client, resources []unversioned.Resource) error {
+func (r resourcePrinterTemplate) write(w io.Writer, client *client.Client, resources []unversioned.Resource) error {
 	// We include a join function in the template as it's useful for multi
 	// value columns.
 	fns := template.FuncMap{
@@ -169,7 +180,7 @@ func (r resourcePrinterTemplate) print(client *client.Client, resources []unvers
 		return err
 	}
 
-	err = tmpl.Execute(os.Stdout, resources)
+	err = tmpl.Execute(w, resources)
 	if err != nil {
 		return err
 	}

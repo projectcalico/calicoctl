@@ -30,7 +30,7 @@ func Get(args []string) {
 	doc := constants.DatastoreIntro + `Usage:
   calicoctl get ([--scope=<SCOPE>] [--node=<NODE>] [--orchestrator=<ORCH>]
                  [--workload=<WORKLOAD>] (<KIND> [<NAME>]) |
-                --filename=<FILENAME>)
+                 --filename=<FILENAME>)
                 [--output=<OUTPUT>] [--config=<CONFIG>]
 
 Examples:
@@ -180,7 +180,7 @@ Description:
 		os.Exit(1)
 	}
 
-	err = rp.print(results.client, results.resources)
+	err = printResources(rp, results.client, results.resources)
 	if err != nil {
 		fmt.Println(err)
 	}
