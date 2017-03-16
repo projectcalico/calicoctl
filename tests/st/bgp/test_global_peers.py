@@ -25,53 +25,67 @@ from .peer import create_bgp_peer
 
 class TestGlobalPeers(TestBase):
 
-    @attr('slow')
-    def test_global_peers(self):
+    def _test_global_peers(self, backend='bird'):
         """
         Test global BGP peer configuration.
 
         Test by turning off the mesh and configuring the mesh as
         a set of global peers.
         """
-        with DockerHost('host1',
+#        with DockerHost('host1',
+#                        additional_docker_options=CLUSTER_STORE_DOCKER_OPTIONS,
+#                        start_calico=False) as host1, \
+#             DockerHost('host2',
+#                        additional_docker_options=CLUSTER_STORE_DOCKER_OPTIONS,
+#                        start_calico=False) as host2:
+        host1 = DockerHost('host1',
                         additional_docker_options=CLUSTER_STORE_DOCKER_OPTIONS,
-                        start_calico=False) as host1, \
-             DockerHost('host2',
+                        start_calico=False)
+        host2 = DockerHost('host2',
                         additional_docker_options=CLUSTER_STORE_DOCKER_OPTIONS,
-                        start_calico=False) as host2:
-            # Start both hosts using specific AS numbers.
-            host1.start_calico_node("--as=%s" % LARGE_AS_NUM)
-            host2.start_calico_node("--as=%s" % LARGE_AS_NUM)
+                        start_calico=False)
+ 
+        # Start both hosts using specific AS numbers.
+        host1.start_calico_node("--backend=%s --as=%s" % (backend, LARGE_AS_NUM))
+        host2.start_calico_node("--backend=%s --as=%s" % (backend, LARGE_AS_NUM))
 
-            # Create a network and a couple of workloads on each host.
-            network1 = host1.create_network("subnet1", subnet=DEFAULT_IPV4_POOL_CIDR)
-            workload_host1 = host1.create_workload("workload1", network=network1, ip=DEFAULT_IPV4_ADDR_1)
-            workload_host2 = host2.create_workload("workload2", network=network1, ip=DEFAULT_IPV4_ADDR_2)
+        # Create a network and a couple of workloads on each host.
+        network1 = host1.create_network("subnet1", subnet=DEFAULT_IPV4_POOL_CIDR)
+        workload_host1 = host1.create_workload("workload1", network=network1, ip=DEFAULT_IPV4_ADDR_1)
+        workload_host2 = host2.create_workload("workload2", network=network1, ip=DEFAULT_IPV4_ADDR_2)
 
-            # Allow network to converge
-            self.assert_true(workload_host1.check_can_ping(DEFAULT_IPV4_ADDR_2, retries=10))
+        # Allow network to converge
+        self.assert_true(workload_host1.check_can_ping(DEFAULT_IPV4_ADDR_2, retries=10))
 
-            # Turn the node-to-node mesh off and wait for connectivity to drop.
-            host1.calicoctl("config set nodeToNodeMesh off")
-            self.assert_true(workload_host1.check_cant_ping(DEFAULT_IPV4_ADDR_2, retries=10))
+        # Turn the node-to-node mesh off and wait for connectivity to drop.
+        host1.calicoctl("config set nodeToNodeMesh off")
+        self.assert_true(workload_host1.check_cant_ping(DEFAULT_IPV4_ADDR_2, retries=10))
 
-            # Configure global peers to explicitly set up a mesh.  This means
-            # each node will try to peer with itself which will fail.
-            create_bgp_peer(host1, 'global', host2.ip, LARGE_AS_NUM)
-            create_bgp_peer(host2, 'global', host1.ip, LARGE_AS_NUM)
+        # Configure global peers to explicitly set up a mesh.  This means
+        # each node will try to peer with itself which will fail.
+        create_bgp_peer(host1, 'global', host2.ip, LARGE_AS_NUM)
+        create_bgp_peer(host2, 'global', host1.ip, LARGE_AS_NUM)
 
-            # Allow network to converge
-            self.assert_true(workload_host1.check_can_ping(DEFAULT_IPV4_ADDR_2, retries=10))
+        # Allow network to converge
+        self.assert_true(workload_host1.check_can_ping(DEFAULT_IPV4_ADDR_2, retries=10))
 
-            # Check connectivity in both directions
-            self.assert_ip_connectivity(workload_list=[workload_host1,
-                                                       workload_host2],
-                                        ip_pass_list=[DEFAULT_IPV4_ADDR_1,
-                                                      DEFAULT_IPV4_ADDR_2])
+        # Check connectivity in both directions
+        self.assert_ip_connectivity(workload_list=[workload_host1,
+                                                   workload_host2],
+                                    ip_pass_list=[DEFAULT_IPV4_ADDR_1,
+                                                  DEFAULT_IPV4_ADDR_2])
 
-            # Check the BGP status on each host.  Connections from a node to
-            # itself will be idle since this is invalid BGP configuration.
-            check_bird_status(host1, [("global", host1.ip, "Idle"),
-                                       ("global", host2.ip, "Established")])
-            check_bird_status(host2, [("global", host1.ip, "Established"),
-                                       ("global", host2.ip, "Idle")])
+        # Check the BGP status on each host.  Connections from a node to
+        # itself will be idle since this is invalid BGP configuration.
+        check_bird_status(host1, [("global", host1.ip, ["Idle", "Active"]),
+                                   ("global", host2.ip, "Established")])
+        check_bird_status(host2, [("global", host1.ip, "Established"),
+                                   ("global", host2.ip, ["Idle", "Active"])])
+
+#    @attr('slow')
+#    def test_bird_node_peers(self):
+#        self._test_global_peers(backend='bird')
+
+    @attr('slow')
+    def test_gobgp_node_peers(self):
+        self._test_global_peers(backend='gobgp')
