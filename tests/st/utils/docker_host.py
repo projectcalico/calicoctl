@@ -21,6 +21,7 @@ from subprocess import CalledProcessError, Popen, PIPE
 
 from log_analyzer import LogAnalyzer, FELIX_LOG_FORMAT, TIMESTAMP_FORMAT
 from network import DockerNetwork
+from tests.st.utils.constants import DEFAULT_IPV4_POOL_CIDR
 from tests.st.utils.exceptions import CommandExecError
 from utils import get_ip, log_and_run, retry_until_success, ETCD_SCHEME, \
     ETCD_CA, ETCD_KEY, ETCD_CERT, ETCD_HOSTNAME_SSL
@@ -236,7 +237,7 @@ class DockerHost(object):
         Start calico in a container inside a host by calling through to the
         calicoctl node command.
         """
-        args = ['node', 'run']
+        args = ['node', 'run', '--dryrun']
         if "--node-image" not in options:
             args.append('--node-image=%s' % NODE_CONTAINER_NAME)
 
@@ -250,7 +251,17 @@ class DockerHost(object):
         args.append(options)
 
         cmd = ' '.join(args)
-        self.calicoctl(cmd)
+        output = self.calicoctl(cmd)
+        base_command = output.split('\n')[-4].rstrip()
+
+        # Modify command line to set calico/node's default IPv4 pool CIDR.
+        env_inserts = "-e CALICO_IPV4POOL_CIDR=%s " % DEFAULT_IPV4_POOL_CIDR
+        prefix, _, suffix = base_command.partition("-e")
+        command = prefix + env_inserts + "-e" + suffix
+
+        # Now run the modified 'calico node run' command.
+        self.execute(command)
+
         self.attach_log_analyzer()
 
     def attach_log_analyzer(self):
