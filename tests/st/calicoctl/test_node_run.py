@@ -58,7 +58,7 @@ class TestNodeRun(TestBase):
             self.assertEquals(calico_out, 'dummyVal')
             self.assertEquals(felix_out, 'felixDummyVal')
 
-            # Veryify calico-node started with dummy values
+            # Verify calico-node started with dummy values
             logs = host.execute('docker logs calico-node')
             self.assertIn('Calico node started successfully', logs)
 
