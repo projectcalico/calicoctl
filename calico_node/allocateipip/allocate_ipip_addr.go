@@ -17,6 +17,15 @@ import (
 // that is configured.
 
 func main() {
+	// Set logging to info and to stdout.
+	log.SetLevel(log.InfoLevel)
+	log.SetOutput(os.Stdout)
+	log.SetFormatter(&log.JSONFormatter{
+		FieldMap: log.FieldMap{
+			log.FieldKeyLevel: "severity",
+		},
+	})
+
 	// Load the client config from environment.
 	cfg, c := calicoclient.CreateClient()
 
