@@ -19,8 +19,8 @@ from netaddr import IPAddress, IPNetwork
 from nose_parameterized import parameterized
 from tests.st.test_base import TestBase
 from tests.st.utils.docker_host import DockerHost, CLUSTER_STORE_DOCKER_OPTIONS
-from tests.st.utils.constants import DEFAULT_IPV4_POOL_CIDR
-from tests.st.utils.utils import check_bird_status, retry_until_success
+from tests.st.utils.constants import DEFAULT_IPV4_POOL_CIDR, ALT_DEFAULT_IPV4_POOL_CIDR
+from tests.st.utils.utils import check_bird_status, retry_until_success, get_ip
 from time import sleep
 
 """
@@ -43,6 +43,9 @@ class TestIPIP(TestBase):
         traffic flow to ensure it either is or is not going over the IPIP
         tunnel as expected.
         """
+        # Determine which pool CIDR to use for this test.
+        pool_cidr = self.get_pool_cidr()
+
         with DockerHost('host1',
                         additional_docker_options=CLUSTER_STORE_DOCKER_OPTIONS,
                         start_calico=False) as host1, \
@@ -54,13 +57,13 @@ class TestIPIP(TestBase):
             # v1.0.2 calicoctl.  For calicoctl v1.1.0+, a new IPIP mode field
             # is introduced - by testing with an older pool version validates
             # the IPAM BIRD templates function correctly without the mode field.
-            self.pool_action(host1, "create", DEFAULT_IPV4_POOL_CIDR, False,
+            self.pool_action(host1, "create", pool_cidr, False,
                            calicoctl_version="v1.0.2")
 
             # Autodetect the IP addresses - this should ensure the subnet is
             # correctly configured.
-            host1.start_calico_node("--ip=autodetect --backend={0}".format(backend))
-            host2.start_calico_node("--ip=autodetect --backend={0}".format(backend))
+            host1.start_calico_node("--ip=autodetect --no-default-ippools --backend={0}".format(backend))
+            host2.start_calico_node("--ip=autodetect --no-default-ippools --backend={0}".format(backend))
 
             # Create a network and a workload on each host.
             network1 = host1.create_network("subnet1")
@@ -87,7 +90,7 @@ class TestIPIP(TestBase):
 
             # Turn on IPIP with a v1.0.2 calicoctl and check that the
             # IPIP tunnel is being used.
-            self.pool_action(host1, "replace", DEFAULT_IPV4_POOL_CIDR, True,
+            self.pool_action(host1, "replace", pool_cidr, True,
                              calicoctl_version="v1.0.2")
             self.assert_ipip_routing(host1, workload_host1, workload_host2,
                                      True)
@@ -95,30 +98,30 @@ class TestIPIP(TestBase):
             # Turn off IPIP using the latest version of calicoctl and check that
             # IPIP tunnel is not being used.  We'll use the latest version of
             # calicoctl for the remaining tests.
-            self.pool_action(host1, "replace", DEFAULT_IPV4_POOL_CIDR, False)
+            self.pool_action(host1, "replace", pool_cidr, False)
             self.assert_ipip_routing(host1, workload_host1, workload_host2,
                                      False)
 
             # Turn on IPIP, default mode (which is always use IPIP), and check
             # IPIP tunnel is being used.
-            self.pool_action(host1, "replace", DEFAULT_IPV4_POOL_CIDR, True)
+            self.pool_action(host1, "replace", pool_cidr, True)
             self.assert_ipip_routing(host1, workload_host1, workload_host2,
                                      True)
 
             # Turn off IPIP and check IPIP tunnel is not being used.
-            self.pool_action(host1, "replace", DEFAULT_IPV4_POOL_CIDR, False)
+            self.pool_action(host1, "replace", pool_cidr, False)
             self.assert_ipip_routing(host1, workload_host1, workload_host2,
                                      False)
 
             # Turn on IPIP mode "always", and check IPIP tunnel is being used.
-            self.pool_action(host1, "replace", DEFAULT_IPV4_POOL_CIDR, True,
+            self.pool_action(host1, "replace", pool_cidr, True,
                              ipip_mode="always")
             self.assert_ipip_routing(host1, workload_host1, workload_host2,
                                      True)
 
             # Turn on IPIP mode "cross-subnet", since both hosts will be on the
             # same subnet, IPIP should not be used.
-            self.pool_action(host1, "replace", DEFAULT_IPV4_POOL_CIDR, True,
+            self.pool_action(host1, "replace", pool_cidr, True,
                              ipip_mode="cross-subnet")
             self.assert_ipip_routing(host1, workload_host1, workload_host2,
                                      False)
@@ -126,7 +129,7 @@ class TestIPIP(TestBase):
             # Set the BGP subnet on both node resources to be a /32.  This will
             # fool Calico into thinking they are on different subnets.  IPIP
             # routing should be used.
-            self.pool_action(host1, "replace", DEFAULT_IPV4_POOL_CIDR, True,
+            self.pool_action(host1, "replace", pool_cidr, True,
                              ipip_mode="cross-subnet")
             self.modify_subnet(host1, 32)
             self.modify_subnet(host2, 32)
@@ -318,6 +321,9 @@ class TestIPIP(TestBase):
         which we've patched the upstream BIRD code.)  But naturally it also
         involves calicoctl and confd, so it isn't _only_ about the BGP code.
         """
+        # Determine which pool CIDR to use for this test.
+        pool_cidr = self.get_pool_cidr()
+
         with DockerHost('host1',
                         additional_docker_options=CLUSTER_STORE_DOCKER_OPTIONS,
                         simulate_gce_routing=True,
@@ -327,8 +333,9 @@ class TestIPIP(TestBase):
                         simulate_gce_routing=True,
                         start_calico=False) as host2:
 
-            host1.start_calico_node("--backend={0}".format(backend))
-            host2.start_calico_node("--backend={0}".format(backend))
+            host1.start_calico_node("--no-default-ippools --backend={0}".format(backend))
+            host2.start_calico_node("--no-default-ippools --backend={0}".format(backend))
+            self.pool_action(host1, "create", pool_cidr, False)
 
             # Before creating any workloads, set the initial IP-in-IP state.
             host1.set_ipip_enabled(with_ipip)
@@ -369,3 +376,15 @@ class TestIPIP(TestBase):
                 # Flip the IP-in-IP state for the next iteration.
                 with_ipip = not with_ipip
                 host1.set_ipip_enabled(with_ipip)
+
+    def get_pool_cidr(self):
+        """
+        Return the pool CIDR to use.  This is a workaround for issues hit in our CI setup
+        where the etcd address falls within the IP Pool CIDR.  If this is the case, use
+        an alternative CIDR.
+        """
+        etcd_ip = IPAddress(get_ip())
+        pool_net = IPNetwork(DEFAULT_IPV4_POOL_CIDR)
+        if etcd_ip in pool_net:
+            return ALT_DEFAULT_IPV4_POOL_CIDR
+        return DEFAULT_IPV4_POOL_CIDR
