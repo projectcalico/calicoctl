@@ -287,14 +287,16 @@ Description:
 	}
 
 	// Add in optional environments.
-	if asNumber != "" {
-		envs["AS"] = asNumber
-	}
-	if ipv4 != "" {
-		envs["IP"] = ipv4
-	}
-	if ipv6 != "" {
-		envs["IP6"] = ipv6
+	if strings.ToLower(backend) != "none" {
+		if asNumber != "" {
+			envs["AS"] = asNumber
+		}
+		if ipv4 != "" {
+			envs["IP"] = ipv4
+		}
+		if ipv6 != "" {
+			envs["IP6"] = ipv6
+		}
 	}
 
 	// Create a struct for volumes to mount.
