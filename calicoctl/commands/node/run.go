@@ -111,12 +111,10 @@ Options:
                            > interface=<IFACE NAME REGEX>
                              Use the first valid IP address found on interfaces
                              named as per the supplied interface name regex.
-                           [default: first-found]
      --ip6-autodetection-method=<IP6_AUTODETECTION_METHOD>
                            Specify the autodetection method for detecting the
                            local IPv6 routing address for this node.  See
                            ip-autodetection-method flag for valid options.
-                           [default: first-found]
      --log-dir=<LOG_DIR>   The directory containing Calico logs.
                            [default: /var/log/calico]
      --node-image=<DOCKER_IMAGE_NAME>
@@ -216,6 +214,20 @@ Description:
 			ifprefix = env
 		} else {
 			ifprefix = "cali"
+		}
+	}
+	if ipv4ADMethod == "" {
+		if env := os.Getenv("CALICO_IP_AUTODETECTION_METHOD"); env != "" {
+			ipv4ADMethod = env
+		} else {
+			ipv4ADMethod = "first-found"
+		}
+	}
+	if ipv6ADMethod == "" {
+		if env := os.Getenv("CALICO_IP6_AUTODETECTION_METHOD"); env != "" {
+			ipv6ADMethod = env
+		} else {
+			ipv6ADMethod = "first-found"
 		}
 	}
 
