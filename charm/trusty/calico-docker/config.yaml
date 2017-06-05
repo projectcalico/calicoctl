@@ -1,0 +1,14 @@
+options:
+  calicoctl-package:
+    type: string
+    default: "https://github.com/Metaswitch/calico-docker/releases/download/v0.4.2/calicoctl"
+    description: "Location to fetch the calicoctl binary from"
+  calicoctl-sum:
+    type: string
+    default: "90cd21fed0abae9ed524c95d3cff8192dfc133150cdf386951ed9daa28c2d889"
+    description: "sha256 sum of calicoctl binary"
+  docker-image:
+    type: string
+    default: "calico/node:v0.4.2"
+    description: "Docker image to pre-fetch"
+

@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -e
+
+. /etc/action-config.sh
+
+WORKLOADA=$(scripts/container-status.py -t workload-A)
+WORKLOADB=$(scripts/container-status.py -t workload-B)
+WORKLOADC=$(scripts/container-status.py -t workload-C)
+
+if [[ -z "${WORKLOADA}" ]]; then
+    docker run -e CALICO_IP=192.168.1.1 --name workload-A -tid busybox
+fi
+if [[ -z "${WORKLOADB}" ]]; then
+    docker run -e CALICO_IP=192.168.1.2 --name workload-B -tid busybox
+fi
+if [[ -z "${WORKLOADC}" ]]; then
+    docker run -e CALICO_IP=192.168.1.3 --name workload-C -tid busybox
+fi
+
+calicoctl profile add PROF_A_C_E
+calicoctl profile add PROF_B
+calicoctl profile add PROF_D
+
+calicoctl profile PROF_A_C_E member add workload-A
+calicoctl profile PROF_B member add workload-B
+calicoctl profile PROF_A_C_E member add workload-C
+
+# Allow failure here, if a host is unreachable
+set +e
+SAMEHOST=$(docker exec workload-A ping -c 4 192.168.1.3)
+echo $SAMEHOST
+CROSSHOST=$(docker exec workload-A ping -c 4 192.168.1.5)
+echo $CROSSHOST
+
+action-set result-map.samehost="${SAMEHOST}"
+action-set result-map.crosshost="${CROSSHOST}"
+action-set result-map.routetable="$(ip route)"
+
