@@ -31,6 +31,7 @@ import (
 	"github.com/projectcalico/calicoctl/calicoctl/commands/clientmgr"
 	"github.com/projectcalico/libcalico-go/lib/api"
 	"github.com/projectcalico/libcalico-go/lib/net"
+	"encoding/json"
 )
 
 const (
@@ -43,9 +44,10 @@ const (
 )
 
 var (
-	checkLogTimeout = 10 * time.Second
-	ifprefixMatch   = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
-	backendMatch    = regexp.MustCompile("^(none|bird|gobgp)$")
+	checkLogTimeout    = 10 * time.Second
+	ifprefixMatch      = regexp.MustCompile(`^[a-zA-Z0-9]+$`)
+	backendMatch       = regexp.MustCompile("^(none|bird|gobgp)$")
+	calicoctlLogPrefix = "progress: "
 )
 
 // Run function collects diagnostic information and logs
@@ -425,7 +427,21 @@ Description:
 	// indicating success.
 	started := false
 	for outScanner.Scan() {
-		line := outScanner.Text()
+		raw := outScanner.Text()
+		// Unmarshal the output (which should be in JSON format)
+		log := make(map[string]string)
+		if err = json.Unmarshal([]byte(raw), &log); err != nil {
+			// Unmarshal failed
+			continue
+		}
+
+		// Split the line using the log prefix, if not present skip this line, otherwise
+		// print the part after the prefix.
+		parts := strings.SplitN(log["msg"], calicoctlLogPrefix, 2)
+		if len(parts) != 2 {
+			continue
+		}
+		line := parts[1]
 		fmt.Println(line)
 		if line == "Calico node started successfully" {
 			started = true

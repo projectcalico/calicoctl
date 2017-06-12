@@ -43,6 +43,9 @@ const (
 // For testing purposes we define an exit function that we can override.
 var exitFunction = os.Exit
 
+// Prefix all logs that we output to in `calicotl node run` with a specific string.
+var calicoctlLogPrefix = "progress: "
+
 // This file contains the main startup processing for the calico/node.  This
 // includes:
 // -  Detecting IP address and Network to use for BGP
@@ -51,6 +54,15 @@ var exitFunction = os.Exit
 // -  Creating default IP Pools for quick-start use
 
 func main() {
+	// Set logging to info and to stdout.
+	log.SetLevel(log.InfoLevel)
+	log.SetOutput(os.Stdout)
+	log.SetFormatter(&log.JSONFormatter{
+		FieldMap: log.FieldMap{
+			log.FieldKeyLevel: "severity",
+		},
+	})
+
 	// Determine the name for this node and ensure the environment is always
 	// available in the startup env file that is sourced in rc.local.
 	nodeName := determineNodeName()
@@ -757,19 +769,19 @@ func ensureGlobalBGPConfig(c *client.Client, key, def string) error {
 // message prints a message to screen and to log.  A newline terminator is
 // not required in the format string.
 func message(format string, args ...interface{}) {
-	fmt.Printf(format+"\n", args...)
+	log.Infof(calicoctlLogPrefix+format, args...)
 }
 
 // warning prints a warning to screen and to log.  A newline terminator is
 // not required in the format string.
 func warning(format string, args ...interface{}) {
-	fmt.Printf("WARNING: "+format+"\n", args...)
+	log.Warningf(calicoctlLogPrefix+"WARNING: "+format, args...)
 }
 
 // fatal prints a fatal message to screen and to log.  A newline terminator is
 // not required in the format string.
 func fatal(format string, args ...interface{}) {
-	fmt.Printf("ERROR: "+format+"\n", args...)
+	log.Errorf(calicoctlLogPrefix+"ERROR: "+format, args...)
 }
 
 // terminate prints a terminate message and exists with status 1.

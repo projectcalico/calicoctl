@@ -1,3 +1,8 @@
+# Log an info level log to stdout (JSON format)
+log() {
+	echo '{"msg":"progress: '$1'","severity":"info","time":"'$(date -Iseconds -u)'Z"}'
+}
+
 # Handle old CALICO_NETWORKING environment by converting to the new config.
 if [ -n "$CALICO_NETWORKING" ]; then
 	echo 'WARNING: $CALICO_NETWORKING will be deprecated: use $CALICO_NETWORKING_BACKEND instead'
@@ -36,11 +41,11 @@ fi
 case "$CALICO_NETWORKING_BACKEND" in
 	"none" )
 	# If running in policy only mode, we don't need to run BIRD / Confd.
-	echo "CALICO_NETWORKING_BACKEND is none - no BGP daemon running"
+	log "CALICO_NETWORKING_BACKEND is none - no BGP daemon running"
 	;;
 	"gobgp" )
 	# Run calico-bgp-daemon instead of BIRD / Confd.
-	echo "CALICO_NETWORKING_BACKEND is gobgp - run calico-bgp-daemon"
+	log "CALICO_NETWORKING_BACKEND is gobgp - run calico-bgp-daemon"
 	cp -a /etc/service/available/calico-bgp-daemon /etc/service/enabled/
 	sh -c 'for file in `find /etc/calico/confd/conf.d/ -not -name 'tunl-ip.toml' -type f`; do rm $file; done'
 	cp -a /etc/service/available/confd /etc/service/enabled/
@@ -87,7 +92,7 @@ esac
 # If running libnetwork plugin in a separate container, CALICO_LIBNETWORK_ENABLED would be false.
 # CALICO_LIBNETWORK_ENABLED is "false" by default. It can be set by passing `--libnetwork` flag while starting the calico/node via calicoctl
 if [ "$CALICO_LIBNETWORK_ENABLED" == "true" ]; then
-	echo "Starting libnetwork service"
+	log "Starting libnetwork service"
 	cp -a /etc/service/available/libnetwork  /etc/service/enabled/
 fi
 
@@ -100,4 +105,4 @@ if [ "$CALICO_DISABLE_FILE_LOGGING" == "true" ]; then
 	rm -rf /etc/service/enabled/calico-bgp-daemon/log
 fi
 
-echo "Calico node started successfully"
+log "Calico node started successfully"
