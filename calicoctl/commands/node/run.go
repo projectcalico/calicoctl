@@ -106,12 +106,10 @@ Options:
                            > interface=<IFACE NAME REGEX>
                              Use the first valid IP address found on interfaces
                              named as per the supplied interface name regex.
-                           [default: first-found]
      --ip6-autodetection-method=<IP6_AUTODETECTION_METHOD>
                            Specify the autodetection method for detecting the
                            local IPv6 routing address for this node.  See
                            ip-autodetection-method flag for valid options.
-                           [default: first-found]
      --log-dir=<LOG_DIR>   The directory containing Calico logs.
                            [default: /var/log/calico]
      --node-image=<DOCKER_IMAGE_NAME>
@@ -122,7 +120,6 @@ Options:
                            to "none", Calico node runs in policy only mode.
                            The option to run with gobgp is currently
                            experimental.
-                           [default: bird]
      --dryrun              Output the appropriate command, without starting the
                            container.
      --init-system         Run the appropriate command to use with an init
@@ -136,7 +133,6 @@ Options:
                            Interface prefix to use for the network interface
                            within the Docker containers that have been networked
                            by the Calico driver.
-                           [default: cali]
      --use-docker-networking-container-labels
                            Extract the Calico-namespaced Docker container labels
                            (org.projectcalico.label.*) and apply them to the
@@ -199,6 +195,35 @@ Description:
 		// The calico/node image does not accept dotted notation for
 		// the AS number, so convert.
 		asNumber = argutils.ValidateASNumber(asNumber).String()
+	}
+	// CLI flags will take precedence over env vars
+	if backend == "" {
+		if env := os.Getenv("CALICO_NETWORKING_BACKEND"); env != "" {
+			backend = env
+		} else {
+			backend = "bird"
+		}
+	}
+	if ifprefix == "" {
+		if env := os.Getenv("CALICO_LIBNETWORK_IFPREFIX"); env != "" {
+			ifprefix = env
+		} else {
+			ifprefix = "cali"
+		}
+	}
+	if ipv4ADMethod == "" {
+		if env := os.Getenv("CALICO_IP_AUTODETECTION_METHOD"); env != "" {
+			ipv4ADMethod = env
+		} else {
+			ipv4ADMethod = "first-found"
+		}
+	}
+	if ipv6ADMethod == "" {
+		if env := os.Getenv("CALICO_IP6_AUTODETECTION_METHOD"); env != "" {
+			ipv6ADMethod = env
+		} else {
+			ipv6ADMethod = "first-found"
+		}
 	}
 
 	if !backendMatch.MatchString(backend) {
@@ -269,14 +294,16 @@ Description:
 	}
 
 	// Add in optional environments.
-	if asNumber != "" {
-		envs["AS"] = asNumber
-	}
-	if ipv4 != "" {
-		envs["IP"] = ipv4
-	}
-	if ipv6 != "" {
-		envs["IP6"] = ipv6
+	if strings.ToLower(backend) != "none" {
+		if asNumber != "" {
+			envs["AS"] = asNumber
+		}
+		if ipv4 != "" {
+			envs["IP"] = ipv4
+		}
+		if ipv6 != "" {
+			envs["IP6"] = ipv6
+		}
 	}
 
 	// Create a struct for volumes to mount.
@@ -313,6 +340,19 @@ Description:
 		vols = append(vols, vol{hostPath: etcdcfg.EtcdKeyFile, containerPath: ETCD_KEY_NODE_FILE})
 		envs["ETCD_CERT_FILE"] = ETCD_CERT_NODE_FILE
 		vols = append(vols, vol{hostPath: etcdcfg.EtcdCertFile, containerPath: ETCD_CERT_NODE_FILE})
+	}
+
+	// Parse the environment variables to catch any other CALICO_* and FELIX_* env vars
+	for _, env := range os.Environ() {
+		if strings.HasPrefix(env, "CALICO_") || strings.HasPrefix(env, "FELIX_") {
+			split_env := strings.Split(env, "=")
+			// Let's avoid clobbering anything already set
+			if _, ok := envs[split_env[0]]; !ok {
+				envs[split_env[0]] = split_env[1]
+			} else {
+				log.Info("Environment variable %s already set to %s", split_env[0], envs[split_env[0]])
+			}
+		}
 	}
 
 	// Create the Docker command to execute (or display).  Start with the
