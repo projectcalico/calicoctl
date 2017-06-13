@@ -20,6 +20,7 @@ from tests.st.utils.constants import (DEFAULT_IPV4_ADDR_1, DEFAULT_IPV4_ADDR_2,
 from tests.st.utils.exceptions import CommandExecError
 from tests.st.utils.utils import check_bird_status
 
+
 class TestBGP(TestBase):
 
     def test_defaults(self):

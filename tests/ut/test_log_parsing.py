@@ -65,6 +65,7 @@ before_data = """2017-01-12 19:19:04.419 [INFO][87] ipip_mgr.go 75: Setting loca
 class LogParsing(TestBase):
     @classmethod
     def setUpClass(cls):
+        super(LogParsing, cls).setUpClass()
         cls.log_banner("TEST SET UP STARTING: %s", cls.__name__)
 
         cls.hosts = []
@@ -87,7 +88,7 @@ class LogParsing(TestBase):
         # Tidy up
         for host in cls.hosts:
             host.cleanup()
-            del host
+        super(LogParsing, cls).tearDownClass()
 
     def setUp(self):
         self.log_banner("starting %s", self._testMethodName)

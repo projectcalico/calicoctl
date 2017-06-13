@@ -52,7 +52,7 @@ class TestLibnetworkLabeling(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        wipe_etcd(get_ip())
+        super(TestLibnetworkLabeling, cls).setUpClass()
 
         # Rough idea for setup
         #
@@ -99,9 +99,11 @@ class TestLibnetworkLabeling(TestBase):
                 "workload4", network=cls.network2,
                 labels=["org.projectcalico.label.foo=bar"])
 
+    wipe_etcd_before_each_test = False
+
     def setUp(self):
-        # Override the per-test setUp to avoid wiping etcd; instead only
-        # clean up the data we added.
+        super(TestLibnetworkLabeling, self).setUp()
+        # We disable the automatic wipe of etcd, make sure we clean up what we added.
         self.host1.delete_all_resource("policy")
 
     def tearDown(self):
@@ -115,7 +117,7 @@ class TestLibnetworkLabeling(TestBase):
             host.remove_workloads()
         for host in cls.hosts:
             host.cleanup()
-            del host
+        super(TestLibnetworkLabeling, cls).tearDownClass()
 
     def test_policy_only_selectors_allow_traffic(self):
         self.host1.add_resource([

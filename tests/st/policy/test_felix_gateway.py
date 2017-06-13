@@ -32,6 +32,7 @@ POST_DOCKER_COMMANDS = [
     "docker load -i /code/workload.tar",
 ]
 
+
 class TestFelixOnGateway(TestBase):
     """
     Tests that policy is correctly implemented when using Calico
@@ -45,8 +46,8 @@ class TestFelixOnGateway(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        # Wipe etcd once before any test in this class runs.
-        wipe_etcd()
+        # Do global clean-up, including wiping etcd.
+        super(TestFelixOnGateway, cls).setUpClass()
 
         # We set up an additional docker network to act as the external
         # network.  The Gateway container is connected to both networks.
@@ -123,9 +124,13 @@ class TestFelixOnGateway(TestBase):
         cls.gateway.execute("iptables -t nat -A POSTROUTING --destination %s -j MASQUERADE" %
                             cls.ext_server_ip)
 
+    wipe_etcd_before_each_test = False
+
     def setUp(self):
-        # Override the per-test setUp to avoid wiping etcd; instead only clean up the data we
-        # added.
+        super(TestFelixOnGateway, self).setUp()
+
+        # We avoid removing all the etcd config between each test, make sure we clean up what we
+        # did add.
         self.remove_pol_and_endpoints()
 
     def tearDown(self):
@@ -139,9 +144,10 @@ class TestFelixOnGateway(TestBase):
             host.remove_workloads()
         for host in cls.hosts:
             host.cleanup()
-            del host
+        del cls.hosts
 
         log_and_run("docker rm -f cali-st-ext-nginx || true")
+        super(TestFelixOnGateway, cls).tearDownClass()
 
     def test_ingress_policy_can_block_through_traffic(self):
         self.add_policy({

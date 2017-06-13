@@ -44,13 +44,26 @@ class TestBase(TestCase):
     Base class for test-wide methods.
     """
 
+    wipe_etcd_before_each_test = True
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestBase, cls).setUpClass()
+        wipe_etcd(HOST_IPV4)
+
+    @classmethod
+    def tearDownClass(cls):
+        wipe_etcd(HOST_IPV4)
+        super(TestBase, cls).tearDownClass()
+
     def setUp(self):
         """
         Clean up before every test.
         """
         self.ip = HOST_IPV4
 
-        self.wipe_etcd()
+        if self.wipe_etcd_before_each_test:
+            self.wipe_etcd()
 
         # Log a newline to ensure that the first log appears on its own line.
         logger.info("")
