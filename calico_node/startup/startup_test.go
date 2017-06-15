@@ -120,11 +120,7 @@ var _ = Describe("FV tests against a real etcd", func() {
 						Expect(pool.Spec.IPIP.Enabled).To(BeFalse())
 					}
 
-					if expectedIPV6NATOutgoing {
-						Expect(pool.Spec.NATOutgoing).To(BeTrue())
-					} else {
-						Expect(pool.Spec.NATOutgoing).To(BeFalse())
-					}
+					Expect(pool.Spec.NATOutgoing).To(Equal(expectedIPV6NATOutgoing))
 
 				} else {
 					// off is not a real mode value but use it instead of empty string
@@ -137,11 +133,7 @@ var _ = Describe("FV tests against a real etcd", func() {
 						Expect(pool.Spec.IPIP.Mode).To(Equal(ipip.Mode(expectIpv4IpipMode)))
 					}
 
-					if expectedIPV4NATOutgoing == false {
-						Expect(pool.Spec.NATOutgoing).To(BeFalse())
-					} else {
-						Expect(pool.Spec.NATOutgoing).To(BeTrue())
-					}
+					Expect(pool.Spec.NATOutgoing).To(Equal(expectedIPV4NATOutgoing))
 
 				}
 			}

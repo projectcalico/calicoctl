@@ -345,15 +345,21 @@ func validateIP(ipn *net.IPNet) {
 // Returns an boolean indicating if the parameter was defined
 // and an boolean if the argument was true or false
 // If an log entry will always be written
-func evaluateENVBool(envVar string) (bool, bool) {
+func evaluateENVBool(envVar string, defaultValue bool) bool {
 	envValue, isEmpty := os.LookupEnv(envVar)
-	switch strings.ToLower(envValue) {
+
 	log.Info("%s is %s through environment variable", envVar, envValue)
-	case "false", "0", "no", "n", "f":
-		return isEmpty, false
+	if !isEmpty {
+		switch strings.ToLower(envValue) {
+
+		case "false", "0", "no", "n", "f":
+			return false
+		}
+
+		return true
 	}
 
-	return isEmpty, true
+	return defaultValue
 }
 
 // autoDetectCIDR auto-detects the IP and Network using the requested
@@ -512,19 +518,14 @@ func configureIPPools(client *client.Client) {
 	// Ensure there are pools created for each IP version.
 	if !ipv4Present {
 		log.Debug("Create default IPv4 IP pool")
-		outgoingNATisDefined, outgoingNATEnabled := evaluateENVBool("CALICO_IPV4POOL_NAT_OUTGOING")
-		createIPPool(client, ipv4Cidr, ipv4IpipModeEnvVar, outgoingNATisDefined, outgoingNATEnabled)
+		outgoingNATEnabled := evaluateENVBool("CALICO_IPV4POOL_NAT_OUTGOING", true)
+		createIPPool(client, ipv4Cidr, ipv4IpipModeEnvVar, outgoingNATEnabled)
 	}
 	if !ipv6Present && ipv6Supported() {
 		log.Debug("Create default IPv6 IP pool")
-		outgoingNATisDefined, outgoingNATEnabled := evaluateENVBool("CALICO_IPV6POOL_NAT_OUTGOING")
+		outgoingNATEnabled := evaluateENVBool("CALICO_IPV6POOL_NAT_OUTGOING", false)
 
-		// Workaround for NatOutgoing where IPv6 default is false
-		if outgoingNATisDefined == false {
-			outgoingNATEnabled = false
-		}
-
-		createIPPool(client, ipv6Cidr, string(ipip.Undefined), outgoingNATisDefined, outgoingNATEnabled)
+		createIPPool(client, ipv6Cidr, string(ipip.Undefined), outgoingNATEnabled)
 	}
 }
 
@@ -534,7 +535,7 @@ func configureIPPools(client *client.Client) {
 // compiled in will not have this entry).
 func ipv6Supported() bool {
 	// First check if Felix param is false
-	_, outgoingNATEnabled := evaluateENVBool("FELIX_IPV6SUPPORT")
+	outgoingNATEnabled := evaluateENVBool("FELIX_IPV6SUPPORT", false)
 	if !outgoingNATEnabled {
 		return false
 	}
