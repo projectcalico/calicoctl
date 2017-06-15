@@ -342,9 +342,10 @@ func validateIP(ipn *net.IPNet) {
 }
 
 // evaluateENVBool evaluates a passed environment variable
-// Returns an boolean indicating if the parameter was defined
-// and an boolean if the argument was true or false
-// If an log entry will always be written
+// Returns True if the envVar is defined and set to true.
+// Returns False if the envVar is defined and set to false.
+// Returns def in the envVar is not defined.
+// An log entry will always be written
 func evaluateENVBool(envVar string, defaultValue bool) bool {
 	envValue, isEmpty := os.LookupEnv(envVar)
 
