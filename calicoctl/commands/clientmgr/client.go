@@ -15,6 +15,7 @@
 package clientmgr
 
 import (
+	"fmt"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
@@ -35,7 +36,7 @@ func NewClient(cf string) (*client.Client, error) {
 
 	c, err := client.New(*cfg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Syntax error in %s: %s", cf, err)
 	}
 
 	return c, err

@@ -108,7 +108,7 @@ The table below details the valid config options.
 	cf := parsedArgs["--config"].(string)
 	client, err := clientmgr.NewClient(cf)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("Syntax error in %s: %s\n", cf, err)
 		os.Exit(1)
 	}
 
