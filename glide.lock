@@ -1,5 +1,5 @@
-hash: 91a8d9a89a8e34c483b837ccd059cb40ebcea88394a9e6d9360425a749a0c7f2
-updated: 2017-06-07T11:17:07.316190432-07:00
+hash: f4f6f5f10abb4cef746bdbe0931f9013b0d119d445d87c902ddbcfb0c5b6f9a4
+updated: 2017-06-22T14:54:30.095269826+01:00
 imports:
 - name: github.com/armon/go-radix
   version: 4239b77079c7b5d1243b7b4736304ce8ddb6f0f2
@@ -152,7 +152,8 @@ imports:
 - name: github.com/projectcalico/go-yaml-wrapper
   version: 598e54215bee41a19677faa4f0c32acd2a87eb56
 - name: github.com/projectcalico/libcalico-go
-  version: 73241603bc62d6e7a94582f06327ac661bb6ecdc
+  version: 5feddba03da6cda6155c567a13cd37c4a1caa432
+  repo: https://github.com/fasaxc/libcalico-go.git
   subpackages:
   - lib/api
   - lib/api/unversioned

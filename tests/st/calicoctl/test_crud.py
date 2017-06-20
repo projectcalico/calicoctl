@@ -127,6 +127,16 @@ class TestCreateFromFile(TestBase):
                      'profiles': ['prof1',
                                   'prof2']}
         }),
+        ("netSet1", {
+            'apiVersion': 'v1',
+            'kind': 'networkSet',
+            'metadata': {'labels': {'type': 'frontend'},
+                         'name': 'netset1'},
+            'spec': {'nets': [
+                "10.0.0.0/16",
+                "12.0.0.0/24",
+            ]}
+        }),
         ("policy1", {'apiVersion': 'v1',
                      'kind': 'policy',
                      'metadata': {'name': 'policy1'},
