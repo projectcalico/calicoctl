@@ -118,6 +118,10 @@ func getResourceFromArguments(args map[string]interface{}) (unversioned.Resource
 		h.Metadata.Workload = workload
 		h.Metadata.Node = node
 		return *h, nil
+	case "networkset", "networksets", "netset", "netsets":
+		n := api.NewNetworkSet()
+		n.Metadata.Name = name
+		return *n, nil
 	case "profile", "profiles", "pro", "pros":
 		p := api.NewProfile()
 		p.Metadata.Name = name
@@ -275,7 +279,7 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 	return results
 }
 
-// execureResourceAction fans out the specific resource action to the appropriate method
+// executeResourceAction fans out the specific resource action to the appropriate method
 // on the ResourceManager for the specific resource.
 func executeResourceAction(args map[string]interface{}, client *client.Client, resource unversioned.Resource, action action) (unversioned.Resource, error) {
 	rm := resourcemgr.GetResourceManager(resource)
