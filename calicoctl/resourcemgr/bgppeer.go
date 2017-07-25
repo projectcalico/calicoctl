@@ -32,23 +32,23 @@ func init() {
 			"NODE":   "{{.Metadata.Node}}",
 			"ASN":    "{{.Spec.ASNumber}}",
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.BGPPeer)
 			return client.BGPPeers().Apply(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.BGPPeer)
 			return client.BGPPeers().Create(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.BGPPeer)
 			return client.BGPPeers().Update(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.BGPPeer)
 			return nil, client.BGPPeers().Delete(r.Metadata)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.BGPPeer)
 			return client.BGPPeers().List(r.Metadata)
 		},

@@ -38,24 +38,25 @@ var (
 	CR = []byte("\n")
 )
 
-func printResources(rp resourcePrinter, client *client.Client, resources []unversioned.Resource) error {
+func printResources(rp resourcePrinter, client *client.Client, resources []unversioned.ResourceObject) error {
 	return rp.write(os.Stdout, client, resources)
 }
 
 type resourcePrinter interface {
-	write(w io.Writer, client *client.Client, resources []unversioned.Resource) error
+	write(w io.Writer, client *client.Client, resources []unversioned.ResourceObject) error
 }
 
 // resourcePrinterJSON implements the resourcePrinter interface and is used to display
 // a slice of resources in JSON format.
 type resourcePrinterJSON struct{}
 
-func (r resourcePrinterJSON) write(w io.Writer, client *client.Client, resources []unversioned.Resource) error {
+func (r resourcePrinterJSON) write(w io.Writer, client *client.Client, resources []unversioned.ResourceObject) error {
+	// TODO: Remove the comments after testing
 	// The supplied slice of resources may contain actual resource types as well as
 	// resource lists (which themselves contain a slice of actual resources).
 	// For simplicity, expand any resource lists so that we have a flat slice of
 	// real resources.
-	resources = convertToSliceOfResources(resources)
+	// resources = convertToSliceOfResourceObjects(resources)
 	if output, err := json.MarshalIndent(resources, "", "  "); err != nil {
 		return err
 	} else {
@@ -69,12 +70,13 @@ func (r resourcePrinterJSON) write(w io.Writer, client *client.Client, resources
 // a slice of resources in YAML format.
 type resourcePrinterYAML struct{}
 
-func (r resourcePrinterYAML) write(w io.Writer, client *client.Client, resources []unversioned.Resource) error {
+func (r resourcePrinterYAML) write(w io.Writer, client *client.Client, resources []unversioned.ResourceObject) error {
+	// TODO: Remove the comments after testing
 	// The supplied slice of resources may contain actual resource types as well as
 	// resource lists (which themselves contain a slice of actual resources).
 	// For simplicity, expand any resource lists so that we have a flat slice of
 	// real resources.
-	resources = convertToSliceOfResources(resources)
+	// resources = convertToSliceOfResourceObjects(resources)
 	if output, err := yaml.Marshal(resources); err != nil {
 		return err
 	} else {
@@ -97,7 +99,7 @@ type resourcePrinterTable struct {
 	wide bool
 }
 
-func (r resourcePrinterTable) write(w io.Writer, client *client.Client, resources []unversioned.Resource) error {
+func (r resourcePrinterTable) write(w io.Writer, client *client.Client, resources []unversioned.ResourceObject) error {
 	log.Infof("Output in table format (wide=%v)", r.wide)
 	for _, resource := range resources {
 		// Get the resource manager for the resource type.
@@ -153,7 +155,7 @@ type resourcePrinterTemplateFile struct {
 	templateFile string
 }
 
-func (r resourcePrinterTemplateFile) write(w io.Writer, client *client.Client, resources []unversioned.Resource) error {
+func (r resourcePrinterTemplateFile) write(w io.Writer, client *client.Client, resources []unversioned.ResourceObject) error {
 	template, err := ioutil.ReadFile(r.templateFile)
 	if err != nil {
 		return err
@@ -168,7 +170,7 @@ type resourcePrinterTemplate struct {
 	template string
 }
 
-func (r resourcePrinterTemplate) write(w io.Writer, client *client.Client, resources []unversioned.Resource) error {
+func (r resourcePrinterTemplate) write(w io.Writer, client *client.Client, resources []unversioned.ResourceObject) error {
 	// We include a join function in the template as it's useful for multi
 	// value columns.
 	fns := template.FuncMap{

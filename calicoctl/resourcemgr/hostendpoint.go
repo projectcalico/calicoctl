@@ -33,23 +33,23 @@ func init() {
 			"IPS":       "{{join .Spec.ExpectedIPs \",\"}}",
 			"PROFILES":  "{{join .Spec.Profiles \",\"}}",
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.HostEndpoint)
 			return client.HostEndpoints().Apply(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.HostEndpoint)
 			return client.HostEndpoints().Create(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.HostEndpoint)
 			return client.HostEndpoints().Update(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.HostEndpoint)
 			return nil, client.HostEndpoints().Delete(r.Metadata)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.HostEndpoint)
 			return client.HostEndpoints().List(r.Metadata)
 		},

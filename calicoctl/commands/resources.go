@@ -53,12 +53,12 @@ type actionConfig struct {
 	action        action
 }
 
-// Convert loaded resources to a slice of resources for easier processing.
+// Convert loaded resources to a slice of resource objects for easier processing.
 // The loaded resources may be a slice containing resources and resource lists, or
 // may be a single resource or a single resource list.  This function handles the
-// different possible options to convert to a single slice of resources.
-func convertToSliceOfResources(loaded interface{}) []unversioned.Resource {
-	r := []unversioned.Resource{}
+// different possible options to convert to a single slice of resource objects.
+func convertToSliceOfResourceObjects(loaded interface{}) []unversioned.ResourceObject {
+	r := []unversioned.ResourceObject{}
 	log.Infof("Converting resource to slice: %v", loaded)
 
 	switch reflect.TypeOf(loaded).Kind() {
@@ -67,7 +67,7 @@ func convertToSliceOfResources(loaded interface{}) []unversioned.Resource {
 		// return slice.
 		s := reflect.ValueOf(loaded)
 		for i := 0; i < s.Len(); i++ {
-			r = append(r, convertToSliceOfResources(s.Index(i).Interface())...)
+			r = append(r, convertToSliceOfResourceObjects(s.Index(i).Interface())...)
 		}
 	case reflect.Struct:
 		// This is a resource or resource list.  If a resource, add to our return
@@ -76,10 +76,10 @@ func convertToSliceOfResources(loaded interface{}) []unversioned.Resource {
 		if strings.HasSuffix(lr.GetTypeMetadata().Kind, "List") {
 			items := reflect.ValueOf(loaded).Elem().FieldByName("Items")
 			for i := 0; i < items.Len(); i++ {
-				r = append(r, items.Index(i).Interface().(unversioned.Resource))
+				r = append(r, items.Index(i).Interface().(unversioned.ResourceObject))
 			}
 		} else {
-			r = append(r, lr)
+			r = append(r, lr.(unversioned.ResourceObject))
 		}
 	case reflect.Ptr:
 		// This is a resource or resource list.  If a resource, add to our return
@@ -88,10 +88,10 @@ func convertToSliceOfResources(loaded interface{}) []unversioned.Resource {
 		if strings.HasSuffix(lr.GetTypeMetadata().Kind, "List") {
 			items := reflect.ValueOf(loaded).Elem().FieldByName("Items")
 			for i := 0; i < items.Len(); i++ {
-				r = append(r, items.Index(i).Interface().(unversioned.Resource))
+				r = append(r, items.Index(i).Interface().(unversioned.ResourceObject))
 			}
 		} else {
-			r = append(r, lr)
+			r = append(r, lr.(unversioned.ResourceObject))
 		}
 	default:
 		panic(errors.New(fmt.Sprintf("unhandled type %v converting to resource slice",
@@ -102,8 +102,8 @@ func convertToSliceOfResources(loaded interface{}) []unversioned.Resource {
 	return r
 }
 
-// getResourceFromArguments returns a resource instance from the command line arguments.
-func getResourceFromArguments(args map[string]interface{}) (unversioned.Resource, error) {
+// getResourceObjectFromArguments returns a resource instance from the command line arguments.
+func getResourceObjectFromArguments(args map[string]interface{}) (unversioned.ResourceObject, error) {
 	kind := args["<KIND>"].(string)
 	name := argutils.ArgStringOrBlank(args, "<NAME>")
 	node := argutils.ArgStringOrBlank(args, "--node")
@@ -191,7 +191,7 @@ type commandResults struct {
 	singleKind string
 
 	// The results returned from each invocation
-	resources []unversioned.Resource
+	resources []unversioned.ResourceObject
 
 	// The Calico API client used for the requests (useful if required
 	// again).
@@ -209,7 +209,7 @@ type commandResults struct {
 func executeConfigCommand(args map[string]interface{}, action action) commandResults {
 	var r interface{}
 	var err error
-	var resources []unversioned.Resource
+	var resources []unversioned.ResourceObject
 
 	log.Info("Executing config command")
 
@@ -220,8 +220,8 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 			return commandResults{err: err, fileInvalid: true}
 		}
 
-		resources = convertToSliceOfResources(r)
-	} else if r, err := getResourceFromArguments(args); err != nil {
+		resources = convertToSliceOfResourceObjects(r)
+	} else if r, err := getResourceObjectFromArguments(args); err != nil {
 		// Filename is not specific so extract the resource from the arguments.  This
 		// is only useful for delete and get functions - but we don't need to check that
 		// here since the command syntax requires a filename for the other resource
@@ -230,7 +230,7 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 	} else {
 		// We extracted a single resource type with identifiers from the CLI, convert to
 		// a list for simpler handling.
-		resources = []unversioned.Resource{r}
+		resources = []unversioned.ResourceObject{r}
 	}
 
 	if len(resources) == 0 {
@@ -257,7 +257,7 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 
 	// Initialise the command results with the number of resources and the name of the
 	// kind of resource (if only dealing with a single resource).
-	results := commandResults{client: client}
+	results := commandResults{client: client, resources: []unversioned.ResourceObject{}}
 	var kind string
 	count := make(map[string]int)
 	for _, r := range resources {
@@ -280,12 +280,12 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 	// Now execute the command on each resource in order, exiting as soon as we hit an
 	// error.
 	for _, r := range resources {
-		r, err = executeResourceAction(ac, r)
+		rs, err := executeResourceAction(ac, r)
 		if err != nil {
 			results.err = err
 			break
 		}
-		results.resources = append(results.resources, r)
+		results.resources = append(results.resources, rs...)
 		results.numHandled = results.numHandled + 1
 	}
 
@@ -294,10 +294,11 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 
 // execureResourceAction fans out the specific resource action to the appropriate method
 // on the ResourceManager for the specific resource.
-func executeResourceAction(ac actionConfig, resource unversioned.Resource) (unversioned.Resource, error) {
+func executeResourceAction(ac actionConfig, resource unversioned.ResourceObject) ([]unversioned.ResourceObject, error) {
 	rm := resourcemgr.GetResourceManager(resource)
 	var err error
 	var resourceOut unversioned.Resource
+	var resourceObjects []unversioned.ResourceObject
 
 	switch ac.action {
 	case actionApply:
@@ -322,10 +323,13 @@ func executeResourceAction(ac actionConfig, resource unversioned.Resource) (unve
 			skip = ac.skipNotExists
 		}
 		if skip {
-			resourceOut = resource
+			resourceObjects = []unversioned.ResourceObject{resource}
 			err = nil
 		}
+	} else if resourceOut != nil {
+		// Skip conversion for deletion since nil is returned from Delete.
+		resourceObjects = convertToSliceOfResourceObjects(resourceOut)
 	}
 
-	return resourceOut, err
+	return resourceObjects, err
 }

@@ -31,23 +31,23 @@ func init() {
 			"ORDER":    "{{.Spec.Order}}",
 			"SELECTOR": "{{.Spec.Selector}}",
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.Policy)
 			return client.Policies().Apply(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.Policy)
 			return client.Policies().Create(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.Policy)
 			return client.Policies().Update(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.Policy)
 			return nil, client.Policies().Delete(r.Metadata)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.Policy)
 			return client.Policies().List(r.Metadata)
 		},

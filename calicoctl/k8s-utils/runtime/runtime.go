@@ -22,7 +22,9 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	// Copyright (c) 2017 Tigera, Inc. All rights reserved.
+	// Updated the logrus library to use the updated (lowercase) username
+	log "github.com/sirupsen/logrus"
 )
 
 var (

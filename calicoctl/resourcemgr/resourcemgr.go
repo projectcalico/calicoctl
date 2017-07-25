@@ -37,14 +37,14 @@ import (
 type ResourceManager interface {
 	GetTableDefaultHeadings(wide bool) []string
 	GetTableTemplate(columns []string) (string, error)
-	Apply(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error)
-	Create(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error)
-	Update(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error)
-	Delete(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error)
-	List(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error)
+	Apply(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error)
+	Create(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error)
+	Update(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error)
+	Delete(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error)
+	List(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error)
 }
 
-type ResourceActionCommand func(*client.Client, unversioned.Resource) (unversioned.Resource, error)
+type ResourceActionCommand func(*client.Client, unversioned.ResourceObject) (unversioned.Resource, error)
 
 // ResourceHelper encapsulates details about a specific version of a specific resource:
 //
@@ -248,7 +248,7 @@ func CreateResourcesFromFile(f string) ([]unversioned.Resource, error) {
 			return nil, err
 		}
 
-		r, err := createResourcesFromBytes(b)
+		r, err := CreateResourcesFromBytes(b)
 		if err != nil {
 			return nil, err
 		}
@@ -317,39 +317,39 @@ func (rh resourceHelper) GetTableTemplate(headings []string) (string, error) {
 // Apply is an un-typed method to apply (create or update) a resource.  This calls directly
 // through to the resource helper specific Apply method which will map the untyped call to
 // the typed interface on the client.
-func (rh resourceHelper) Apply(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+func (rh resourceHelper) Apply(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 	return rh.apply(client, resource)
 }
 
 // Create is an un-typed method to create a new resource.  This calls directly
 // through to the resource helper specific Create method which will map the untyped call to
 // the typed interface on the client.
-func (rh resourceHelper) Create(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+func (rh resourceHelper) Create(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 	return rh.create(client, resource)
 }
 
 // Update is an un-typed method to update an existing resource.  This calls directly
 // through to the resource helper specific Update method which will map the untyped call to
 // the typed interface on the client.
-func (rh resourceHelper) Update(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+func (rh resourceHelper) Update(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 	return rh.update(client, resource)
 }
 
 // Delete is an un-typed method to delete an existing resource.  This calls directly
 // through to the resource helper specific Delete method which will map the untyped call to
 // the typed interface on the client.
-func (rh resourceHelper) Delete(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+func (rh resourceHelper) Delete(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 	return rh.delete(client, resource)
 }
 
 // List is an un-typed method to list existing resources.  This calls directly
 // through to the resource helper specific List method which will map the untyped call to
 // the typed interface on the client.
-func (rh resourceHelper) List(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+func (rh resourceHelper) List(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 	return rh.list(client, resource)
 }
 
 // Return the Resource Manager for a particular resource type.
-func GetResourceManager(resource unversioned.Resource) ResourceManager {
+func GetResourceManager(resource unversioned.ResourceObject) ResourceManager {
 	return helpers[resource.GetTypeMetadata()]
 }

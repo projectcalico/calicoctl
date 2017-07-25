@@ -12,28 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO
-// Better error handling
-// Distinguish between deleted updates and other failures
-// Copyright stuff related to k8s
-// Windows/Linus newlines etc.
-// Need to verify that user is not adding new entry or changing resource identifiers
-// CreateResourcesFromBytes needs to be converted to slice ... this indicates a bug
-//   in the CreateResourcesFromBytes which must be returning structs rather than pointers.
-
 package commands
 
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/docopt/docopt-go"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/projectcalico/calicoctl/calicoctl/k8s-utils/editor"
 	"github.com/projectcalico/calicoctl/calicoctl/resourcemgr"
@@ -107,7 +99,7 @@ Description:
 		ext       string
 		rp        resourcePrinter
 		file      string
-		resources []unversioned.Resource
+		resources []unversioned.ResourceObject
 		nb        []byte
 	)
 	output := parsedArgs["--output"].(string)
@@ -174,7 +166,15 @@ Description:
 
 		// Convert the file into a set of resources.  If this succeeds
 		// then it passes validation, so exit this loop.
-		resources, err = resourcemgr.CreateResourcesFromBytes(b)
+		var rs []unversioned.Resource
+		rs, err = resourcemgr.CreateResourcesFromBytes(b)
+		if err != nil {
+			log.WithError(err).Debug("Failed validation, re-enter editor.")
+			continue
+		}
+
+		resources = convertToSliceOfResourceObjects(rs)
+		err = ValidateIDFieldsSame(results.resources, resources)
 		if err == nil {
 			break
 		}
@@ -189,21 +189,22 @@ Description:
 
 	// Data edited and parsed.  Apply the changes - any errors now and we
 	// exit.
-	resources = convertToSliceOfResources(resources)
-	failed := []unversioned.Resource{}
+	failed := []unversioned.ResourceObject{}
+	var failureErr error
 	for _, resource := range resources {
 		if _, err = executeResourceAction(ac, resource); err != nil {
 			failed = append(failed, resource)
+			failureErr = err
 		}
 	}
 	if len(failed) == 0 {
 		fmt.Printf("Successfully updated %d resources.\n", len(resources))
 	} else {
 		if len(failed) == len(resources) {
-			fmt.Printf("Failed to update any resource, last error: %s\n", err)
+			fmt.Printf("Failed to update any resource, last error: %s\n", failureErr)
 		} else {
 			fmt.Printf("Failed to update %d/%d resources, last error: %s\n",
-				len(failed), len(resources), err)
+				len(failed), len(resources), failureErr)
 		}
 
 		f, err := os.Create(file)
@@ -254,4 +255,22 @@ func addComment(b []byte, err error) []byte {
 
 	nb.Write(b)
 	return nb.Bytes()
+}
+
+// ValidateIDFieldsSame is used to validate that the Resource Objects
+// supplied in one slice reference the same objects in the other slice
+// by comparing the ID fields.
+func ValidateIDFieldsSame(original, changed []unversioned.ResourceObject) error {
+	if len(original) != len(changed) {
+		return errors.New("Number of resources after editing does not match the number of resources provided. Cannot add or remove resources during edit.")
+	}
+
+	// Assume that that the resources are kept in the same order
+	for i, _ := range original {
+		if original[i].String() != changed[i].String() {
+			return fmt.Errorf("Cannot change identifying metadata fields: %s should match %s", changed[i].String(), original[i].String())
+		}
+	}
+
+	return nil
 }
