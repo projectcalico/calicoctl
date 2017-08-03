@@ -39,23 +39,23 @@ func init() {
 			"INTERFACE":    "{{.Spec.InterfaceName}}",
 			"MAC":          "{{.Spec.MAC}}",
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.WorkloadEndpoint)
 			return client.WorkloadEndpoints().Apply(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.WorkloadEndpoint)
 			return client.WorkloadEndpoints().Create(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.WorkloadEndpoint)
 			return client.WorkloadEndpoints().Update(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.WorkloadEndpoint)
 			return nil, client.WorkloadEndpoints().Delete(r.Metadata)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.WorkloadEndpoint)
 			return client.WorkloadEndpoints().List(r.Metadata)
 		},

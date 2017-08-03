@@ -38,8 +38,11 @@ import:
   - lib/validator
 - package: github.com/satori/go.uuid
 - package: github.com/termie/go-shutil
+- package: golang.org/x/sys
+  version: 739734461d1c916b6c72a63d7efda2b27edb369f
 testImport:
 - package: github.com/onsi/ginkgo
   subpackages:
   - extensions/table
 - package: github.com/onsi/gomega
+

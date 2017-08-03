@@ -30,23 +30,23 @@ func init() {
 			"NAME": "{{.Metadata.Name}}",
 			"TAGS": "{{join .Metadata.Tags \",\"}}",
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.Profile)
 			return client.Profiles().Apply(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.Profile)
 			return client.Profiles().Create(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.Profile)
 			return client.Profiles().Update(&r)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.Profile)
 			return nil, client.Profiles().Delete(r.Metadata)
 		},
-		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
+		func(client *client.Client, resource unversioned.ResourceObject) (unversioned.Resource, error) {
 			r := resource.(api.Profile)
 			return client.Profiles().List(r.Metadata)
 		},
