@@ -41,12 +41,19 @@ class TestPool(TestBase):
         """
         # Set up the ipv4 and ipv6 pools to use
         ipv4_net = IPNetwork("10.0.1.0/24")
+        ipv4_net_w_mode = IPNetwork("10.0.2.0/24")
         ipv6_net = IPNetwork("fed0:8001::/64")
 
         ipv4_pool_dict = {'apiVersion': 'v1',
                           'kind': 'ipPool',
                           'metadata': {'cidr': str(ipv4_net.cidr)},
                           'spec': {'ipip': {'enabled': True}}
+                          }
+
+        ipv4_pool_dict_w_mode = {'apiVersion': 'v1',
+                          'kind': 'ipPool',
+                          'metadata': {'cidr': str(ipv4_net_w_mode.cidr)},
+                          'spec': {'ipip': {'mode': 'always'}}
                           }
 
         ipv6_pool_dict = {'apiVersion': 'v1',
@@ -59,6 +66,7 @@ class TestPool(TestBase):
         # We could have sent these via stdout into calicoctl, but this
         # seemed easier.
         self.writeyaml('/tmp/ipv4.yaml', ipv4_pool_dict)
+        self.writeyaml('/tmp/ipv4_w_mode.yaml', ipv4_pool_dict_w_mode)
         self.writeyaml('/tmp/ipv6.yaml', ipv6_pool_dict)
 
         # Create the ipv6 network using calicoctl
@@ -68,17 +76,20 @@ class TestPool(TestBase):
 
         # Add in the ipv4 network with calicoctl
         calicoctl("create -f /tmp/ipv4.yaml")
+        calicoctl("create -f /tmp/ipv4_w_mode.yaml")
         # Now read it out with the calicoctl:
         self.check_data_in_datastore([ipv4_pool_dict, ipv6_pool_dict], "ipPool")
 
         # Remove both the ipv4 pool and ipv6 pool
         calicoctl("delete -f /tmp/ipv6.yaml")
         calicoctl("delete -f /tmp/ipv4.yaml")
+        calicoctl("delete -f /tmp/ipv4_w_mode.yaml")
         # Assert output contains neither network
         self.check_data_in_datastore([], "ipPool")
 
         # Assert that deleting the pool again fails.
         self.assertRaises(CommandExecError, calicoctl, "delete -f /tmp/ipv4.yaml")
+        self.assertRaises(CommandExecError, calicoctl, "delete -f /tmp/ipv4_w_mode.yaml")
 
 
 class TestCreateFromFile(TestBase):
@@ -187,6 +198,11 @@ class TestCreateFromFile(TestBase):
                    'kind': 'ipPool',
                    'metadata': {'cidr': "10.0.2.0/24"},
                    'spec': {'ipip': {'enabled': True}}
+                   }),
+        ("pool3", {'apiVersion': 'v1',
+                   'kind': 'ipPool',
+                   'metadata': {'cidr': "10.0.3.0/24"},
+                   'spec': {'ipip': {'mode': 'always'}}
                    }),
         ("profile1", {'apiVersion': 'v1',
                       'kind': 'profile',
@@ -434,6 +450,11 @@ class TestCreateFromFile(TestBase):
           'metadata': {'cidr': "10.0.2.0/24"},
           'spec': {'ipip': {'enabled': True}}
           },
+          {'apiVersion': 'v1',
+           'kind': 'ipPool',
+           'metadata': {'cidr': "10.0.3.0/24"},
+           'spec': {'ipip': {'mode': 'always'}}
+           },
          ),
         ("profile",
          {'apiVersion': 'v1',
@@ -663,6 +684,11 @@ class TestCreateFromFile(TestBase):
           'metadata': {'cidr': "10.0.1.0/24"},
           'spec': {'ipip': {'enabled': True}}
           },
+          {'apiVersion': 'v1',
+           'kind': 'ipPool',
+           'metadata': {'cidr': "10.0.1.0/24"},
+           'spec': {'ipip': {'enabled': 'always'}}
+           },
          ),
         ("profile",
          {'apiVersion': 'v1',
