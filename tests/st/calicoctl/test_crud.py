@@ -1,3 +1,22 @@
+Skip to content
+This repository
+Search
+Pull requests
+Issues
+Marketplace
+Gist
+ @aslanbekirov
+ Sign out
+ Watch 64
+  Star 636
+ Fork 180 projectcalico/calicoctl
+ Code  Issues 33  Pull requests 4  Projects 0 Insights 
+Branch: master Find file Copy pathcalicoctl/tests/st/calicoctl/test_crud.py
+8810d1a  23 days ago
+@fasaxc fasaxc Pin libcalico-go to version with multiple nets in rule support.
+4 contributors @robbrockbank @tomdee @fasaxc @lwr20
+RawBlameHistory    
+1101 lines (1037 sloc)  49.4 KB
 # Copyright (c) 2015-2016 Tigera, Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1098,3 +1117,5 @@ class InvalidData(TestBase):
 
         # Cover the case where no data got stored, but calicoctl didn't fail:
         assert commanderror is True, "Failed - calicoctl did not fail to add invalid config"
+Contact GitHub API Training Shop Blog About
+© 2017 GitHub, Inc. Terms Privacy Security Status Help

@@ -29,7 +29,7 @@ func init() {
 		map[string]string{
 			"CIDR": "{{.Metadata.CIDR}}",
 			"NAT":  "{{.Spec.NATOutgoing}}",
-			"IPIP": "{{if .Spec.IPIP}}{{.Spec.IPIP.Enabled}}{{else}}false{{end}}",
+			"IPIP": "{{.Spec.IPIP.Mode}}",
 		},
 		func(client *client.Client, resource unversioned.Resource) (unversioned.Resource, error) {
 			r := resource.(api.IPPool)
