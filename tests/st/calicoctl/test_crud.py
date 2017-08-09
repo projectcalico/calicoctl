@@ -684,11 +684,6 @@ class TestCreateFromFile(TestBase):
           'metadata': {'cidr': "10.0.1.0/24"},
           'spec': {'ipip': {'enabled': True}}
           },
-          {'apiVersion': 'v1',
-           'kind': 'ipPool',
-           'metadata': {'cidr': "10.0.1.0/24"},
-           'spec': {'ipip': {'mode': 'always'}}
-           },
          ),
         ("profile",
          {'apiVersion': 'v1',
