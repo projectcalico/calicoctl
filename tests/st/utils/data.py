@@ -38,9 +38,7 @@ ippool_name1_rev1_v4 = {
     },
     'spec': {
         'cidr': "10.0.1.0/24",
-        'ipip': {
-            'mode': 'Always'
-        },
+        'ipipMode': 'Always',
     }
 }
 
@@ -52,9 +50,7 @@ ippool_name1_rev2_v4 = {
     },
     'spec': {
         'cidr': "10.0.1.0/24",
-        'ipip': {
-            'mode': 'Off'
-        },
+        'ipipMode': 'Off',
     }
 }
 
