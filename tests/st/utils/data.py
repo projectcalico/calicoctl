@@ -50,7 +50,7 @@ ippool_name1_rev2_v4 = {
     },
     'spec': {
         'cidr': "10.0.1.0/24",
-        'ipipMode': 'Off',
+        'ipipMode': 'Never',
     }
 }
 
