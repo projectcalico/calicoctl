@@ -61,7 +61,8 @@ ippool_name2_rev1_v6 = {
         'name': 'ippool-name2'
     },
     'spec': {
-        'cidr': "fed0:8001::/64"
+        'cidr': "fed0:8001::/64",
+        'ipipMode': 'Never',
     }
 }
 
