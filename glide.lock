@@ -1,5 +1,5 @@
-hash: 41d4583bfdb8c08cd322c97fbb15177a04b87846724298426c80fb59b1e8cbce
-updated: 2017-10-20T17:35:49.863079-07:00
+hash: 5836dd6037ed80d735f002cc7d55709af11434d447786b56ddcfe40827775a1d
+updated: 2017-10-23T10:33:15.36740327-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -114,7 +114,7 @@ imports:
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/influxdata/influxdb
-  version: 6aaa77241a27753459e859122e8c529ff1ea7212
+  version: 63324c243572c4b39b18a394d1ac4915afbf505e
   subpackages:
   - client/v2
   - models
@@ -192,7 +192,7 @@ imports:
   - table
   - zebra
 - name: github.com/pelletier/go-toml
-  version: 2009e44b6f182e34d8ce081ac2767622937ea3d4
+  version: 8c31c2ec65b208cc2ad1608bf25a3ff91adf1944
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/projectcalico/go-json
@@ -204,7 +204,7 @@ imports:
 - name: github.com/projectcalico/go-yaml-wrapper
   version: 598e54215bee41a19677faa4f0c32acd2a87eb56
 - name: github.com/projectcalico/libcalico-go
-  version: 8953ccf223be94fd0ea931a66df15b3f1ba3f054
+  version: 80853cf81b74dbde7b6c55dae0d52cfe8e0001c9
   subpackages:
   - lib/apiconfig
   - lib/apis/v1
@@ -241,9 +241,9 @@ imports:
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/sirupsen/logrus
-  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
+  version: 89742aefa4b206dcf400792f3bd35b542998eb3b
 - name: github.com/spf13/afero
-  version: e67d870304c4bca21331b02f414f970df13aa694
+  version: 5660eeed305fe5f69c8fc6cf899132a459a97064
   subpackages:
   - mem
 - name: github.com/spf13/cast
@@ -319,7 +319,7 @@ imports:
   - unicode/norm
   - width
 - name: google.golang.org/appengine
-  version: 4f7eeb5305a4ba1966344836ba4af9996b7b4e05
+  version: a2e0dc829727a4f957a7428b1f322805cfc1f362
   subpackages:
   - internal
   - internal/app_identity
