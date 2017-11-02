@@ -15,6 +15,7 @@ import copy
 import os
 import socket
 import sys
+from datetime import datetime
 from subprocess import CalledProcessError
 from subprocess import check_output, STDOUT
 
@@ -261,6 +262,13 @@ def decode_json_yaml(value):
         pass
     try:
         decoded = yaml.safe_load(value)
+
+        # fix up the datetime to go back to isoformat with an empty timezone at the end
+        if isinstance(decoded, dict) and 'metadata' in decoded and 'creationTimestamp' in decoded['metadata']:
+            if isinstance(decoded['metadata']['creationTimestamp'], datetime):
+                decoded['metadata']['creationTimestamp'] = decoded.get('metadata', {}). \
+                    get('creationTimestamp', datetime.utcnow()).isoformat() + 'Z'
+
         return decoded, "yaml"
     except yaml.YAMLError:
         pass
