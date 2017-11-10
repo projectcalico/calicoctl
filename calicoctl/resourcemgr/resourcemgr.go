@@ -32,6 +32,7 @@ import (
 	"github.com/projectcalico/go-yaml-wrapper"
 	client "github.com/projectcalico/libcalico-go/lib/clientv2"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
+	"github.com/projectcalico/libcalico-go/lib/validator"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -367,10 +368,9 @@ func unmarshalResource(tm unstructured.Unstructured, b []byte) ([]runtime.Object
 	}
 
 	log.Infof("Type of unpacked data: %v", reflect.TypeOf(unpacked))
-	// TODO: Remember to uncommment this once libcalico has validation code.
-	// if err = validator.Validate(unpacked); err != nil {
-	// 	return nil, err
-	// }
+	if err = validator.Validate(unpacked); err != nil {
+		return nil, err
+	}
 
 	log.Infof("Unpacked: %+v", unpacked)
 
@@ -400,12 +400,11 @@ func unmarshalSliceOfResources(tml []unstructured.Unstructured, b []byte) ([]run
 
 	// Validate the data in the structures.  The validator does not handle slices, so
 	// validate each resource separately.
-	// TODO: uncomment this once libcalico has validation
-	// for _, r := range unpacked {
-	// 	if err := validator.Validate(r); err != nil {
-	// 		return nil, err
-	// 	}
-	// }
+	for _, r := range unpacked {
+		if err := validator.Validate(r); err != nil {
+			return nil, err
+		}
+	}
 
 	log.Infof("Unpacked: %+v", unpacked)
 

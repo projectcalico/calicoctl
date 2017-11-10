@@ -121,7 +121,7 @@ networkpolicy_name1_rev1 = {
     'spec': {
         'order': 100,
         'selector': "type=='database'",
-        'types': ['ingress', 'egress'],
+        'types': ['Ingress', 'Egress'],
         'egress': [
             {
                 'action': 'allow',
@@ -168,7 +168,7 @@ networkpolicy_name1_rev2 = {
     'spec': {
         'order': 100000,
         'selector': "type=='sql'",
-        'types': ['ingress', 'egress'],
+        'types': ['Ingress', 'Egress'],
         'egress': [
             {
                 'action': 'deny',
@@ -221,7 +221,7 @@ networkpolicy_name2_rev1 = {
     'spec': {
         'order': 100000,
         'selector': "type=='sql'",
-        'types': ['ingress', 'egress'],
+        'types': ['Ingress', 'Egress'],
         'egress': [
             {
                 'action': 'deny',
@@ -249,7 +249,7 @@ globalnetworkpolicy_name1_rev1 = {
     'spec': {
         'order': 100,
         'selector': "type=='database'",
-        'types': ['ingress', 'egress'],
+        'types': ['Ingress', 'Egress'],
         'egress': [
             {
                 'action': 'allow',
@@ -296,7 +296,8 @@ globalnetworkpolicy_name1_rev2 = {
         'order': 100000,
         'selector': "type=='sql'",
         'doNotTrack': True,
-        'types': ['ingress', 'egress'],
+        'applyOnForward': True,
+        'types': ['Ingress', 'Egress'],
         'egress': [
             {
                 'action': 'deny',
@@ -599,7 +600,7 @@ felixconfig_name1_rev1 = {
     },
     'spec': {
         'chainInsertMode': 'append',
-        'defaultEndpointToHostAction': 'ACCEPT',
+        'defaultEndpointToHostAction': 'Accept',
         'failsafeInboundHostPorts': [
             {'protocol': 'tcp', 'port': 666},
             {'protocol': 'udp', 'port': 333}, ],
@@ -610,11 +611,11 @@ felixconfig_name1_rev1 = {
         'interfacePrefix': 'humperdink',
         'ipInIpMtu': 1521,
         'ipsetsRefreshIntervalSecs': 44,
-        'iptablesFilterAllowAction': 'rEtUrN',
+        'iptablesFilterAllowAction': 'Return',
         'iptablesLockFilePath': '/run/fun',
         'iptablesLockProbeIntervalMillis': 500,
         'iptablesLockTimeoutSecs': 22,
-        'iptablesMangleAllowAction': 'accept',
+        'iptablesMangleAllowAction': 'Accept',
         'iptablesMarkMask': 0xff0000,
         'iptablesPostWriteCheckIntervalSecs': 12,
         'iptablesRefreshIntervalSecs': 22,

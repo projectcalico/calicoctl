@@ -1,5 +1,5 @@
-hash: 41463eebeeca123f55b03e87a1ce5628a0d5a837938faf629d3123b6c4a8624b
-updated: 2017-11-08T14:18:46.388030519-08:00
+hash: d8d63157ecb2119b17198fa0805e4f7468876c7272f0919fe6c039fe465ffe19
+updated: 2017-11-09T14:53:58.329044376-08:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -118,7 +118,7 @@ imports:
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/influxdata/influxdb
-  version: c38f46a4cd6c03b03be039910444bd784788d4ac
+  version: fe35aee4c40723baa968a2db05857ff0acbe099f
   subpackages:
   - client/v2
   - models
@@ -130,7 +130,7 @@ imports:
 - name: github.com/kelseyhightower/envconfig
   version: f611eb38b3875cc3bd991ca91c51d06446afa14c
 - name: github.com/magiconair/properties
-  version: 8d7837e64d3c1ee4e54a880c5a920ab4316fc90a
+  version: 49d762b9817ba1c2e9d0c69183c2b4a8b8f1d934
 - name: github.com/mailru/easyjson
   version: d5b7844b561a7bc640052f1b935f7b800330d7e0
   subpackages:
@@ -173,7 +173,7 @@ imports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: c893efa28eb45626cdaa76c9f653b62488858837
+  version: 1eecca0ba8e6f5ea5a431ce21d3aee2af0b4c90b
   subpackages:
   - format
   - internal/assertion
@@ -214,7 +214,8 @@ imports:
 - name: github.com/projectcalico/go-yaml-wrapper
   version: 598e54215bee41a19677faa4f0c32acd2a87eb56
 - name: github.com/projectcalico/libcalico-go
-  version: c5fb7608b28e20b9b6156d3a3a032cdf0f5f57cc
+  version: 61b261c666bcdc9ef4077b3f32e83bf174fa425a
+  repo: https://github.com/gunjan5/libcalico-go
   subpackages:
   - lib/apiconfig
   - lib/apis/v1
@@ -243,6 +244,7 @@ imports:
   - lib/numorstring
   - lib/options
   - lib/scope
+  - lib/selector
   - lib/selector/parser
   - lib/selector/tokenizer
   - lib/set
@@ -274,7 +276,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/sirupsen/logrus
-  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
+  version: 89742aefa4b206dcf400792f3bd35b542998eb3b
 - name: github.com/spf13/afero
   version: 5660eeed305fe5f69c8fc6cf899132a459a97064
   subpackages:
@@ -286,15 +288,15 @@ imports:
 - name: github.com/spf13/pflag
   version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
 - name: github.com/spf13/viper
-  version: 8ef37cbca71638bf32f3d5e194117d4cb46da163
+  version: 4dddf7c62e16bce5807744018f5b753bfe21bbd2
 - name: github.com/termie/go-shutil
   version: bcacb06fecaeec8dc42af03c87c6949f4a05c74c
 - name: github.com/vishvananda/netlink
-  version: fe3b5664d23a11b52ba59bece4ff29c52772a56b
+  version: 63ca7e48f59f463578ae6b6e839bef6906f048e2
   subpackages:
   - nl
 - name: github.com/vishvananda/netns
-  version: 8ba1072b58e0c2a240eb5f6120165c7776c3e7b8
+  version: 86bef332bfc3b59b7624a600bd53009ce91a9829
 - name: golang.org/x/crypto
   version: 9419663f5a44be8b34ca85f08abc5fe1be11f8a3
   subpackages:
@@ -352,7 +354,7 @@ imports:
   - unicode/norm
   - width
 - name: google.golang.org/appengine
-  version: 4f7eeb5305a4ba1966344836ba4af9996b7b4e05
+  version: 9d8544a6b2c7df9cff240fcf92d7b2f59bc13416
   subpackages:
   - internal
   - internal/app_identity
@@ -377,6 +379,8 @@ imports:
   - stats
   - tap
   - transport
+- name: gopkg.in/go-playground/validator.v8
+  version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
 - name: gopkg.in/tomb.v2
