@@ -1,5 +1,5 @@
-hash: a7db65293a24a3d513a5836dbbec756e8ad6532c4798547fff6e317accdc8e82
-updated: 2017-11-15T01:01:47.2637982Z
+hash: 623ea57c2f2a3ce8511943d50684f028fbdf34251358b4caeb1f0555f32634bd
+updated: 2017-11-16T10:28:35.725932901Z
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -118,7 +118,7 @@ imports:
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/influxdata/influxdb
-  version: 97ab61addb82be06cc4174c3fc6d83bbfe37aeca
+  version: e2cb1d0ff46d343d876690357e72a3dac671165f
   subpackages:
   - client/v2
   - models
@@ -214,7 +214,7 @@ imports:
 - name: github.com/projectcalico/go-yaml-wrapper
   version: 598e54215bee41a19677faa4f0c32acd2a87eb56
 - name: github.com/projectcalico/libcalico-go
-  version: 9fddc31c42a863604f7c98ab7f899eb9eadae14e
+  version: 6e3a4cab8ca4d6c3c73855ae9ee40fdc43fed95a
   subpackages:
   - lib/apiconfig
   - lib/apis/v1
@@ -245,11 +245,13 @@ imports:
   - lib/numorstring
   - lib/options
   - lib/scope
+  - lib/selector
   - lib/selector/parser
   - lib/selector/tokenizer
   - lib/set
   - lib/testutils
   - lib/validator
+  - lib/validator/v3
   - lib/watch
 - name: github.com/prometheus/client_golang
   version: 967789050ba94deca04a5e84cce8ad472ce313c1
@@ -379,6 +381,8 @@ imports:
   - stats
   - tap
   - transport
+- name: gopkg.in/go-playground/validator.v8
+  version: 5f57d2222ad794d0dffb07e664ea05e2ee07d60c
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
 - name: gopkg.in/tomb.v2
