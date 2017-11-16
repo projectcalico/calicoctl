@@ -296,6 +296,7 @@ globalnetworkpolicy_name1_rev2 = {
         'order': 100000,
         'selector': "type=='sql'",
         'doNotTrack': True,
+        'applyOnForward': True,
         'types': ['Ingress', 'Egress'],
         'egress': [
             {
