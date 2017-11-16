@@ -600,7 +600,7 @@ felixconfig_name1_rev1 = {
     },
     'spec': {
         'chainInsertMode': 'append',
-        'defaultEndpointToHostAction': 'ACCEPT',
+        'defaultEndpointToHostAction': 'Accept',
         'failsafeInboundHostPorts': [
             {'protocol': 'TCP', 'port': 666},
             {'protocol': 'UDP', 'port': 333}, ],
@@ -611,11 +611,11 @@ felixconfig_name1_rev1 = {
         'interfacePrefix': 'humperdink',
         'ipipMTU': 1521,
         'ipsetsRefreshIntervalSecs': 44,
-        'iptablesFilterAllowAction': 'rEtUrN',
+        'iptablesFilterAllowAction': 'Return',
         'iptablesLockFilePath': '/run/fun',
         'iptablesLockProbeIntervalMillis': 500,
         'iptablesLockTimeoutSecs': 22,
-        'iptablesMangleAllowAction': 'accept',
+        'iptablesMangleAllowAction': 'Accept',
         'iptablesMarkMask': 0xff0000,
         'iptablesPostWriteCheckIntervalSecs': 12,
         'iptablesRefreshIntervalSecs': 22,
@@ -679,4 +679,3 @@ clusterinfo_name1_rev2 = {
         'calicoVersion': 'calico-version2',
     }
 }
-
