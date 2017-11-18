@@ -187,6 +187,30 @@ class TestCalicoctlCommands(TestBase):
         rc = calicoctl("delete hostendpoint %s" % name(rev0))
         rc.assert_no_error()
 
+    def test_hostendpoint_integer_node(self):
+        """
+        Tests a host endpoint with a node that can be parsed as an integer.
+        """
+        # Make sure it doesn't exist.
+        rc = calicoctl(
+            "get hostendpoint %s -o yaml" % name(hostendpoint_name2_rev1))
+        rc.assert_error(text=NOT_FOUND)
+
+        # Apply the hep.
+        rc = calicoctl("apply", data=hostendpoint_name2_rev1)
+        rc.assert_no_error()
+
+        # Make sure it exists.
+        rc = calicoctl(
+            "get hostendpoint %s -o yaml" % name(hostendpoint_name2_rev1))
+        rc.assert_no_error()
+        rev0 = rc.decoded
+
+        # Delete the hep.
+        rc = calicoctl("delete hostendpoint %s" % name(rev0))
+        rc.assert_no_error()
+
+
     def test_json(self):
         """
         Test mainline CRUD operations using JSON input and output.
