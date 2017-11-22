@@ -1,5 +1,5 @@
-hash: 0c7e3fc1c46ba968ba0607dee072c0b28717c7adab52b3cd85e120859abdfe41
-updated: 2017-10-30T10:30:24.138077738-07:00
+hash: 971493364b170f94211ce729f72ee405b77aa36bc7ad29bdf181fc8829a1a8d7
+updated: 2017-11-22T13:24:49.950502097Z
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -98,7 +98,7 @@ imports:
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/influxdata/influxdb
-  version: f2015afc0b186b54b6c38ce335953d43875b2bc8
+  version: e9cbc6da11435fd690561ff82e4a367ebdc62c79
   subpackages:
   - client/v2
   - models
@@ -110,7 +110,7 @@ imports:
 - name: github.com/kelseyhightower/envconfig
   version: 462fda1f11d8cad3660e52737b8beefd27acfb3f
 - name: github.com/magiconair/properties
-  version: 8d7837e64d3c1ee4e54a880c5a920ab4316fc90a
+  version: 49d762b9817ba1c2e9d0c69183c2b4a8b8f1d934
 - name: github.com/mailru/easyjson
   version: d5b7844b561a7bc640052f1b935f7b800330d7e0
   subpackages:
@@ -128,7 +128,7 @@ imports:
 - name: github.com/olekukonko/tablewriter
   version: a7a4c189eb47ed33ce7b35f2880070a0c82a67d4
 - name: github.com/onsi/ginkgo
-  version: 11459a886d9cd66b319dac7ef1e917ee221372c9
+  version: 652e15c9a27e1cec563e065568014f29eecf6bd9
   subpackages:
   - config
   - extensions/table
@@ -172,7 +172,7 @@ imports:
 - name: github.com/projectcalico/go-yaml-wrapper
   version: 598e54215bee41a19677faa4f0c32acd2a87eb56
 - name: github.com/projectcalico/libcalico-go
-  version: 6410b9a3ddf7e3b2e33e1e9acd7984e00101ec8f
+  version: 119c3c82c1c22337ceaffea0cdca5b127a139a1d
   subpackages:
   - lib/api
   - lib/api/unversioned
@@ -208,7 +208,7 @@ imports:
 - name: github.com/sirupsen/logrus
   version: ba1b36c82c5e05c4f912a88eab0dcd91a171688f
 - name: github.com/spf13/afero
-  version: 5660eeed305fe5f69c8fc6cf899132a459a97064
+  version: 8d919cbe7e2627e417f3e45c3c0e489a5b7e2536
   subpackages:
   - mem
 - name: github.com/spf13/cast
@@ -218,7 +218,7 @@ imports:
 - name: github.com/spf13/pflag
   version: 08b1a584251b5b62f458943640fc8ebd4d50aaa5
 - name: github.com/spf13/viper
-  version: 8ef37cbca71638bf32f3d5e194117d4cb46da163
+  version: 4dddf7c62e16bce5807744018f5b753bfe21bbd2
 - name: github.com/termie/go-shutil
   version: bcacb06fecaeec8dc42af03c87c6949f4a05c74c
 - name: github.com/ugorji/go
@@ -226,11 +226,11 @@ imports:
   subpackages:
   - codec
 - name: github.com/vishvananda/netlink
-  version: 71fa81e220b5dc091ae728ddfcba4b83abf24c94
+  version: c2a3de3b38bd00f07290c3c5e12b4dbc04ec8666
   subpackages:
   - nl
 - name: github.com/vishvananda/netns
-  version: 86bef332bfc3b59b7624a600bd53009ce91a9829
+  version: be1fbeda19366dea804f00efff2dd73a1642fdcc
 - name: golang.org/x/crypto
   version: 1351f936d976c60a0a48d728281922cf63eafb8d
   subpackages:
@@ -259,7 +259,7 @@ imports:
   - jws
   - jwt
 - name: golang.org/x/sys
-  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
+  version: 82aafbf43bf885069dc71b7e7c2f9d7a614d47da
   subpackages:
   - unix
 - name: golang.org/x/text
@@ -464,7 +464,7 @@ imports:
   - util/jsonpath
 testImports:
 - name: github.com/onsi/gomega
-  version: 283ed655c6b8238afecd5bea6434bc9b03129f2f
+  version: 1eecca0ba8e6f5ea5a431ce21d3aee2af0b4c90b
   subpackages:
   - format
   - internal/assertion
