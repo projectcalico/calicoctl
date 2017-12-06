@@ -81,7 +81,12 @@ Description:
 	if t == "" {
 		t = "unknown"
 	}
+	i := ci.Spec.ClusterGUID
+	if i == "" {
+		i = "unknown"
+	}
 
 	fmt.Println("Cluster Version:  ", v)
 	fmt.Println("Cluster Type:     ", t)
+	fmt.Println("Cluster GUID:     ", i)
 }
