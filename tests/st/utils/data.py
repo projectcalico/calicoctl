@@ -364,6 +364,20 @@ hostendpoint_name1_rev3 = {
     }
 }
 
+hostendpoint_name2_rev1 = {
+    'apiVersion': API_VERSION,
+    'kind': 'HostEndpoint',
+    'metadata': {
+        'name': 'endpoint2',
+        'labels': {'type': 'database'},
+    },
+    'spec': {
+        'interfaceName': 'eth0',
+        'profiles': ['prof1', 'prof2'],
+        'node': '12345e6'
+    }
+}
+
 #
 # Profiles
 #
