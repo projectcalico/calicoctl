@@ -1,5 +1,5 @@
-hash: 680e068468b3bbbe66db00b9b309260ae05ddd8937c91c0f37e026f65f558b97
-updated: 2018-04-02T18:14:53.113420637Z
+hash: 26b96532f3da1c594ea3fafb578cd6b19242e0b239082d7070f5831af272c0eb
+updated: 2018-04-03T17:46:40.416627876Z
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -105,7 +105,7 @@ imports:
   subpackages:
   - simplelru
 - name: github.com/hashicorp/hcl
-  version: f40e974e75af4e271d97ce0fc917af5898ae7bda
+  version: 061bf373e402ebb186988085a71ac748949594a9
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -121,7 +121,7 @@ imports:
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/influxdata/influxdb
-  version: dc71a8d82bf94ce4ed62818760d6a28b1abf8996
+  version: 729c8ad135069629fc01ae415b77b5e8977c39b5
   subpackages:
   - client/v2
   - models
@@ -217,7 +217,7 @@ imports:
 - name: github.com/projectcalico/go-yaml-wrapper
   version: 598e54215bee41a19677faa4f0c32acd2a87eb56
 - name: github.com/projectcalico/libcalico-go
-  version: 88291609bbefd0fe22982a7a78ec51d63583a651
+  version: 9070d94a5bf7214a417372890fa0ad28eb13e813
   subpackages:
   - lib/apiconfig
   - lib/apis/v1
