@@ -33,7 +33,8 @@ import:
 - package: github.com/sirupsen/logrus
   version: v1.0.4
 - package: github.com/projectcalico/libcalico-go
-  version: 88291609bbefd0fe22982a7a78ec51d63583a651
+  repo: https://github.com/ozdanborne/libcalico-go
+  version: bird-pkg
   subpackages:
   - lib/apis/v3
   - lib/clientv3
@@ -47,6 +48,7 @@ import:
   - lib/scope
   - lib/validator
   - lib/upgrade
+  - bird
 - package: github.com/termie/go-shutil
 - package: google.golang.org/grpc
 - package: github.com/coreos/etcd
