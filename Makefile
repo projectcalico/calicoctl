@@ -118,8 +118,8 @@ binary: $(CALICOCTL_FILES) vendor
 
 
 dist/calicoctl: $(CALICOCTL_FILES) vendor
-	$(MAKE) dist/calicoctl-linux-amd64
-	cp dist/calicoctl-linux-amd64 dist/calicoctl
+	$(MAKE) dist/calicoctl-linux-$(ARCH)
+	cp dist/calicoctl-linux-$(ARCH) dist/calicoctl
 
 ## build for linux on amd64
 dist/calicoctl-linux-amd64: $(CALICOCTL_FILES) vendor
