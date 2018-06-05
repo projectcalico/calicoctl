@@ -1,5 +1,5 @@
-hash: 5a69ee7e8afe5cc9fc1466a8cbd3f996d41fd796f271e7d81fa32a2b394d991c
-updated: 2018-05-29T14:15:09.840591895-07:00
+hash: bae27f73fdc940ebdb04da8680ac25c37837953f5950ab83139a5cd92d8f4cdd
+updated: 2018-06-05T19:59:02.5495651Z
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -217,7 +217,8 @@ imports:
 - name: github.com/projectcalico/go-yaml-wrapper
   version: 598e54215bee41a19677faa4f0c32acd2a87eb56
 - name: github.com/projectcalico/libcalico-go
-  version: d6aff54dc3527357f016c0cd5c5364f21a15e9b4
+  version: 6685fc9f71ae6e0bb42c2ea6a958abeb036f2cfc
+  repo: https://github.com/dmmcquay/libcalico-go
   subpackages:
   - lib/apiconfig
   - lib/apis/v1
@@ -259,7 +260,7 @@ imports:
   subpackages:
   - prometheus
 - name: github.com/prometheus/client_model
-  version: 99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c
+  version: 6f3806018612930941127f2a7c6c453ba2c527d2
   subpackages:
   - go
 - name: github.com/prometheus/common
