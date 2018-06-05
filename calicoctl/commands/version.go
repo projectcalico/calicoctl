@@ -81,7 +81,12 @@ Description:
 	if t == "" {
 		t = "unknown"
 	}
+	c := ci.Spec.CNIVersion
+	if c == "" {
+		c = "unknown"
+	}
 
 	fmt.Println("Cluster Version:  ", v)
+	fmt.Println("CNI Version:      ", c)
 	fmt.Println("Cluster Type:     ", t)
 }
