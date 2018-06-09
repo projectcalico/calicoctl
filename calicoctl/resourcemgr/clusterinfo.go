@@ -29,13 +29,14 @@ func init() {
 		api.NewClusterInformationList(),
 		false,
 		[]string{"clusterinformation", "clusterinformations", "clusterinfo", "clusterinfos"},
-		[]string{"NAME", "CLUSTERGUID", "CLUSTERTYPE", "CALICOVERSION", "DATASTOREREADY"},
-		[]string{"NAME", "CLUSTERGUID", "CLUSTERTYPE", "CALICOVERSION", "DATASTOREREADY"},
+		[]string{"NAME", "CLUSTERGUID", "CLUSTERTYPE", "CALICOVERSION", "CNIVERSION", "DATASTOREREADY"},
+		[]string{"NAME", "CLUSTERGUID", "CLUSTERTYPE", "CALICOVERSION", "CNIVERSION", "DATASTOREREADY"},
 		map[string]string{
 			"NAME":           "{{.ObjectMeta.Name}}",
 			"CLUSTERGUID":    "{{.Spec.ClusterGUID}}",
 			"CLUSTERTYPE":    "{{.Spec.ClusterType}}",
 			"CALICOVERSION":  "{{.Spec.CalicoVersion}}",
+			"CNIVERSION":     "{{.Spec.CNIVersion}}",
 			"DATASTOREREADY": "{{.Spec.DatastoreReady}}",
 		},
 		func(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceObject, error) {
