@@ -759,7 +759,7 @@ class TestCalicoctlCommands(TestBase):
         rc.assert_error(text=KUBERNETES_NP)
 
         rc = calicoctl("apply", data=k8s_np)
-        rc.assert_error(text=NOT_FOUND)
+        rc.assert_error(text=NOT_SUPPORTED)
 
         rc = calicoctl("replace", data=k8s_np)
         rc.assert_error(text=NOT_FOUND)
