@@ -15,7 +15,7 @@ import:
   - json
 - package: github.com/projectcalico/go-yaml-wrapper
 - package: github.com/projectcalico/libcalico-go
-  version: f251d846b93dc51ccf00a01269965d231eae5595
+  version: rr-data-model
   subpackages:
   - lib/apiconfig
   - lib/apis/v1
@@ -44,7 +44,4 @@ import:
   - pkg/runtime
   - pkg/runtime/schema
 testImport:
-- package: github.com/onsi/ginkgo
-  subpackages:
-  - extensions/table
 - package: github.com/onsi/gomega
