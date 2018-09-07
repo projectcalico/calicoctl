@@ -26,13 +26,8 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
 
-var VERSION, GIT_REVISION string
-var VERSION_SUMMARY string
-var BUILD_DATE string // unused
-
-func init() {
-	VERSION_SUMMARY = VERSION + "-" + GIT_REVISION
-}
+var VERSION string
+var BUILD_DATE, GIT_REVISION string // unused
 
 func Version(args []string) {
 	doc := `Usage:
@@ -56,7 +51,7 @@ Description:
 		return
 	}
 
-	fmt.Println("Client Version:   ", VERSION_SUMMARY)
+	fmt.Println("Client Version:   ", VERSION)
 
 	// Load the client config and connect.
 	cf := parsedArgs["--config"].(string)
