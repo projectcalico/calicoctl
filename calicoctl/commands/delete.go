@@ -24,7 +24,6 @@ import (
 
 func init() {
 	deleteCommandArgs = newDeleteResourceArgs(DeleteCommand.Flags())
-	DeleteCommand.MarkFlagRequired("filename")
 }
 
 var (
@@ -76,7 +75,24 @@ var (
   failure deleting a specific resource it is possible to work out which
   resource failed based on the number of resources successfully deleted.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			results := executeConfigCommand(deleteCommandArgs.mapArgs(), actionDelete)
+			parsedArgs := deleteCommandArgs.mapArgs()
+			if len(args) < 1 {
+				if len(*deleteCommandArgs.filename) == 0 {
+					fmt.Println(`Example resource specifications include:
+   '-f rsrc.yaml'
+   '--filename=rsrc.json'
+   '<resource> <name>'
+   '<resource>'`)
+					os.Exit(1)
+				}
+			} else {
+				parsedArgs["<KIND>"] = args[0]
+				if len(args) > 1 {
+					parsedArgs["<NAME>"] = args[1]
+				}
+			}
+
+			results := executeConfigCommand(parsedArgs, actionDelete)
 			log.Infof("results: %+v", results)
 
 			if results.fileInvalid {
