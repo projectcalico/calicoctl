@@ -28,7 +28,7 @@ import (
 	"github.com/projectcalico/calicoctl/calicoctl/commands/argutils"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/clientmgr"
 	"github.com/projectcalico/calicoctl/calicoctl/resourcemgr"
-	yaml "github.com/projectcalico/go-yaml-wrapper"
+	"github.com/projectcalico/go-yaml-wrapper"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoErrors "github.com/projectcalico/libcalico-go/lib/errors"
 )
@@ -120,7 +120,7 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 
 	log.Info("Executing config command")
 
-	if filename := args["--filename"]; filename != nil {
+	if filename := args["--filename"]; filename != nil && len(filename.(string)) > 0 {
 		// Filename is specified, load the resource from file and convert to a slice
 		// of resources for easier handling.
 		if r, err = resourcemgr.CreateResourcesFromFile(filename.(string)); err != nil {

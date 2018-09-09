@@ -26,77 +26,62 @@ import (
 
 	"reflect"
 
-	"github.com/docopt/docopt-go"
 	"github.com/olekukonko/tablewriter"
 	gobgp "github.com/osrg/gobgp/client"
 	"github.com/osrg/gobgp/packet/bgp"
 	"github.com/shirou/gopsutil/process"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
-// Status prints status of the node and returns error (if any)
-func Status(args []string) {
-	doc := `Usage:
-  calicoctl node status
+// StatusCommand prints status of the node and returns error (if any)
+var StatusCommand = &cobra.Command{
+	Use: "status",
+	Long: `Check the status of the Calico node instance. This includes the status and
+uptime of the node instance, and BGP peering states.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		// Must run this command as root to be able to connect to BIRD sockets
+		enforceRoot()
 
-Options:
-  -h --help                 Show this screen.
-
-Description:
-  Check the status of the Calico node instance.  This includes the status and
-  uptime of the node instance, and BGP peering states.
-`
-
-	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)
-	if err != nil {
-		fmt.Printf("Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
-		os.Exit(1)
-	}
-	if len(parsedArgs) == 0 {
-		return
-	}
-
-	// Must run this command as root to be able to connect to BIRD sockets
-	enforceRoot()
-
-	// Go through running processes and check if `calico-felix` processes is not running
-	processes, err := process.Processes()
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// For older versions of calico/node, the process was called `calico-felix`. Newer ones use `calico-node -felix`.
-	if !psContains([]string{"calico-felix"}, processes) && !psContains([]string{"calico-node", "-felix"}, processes) {
-		// Return and print message if calico-node is not running
-		fmt.Printf("Calico process is not running.\n")
-		os.Exit(1)
-	}
-
-	fmt.Printf("Calico process is running.\n")
-
-	if psContains([]string{"bird"}, processes) || psContains([]string{"bird6"}, processes) {
-		// Check if birdv4 process is running, print the BGP peer table if it is, else print a warning
-		if psContains([]string{"bird"}, processes) {
-			printBIRDPeers("4")
-		} else {
-			fmt.Printf("\nINFO: BIRDv4 process: 'bird' is not running.\n")
+		// Go through running processes and check if `calico-felix` processes is not running
+		processes, err := process.Processes()
+		if err != nil {
+			fmt.Println(err)
 		}
-		// Check if birdv6 process is running, print the BGP peer table if it is, else print a warning
-		if psContains([]string{"bird6"}, processes) {
-			printBIRDPeers("6")
-		} else {
-			fmt.Printf("\nINFO: BIRDv6 process: 'bird6' is not running.\n")
-		}
-	} else if psContains([]string{"calico-bgp-daemon"}, processes) {
-		printGoBGPPeers("4")
-		printGoBGPPeers("6")
-	} else {
-		fmt.Printf("\nNone of the BGP backend processes (BIRD or GoBGP) are running.\n")
-	}
 
-	// Have to manually enter an empty line because the table print
-	// library prints the last line, so can't insert a '\n' there
-	fmt.Println()
+		// For older versions of calico/node, the process was called `calico-felix`. Newer ones use `calico-node -felix`.
+		if !psContains([]string{"calico-felix"}, processes) && !psContains([]string{"calico-node", "-felix"}, processes) {
+			// Return and print message if calico-node is not running
+			fmt.Printf("Calico process is not running.\n")
+			os.Exit(1)
+		}
+
+		fmt.Printf("Calico process is running.\n")
+
+		if psContains([]string{"bird"}, processes) || psContains([]string{"bird6"}, processes) {
+			// Check if birdv4 process is running, print the BGP peer table if it is, else print a warning
+			if psContains([]string{"bird"}, processes) {
+				printBIRDPeers("4")
+			} else {
+				fmt.Printf("\nINFO: BIRDv4 process: 'bird' is not running.\n")
+			}
+			// Check if birdv6 process is running, print the BGP peer table if it is, else print a warning
+			if psContains([]string{"bird6"}, processes) {
+				printBIRDPeers("6")
+			} else {
+				fmt.Printf("\nINFO: BIRDv6 process: 'bird6' is not running.\n")
+			}
+		} else if psContains([]string{"calico-bgp-daemon"}, processes) {
+			printGoBGPPeers("4")
+			printGoBGPPeers("6")
+		} else {
+			fmt.Printf("\nNone of the BGP backend processes (BIRD or GoBGP) are running.\n")
+		}
+
+		// Have to manually enter an empty line because the table print
+		// library prints the last line, so can't insert a '\n' there
+		fmt.Println()
+	},
 }
 
 func psContains(proc []string, procList []*process.Process) bool {

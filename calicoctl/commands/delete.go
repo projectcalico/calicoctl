@@ -17,45 +17,29 @@ package commands
 import (
 	"fmt"
 	"os"
-	"strings"
 
-	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
+	"github.com/spf13/cobra"
 )
 
-func Delete(args []string) {
-	doc := constants.DatastoreIntro + `Usage:
-  calicoctl delete ( (<KIND> [<NAME>]) |
-                   --filename=<FILE>)
-                   [--skip-not-exists] [--config=<CONFIG>] [--namespace=<NS>]
+func init() {
+	deleteCommandArgs = newDeleteResourceArgs(DeleteCommand.Flags())
+}
 
-Examples:
-  # Delete a policy using the type and name specified in policy.yaml.
+var (
+	deleteCommandArgs deleteResourceArgs
+	DeleteCommand     = &cobra.Command{
+		Use:   "delete",
+		Short: "Delete a Calico resource.",
+		Example: `# Delete a policy using the type and name specified in policy.yaml.
   calicoctl delete -f ./policy.yaml
 
   # Delete a policy based on the type and name in the YAML passed into stdin.
   cat policy.yaml | calicoctl delete -f -
 
   # Delete policy with name "foo"
-  calicoctl delete policy foo
-
-Options:
-  -h --help                 Show this screen.
-  -s --skip-not-exists      Skip over and treat as successful, resources that
-                            don't exist.
-  -f --filename=<FILENAME>  Filename to use to delete the resource.  If set to
-                            "-" loads from stdin.
-  -c --config=<CONFIG>      Path to the file containing connection
-                            configuration in YAML or JSON format.
-                            [default: ` + constants.DefaultConfigPath + `]
-  -n --namespace=<NS>       Namespace of the resource.
-                            Only applicable to NetworkPolicy and WorkloadEndpoint.
-                            Uses the default namespace if not specified.
-
-Description:
-  The delete command is used to delete a set of resources by filename or stdin,
+  calicoctl delete policy foo`,
+		Long: `The delete command is used to delete a set of resources by filename or stdin,
   or by type and identifiers.  JSON and YAML formats are accepted for file and
   stdin format.
 
@@ -89,50 +73,60 @@ Description:
 
   The resources are deleted in the order they are specified.  In the event of a
   failure deleting a specific resource it is possible to work out which
-  resource failed based on the number of resources successfully deleted.
-`
-	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)
-	if err != nil {
-		fmt.Printf("Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
-		os.Exit(1)
-	}
-	if len(parsedArgs) == 0 {
-		return
-	}
+  resource failed based on the number of resources successfully deleted.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			parsedArgs := deleteCommandArgs.mapArgs()
+			if len(args) < 1 {
+				if len(*deleteCommandArgs.filename) == 0 {
+					fmt.Println(`Example resource specifications include:
+   '-f rsrc.yaml'
+   '--filename=rsrc.json'
+   '<resource> <name>'
+   '<resource>'`)
+					os.Exit(1)
+				}
+			} else {
+				parsedArgs["<KIND>"] = args[0]
+				if len(args) > 1 {
+					parsedArgs["<NAME>"] = args[1]
+				}
+			}
 
-	results := executeConfigCommand(parsedArgs, actionDelete)
-	log.Infof("results: %+v", results)
+			results := executeConfigCommand(parsedArgs, actionDelete)
+			log.Infof("results: %+v", results)
 
-	if results.fileInvalid {
-		fmt.Printf("Failed to execute command: %v\n", results.err)
-		os.Exit(1)
-	} else if results.numHandled == 0 {
-		if results.numResources == 0 {
-			fmt.Printf("No resources specified in file\n")
-		} else if results.numResources == 1 {
-			fmt.Printf("Failed to delete '%s' resource: %v\n", results.singleKind, results.err)
-		} else if results.singleKind != "" {
-			fmt.Printf("Failed to delete any '%s' resources: %v\n", results.singleKind, results.err)
-		} else {
-			fmt.Printf("Failed to delete any resources: %v\n", results.err)
-		}
-		os.Exit(1)
-	} else if results.err == nil {
-		if results.singleKind != "" {
-			fmt.Printf("Successfully deleted %d '%s' resource(s)\n", results.numHandled, results.singleKind)
-		} else {
-			fmt.Printf("Successfully deleted %d resource(s)\n", results.numHandled)
-		}
-	} else {
-		fmt.Printf("Partial success: ")
-		if results.singleKind != "" {
-			fmt.Printf("deleted the first %d out of %d '%s' resources:\n",
-				results.numHandled, results.numResources, results.singleKind)
-		} else {
-			fmt.Printf("deleted the first %d out of %d resources:\n",
-				results.numHandled, results.numResources)
-		}
-		fmt.Printf("Hit error: %v\n", results.err)
-		os.Exit(1)
+			if results.fileInvalid {
+				fmt.Printf("Failed to execute command: %v\n", results.err)
+				os.Exit(1)
+			} else if results.numHandled == 0 {
+				if results.numResources == 0 {
+					fmt.Printf("No resources specified in file\n")
+				} else if results.numResources == 1 {
+					fmt.Printf("Failed to delete '%s' resource: %v\n", results.singleKind, results.err)
+				} else if results.singleKind != "" {
+					fmt.Printf("Failed to delete any '%s' resources: %v\n", results.singleKind, results.err)
+				} else {
+					fmt.Printf("Failed to delete any resources: %v\n", results.err)
+				}
+				os.Exit(1)
+			} else if results.err == nil {
+				if results.singleKind != "" {
+					fmt.Printf("Successfully deleted %d '%s' resource(s)\n", results.numHandled, results.singleKind)
+				} else {
+					fmt.Printf("Successfully deleted %d resource(s)\n", results.numHandled)
+				}
+			} else {
+				fmt.Printf("Partial success: ")
+				if results.singleKind != "" {
+					fmt.Printf("deleted the first %d out of %d '%s' resources:\n",
+						results.numHandled, results.numResources, results.singleKind)
+				} else {
+					fmt.Printf("deleted the first %d out of %d resources:\n",
+						results.numHandled, results.numResources)
+				}
+				fmt.Printf("Hit error: %v\n", results.err)
+				os.Exit(1)
+			}
+		},
 	}
-}
+)

@@ -18,70 +18,53 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
-	"github.com/docopt/docopt-go"
+	"github.com/spf13/cobra"
+
 	"github.com/projectcalico/calicoctl/calicoctl/commands/clientmgr"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
 
-var VERSION, BUILD_DATE, GIT_REVISION string
-var VERSION_SUMMARY string
+var (
+	VERSION                  string
+	BUILD_DATE, GIT_REVISION string // unused
+	cf                       = constants.DefaultConfigPath
+)
 
 func init() {
-	VERSION_SUMMARY = "calicoctl version " + VERSION + ", build " + GIT_REVISION
+	VersionCommand.Flags().StringVarP(&cf, "config", "c", constants.DefaultConfigPath, "Path to the file containing connection configuration in YAML or JSON format.")
 }
 
-func Version(args []string) {
-	doc := `Usage:
-  calicoctl version [--config=<CONFIG>]
+var VersionCommand = &cobra.Command{
+	Use:   "version",
+	Short: "Display the version of calicoctl",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Client Version:   ", VERSION)
 
-Options:
-  -h --help             Show this screen.
-  -c --config=<CONFIG>  Path to the file containing connection configuration in
-                        YAML or JSON format.
-                        [default: ` + constants.DefaultConfigPath + `]
+		// Load the client config and connect.
+		client, err := clientmgr.NewClient(cf)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ctx := context.Background()
+		ci, err := client.ClusterInformation().Get(ctx, "default", options.GetOptions{})
+		if err != nil {
+			fmt.Println("Unable to retrieve Cluster Version or Type: ", err)
+			os.Exit(1)
+		}
 
-Description:
-  Display the version of calicoctl.
-`
-	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)
-	if err != nil {
-		fmt.Printf("Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
-		os.Exit(1)
-	}
-	if len(parsedArgs) == 0 {
-		return
-	}
+		v := ci.Spec.CalicoVersion
+		if v == "" {
+			v = "unknown"
+		}
+		t := ci.Spec.ClusterType
+		if t == "" {
+			t = "unknown"
+		}
 
-	fmt.Println("Client Version:   ", VERSION)
-	fmt.Println("Build date:       ", BUILD_DATE)
-	fmt.Println("Git commit:       ", GIT_REVISION)
-
-	// Load the client config and connect.
-	cf := parsedArgs["--config"].(string)
-	client, err := clientmgr.NewClient(cf)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	ctx := context.Background()
-	ci, err := client.ClusterInformation().Get(ctx, "default", options.GetOptions{})
-	if err != nil {
-		fmt.Println("Unable to retrieve Cluster Version or Type: ", err)
-		os.Exit(1)
-	}
-
-	v := ci.Spec.CalicoVersion
-	if v == "" {
-		v = "unknown"
-	}
-	t := ci.Spec.ClusterType
-	if t == "" {
-		t = "unknown"
-	}
-
-	fmt.Println("Cluster Version:  ", v)
-	fmt.Println("Cluster Type:     ", t)
+		fmt.Println("Cluster Version:  ", v)
+		fmt.Println("Cluster Type:     ", t)
+	},
 }

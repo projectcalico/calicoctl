@@ -1,5 +1,5 @@
-hash: 98f26f77e73088b84c7b6c3caa10062d5c8beb14140a5c4b965e2518c954df32
-updated: 2018-09-07T15:23:36.932481188Z
+hash: b335fc9a8b5d65c03331ac062f5194579beefb6573bafca2f2fe59af38ade774
+updated: 2018-09-07T13:58:21.683697899-07:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -109,6 +109,8 @@ imports:
   - json/token
 - name: github.com/imdario/mergo
   version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
+- name: github.com/inconshreveable/mousetrap
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/influxdata/influxdb
   version: 375eddebb83c3f2d198d7a029363eeadc28f5a60
   subpackages:
@@ -273,6 +275,8 @@ imports:
   - mem
 - name: github.com/spf13/cast
   version: 8965335b8c7107321228e3e3702cab9832751bac
+- name: github.com/spf13/cobra
+  version: 99dc123558852f67743bd0b2caf8383cb3c6d720
 - name: github.com/spf13/jwalterweatherman
   version: 7c0cea34c8ece3fbeb2b27ab9b59511d360fb394
 - name: github.com/spf13/pflag

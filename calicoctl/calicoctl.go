@@ -16,84 +16,51 @@ package main
 
 import (
 	"fmt"
-
 	"os"
 
-	"github.com/docopt/docopt-go"
-	"github.com/projectcalico/calicoctl/calicoctl/commands"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
+	"github.com/projectcalico/calicoctl/calicoctl/commands"
+)
+
+var (
+	rootCmd = &cobra.Command{
+		Use:   "calicoctl",
+		Short: "manage Calico resources",
+		Long: `The calicoctl command line tool is used to manage 
+Calico network and security policy, to view and manage 
+endpoint configuration, and to manage a Calico node instance.`,
+		Version: commands.VERSION,
+	}
 )
 
 func main() {
-	doc := `Usage:
-  calicoctl [options] <command> [<args>...]
+	rootCmd.AddCommand(commands.CreateCommand)
+	rootCmd.AddCommand(commands.ReplaceCommand)
+	rootCmd.AddCommand(commands.ApplyCommand)
+	rootCmd.AddCommand(commands.DeleteCommand)
+	rootCmd.AddCommand(commands.GetCommand)
+	rootCmd.AddCommand(commands.ConvertCommand)
+	rootCmd.AddCommand(commands.VersionCommand)
+	rootCmd.AddCommand(commands.NodeCommand)
+	rootCmd.AddCommand(commands.IPAMCommand)
 
-    create    Create a resource by filename or stdin.
-    replace   Replace a resource by filename or stdin.
-    apply     Apply a resource by filename or stdin.  This creates a resource
-              if it does not exist, and replaces a resource if it does exists.
-    delete    Delete a resource identified by file, stdin or resource type and
-              name.
-    get       Get a resource identified by file, stdin or resource type and
-              name.
-    convert   Convert config files between different API versions.
-    ipam      IP address management.
-    node      Calico node management.
-    version   Display the version of calicoctl.
-
-Options:
-  -h --help               Show this screen.
-  -l --log-level=<level>  Set the log level (one of panic, fatal, error,
-                          warn, info, debug) [default: panic]
-
-Description:
-  The calicoctl command line tool is used to manage Calico network and security
-  policy, to view and manage endpoint configuration, and to manage a Calico
-  node instance.
-
-  See 'calicoctl <command> --help' to read about a specific subcommand.
-`
-	arguments, _ := docopt.Parse(doc, nil, true, "", true, false)
-
-	if logLevel := arguments["--log-level"]; logLevel != nil {
-		parsedLogLevel, err := log.ParseLevel(logLevel.(string))
-		if err != nil {
-			fmt.Printf("Unknown log level: %s, expected one of: \n"+
-				"panic, fatal, error, warn, info, debug.\n", logLevel)
-			os.Exit(1)
-		} else {
-			log.SetLevel(parsedLogLevel)
-			log.Infof("Log level set to %v", parsedLogLevel)
-		}
+	// handle log level option
+	logLevel := rootCmd.Flags().StringP(
+		"log-level", "l", "panic",
+		"Set the log level (one of panic, fatal, error, warn, info, debug")
+	parsedLogLevel, err := log.ParseLevel(*logLevel)
+	if err != nil {
+		fmt.Printf("Unknown log level: %s, expected one of: \n"+
+			"panic, fatal, error, warn, info, debug.\n", logLevel)
+		os.Exit(1)
+	} else {
+		log.SetLevel(parsedLogLevel)
+		log.Infof("Log level set to %v", parsedLogLevel)
 	}
 
-	if arguments["<command>"] != nil {
-		command := arguments["<command>"].(string)
-		args := append([]string{command}, arguments["<args>"].([]string)...)
-
-		switch command {
-		case "create":
-			commands.Create(args)
-		case "replace":
-			commands.Replace(args)
-		case "apply":
-			commands.Apply(args)
-		case "delete":
-			commands.Delete(args)
-		case "get":
-			commands.Get(args)
-		case "convert":
-			commands.Convert(args)
-		case "version":
-			commands.Version(args)
-		case "node":
-			commands.Node(args)
-		case "ipam":
-			commands.IPAM(args)
-		default:
-			fmt.Fprintf(os.Stderr, "Unknown command: %q\n", command)
-			fmt.Println(doc)
-			os.Exit(1)
-		}
-	}
+	// Execute command
+	rootCmd.Execute()
+	return
 }

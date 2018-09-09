@@ -17,10 +17,15 @@ package commands
 import (
 	"fmt"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 // Node function is a switch to node related sub-commands
-func Node(args []string) {
-	fmt.Println("Error executing command: 'calicoctl node' commands are not available on this OS")
-	os.Exit(1)
+var NodeCommand = &cobra.Command{
+	Use: "node",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Error executing command: 'calicoctl node' commands are not available on this OS")
+		os.Exit(1)
+	},
 }
