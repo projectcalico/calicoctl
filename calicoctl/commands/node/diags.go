@@ -25,8 +25,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	shutil "github.com/termie/go-shutil"
 )
 
@@ -37,19 +37,21 @@ type diagCmd struct {
 	filename string
 }
 
-// Diags function collects diagnostic information and logs
-func Diags(args []string) {
-	var err error
-	doc := `Usage:
-  calicoctl node diags [--log-dir=<LOG_DIR>]
+func init() {
+	DiagsCommand.Flags().StringVar(&logDir, "log-dir", "/var/log/calico", "The directory containing Calico logs.")
+}
 
-Options:
-  -h --help               Show this screen.
-     --log-dir=<LOG_DIR>  The directory containing Calico logs.
-                          [default: /var/log/calico]
+var (
+	logDir string
 
-Description:
-  This command is used to gather diagnostic information from a Calico node.
+	// DiagsCommand collects diagnostic information and logs
+	DiagsCommand = &cobra.Command{
+		Use: "diags",
+		//Options:
+		// -h --help               Show this screen.
+		//   --log-dir=<LOG_DIR>  The directory containing Calico logs.
+		//                       [default: /var/log/calico]
+		Long: `This command is used to gather diagnostic information from a Calico node.
   This is usually used when trying to diagnose an issue that may be related to
   your Calico network.
 
@@ -58,23 +60,15 @@ Description:
   uploaded files will be deleted after 14 days.
 
   This command must be run on the specific Calico node that you are gathering
-  diagnostics for.
-`
-
-	arguments, err := docopt.Parse(doc, args, true, "", false, false)
-	if err != nil {
-		fmt.Printf("Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
-		os.Exit(1)
+  diagnostics for.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			runDiags()
+		},
 	}
-	if len(arguments) == 0 {
-		return
-	}
-
-	runDiags(arguments["--log-dir"].(string))
-}
+)
 
 // runDiags takes logDir and runs a sequence of commands to collect diagnostics
-func runDiags(logDir string) {
+func runDiags() {
 
 	// Note: in for the cmd field in this struct, it  can't handle args quoted with space in it
 	// For example, you can't add cmd "do this", since after the `strings.Fields` it will become `"do` and `this"`

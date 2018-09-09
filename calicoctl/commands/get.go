@@ -15,52 +15,31 @@
 package commands
 
 import (
-	"os"
-
-	"github.com/docopt/docopt-go"
-
 	"fmt"
+	"os"
 	"strings"
 
-	"github.com/projectcalico/calicoctl/calicoctl/commands/argutils"
-	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
-
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
+	"github.com/projectcalico/calicoctl/calicoctl/commands/argutils"
 )
 
-func Get(args []string) {
-	doc := constants.DatastoreIntro + `Usage:
-  calicoctl get ( (<KIND> [<NAME>]) |
-                --filename=<FILENAME>)
-                [--output=<OUTPUT>] [--config=<CONFIG>] [--namespace=<NS>] [--all-namespaces] [--export]
+func init() {
+	getCommandArgs = newGetResourceArgs(GetCommand.Flags())
+}
 
-Examples:
-  # List all policy in default output format.
+var (
+	getCommandArgs getResourceArgs
+	GetCommand     = &cobra.Command{
+		Use:   "get",
+		Short: "Retrieve a Calico resource",
+		Example: `# List all policy in default output format.
   calicoctl get policy
 
   # List a specific policy in YAML format
-  calicoctl get -o yaml policy my-policy-1
-
-Options:
-  -h --help                    Show this screen.
-  -f --filename=<FILENAME>     Filename to use to get the resource.  If set to
-                               "-" loads from stdin.
-  -o --output=<OUTPUT FORMAT>  Output format.  One of: yaml, json, ps, wide,
-                               custom-columns=..., go-template=...,
-                               go-template-file=...   [Default: ps]
-  -c --config=<CONFIG>         Path to the file containing connection
-                               configuration in YAML or JSON format.
-                               [default: ` + constants.DefaultConfigPath + `]
-  -n --namespace=<NS>          Namespace of the resource.
-                               Only applicable to NetworkPolicy and WorkloadEndpoint.
-                               Uses the default namespace if not specified.
-  -a --all-namespaces          If present, list the requested object(s) across all namespaces.
-  --export                     If present, returns the requested object(s) stripped of
-                               cluster-specific information. This flag will be ignored
-			       if <NAME> is not specified.
-
-Description:
-  The get command is used to display a set of resources by filename or stdin,
+  calicoctl get -o yaml policy my-policy-1`,
+		Long: `The get command is used to display a set of resources by filename or stdin,
   or by type and identifiers.  JSON and YAML formats are accepted for file and
   stdin format.
 
@@ -110,87 +89,93 @@ Description:
   Please refer to the docs at http://docs.projectcalico.org for more details on
   the output formats, including example outputs, resource structure (required
   for the golang template definitions) and the valid column names (required for
-  the custom-columns option).
-`
-	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)
-	if err != nil {
-		fmt.Printf("Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
-		os.Exit(1)
-	}
-	if len(parsedArgs) == 0 {
-		return
-	}
+  the custom-columns option).`,
+		Run: func(cmd *cobra.Command, args []string) {
+			parsedArgs := getCommandArgs.mapArgs()
+			if len(args) < 1 {
+				if len(*getCommandArgs.filename) == 0 {
+					fmt.Println(`Example resource specifications include:
+   '-f rsrc.yaml'
+   '--filename=rsrc.json'
+   '<resource> <name>'
+   '<resource>'`)
+					os.Exit(1)
+				}
+			} else {
+				parsedArgs["<KIND>"] = args[0]
+				if len(args) > 1 {
+					parsedArgs["<NAME>"] = args[1]
+				}
+			}
+			printNamespace := argutils.ArgBoolOrFalse(parsedArgs, "--all-namespaces") ||
+				argutils.ArgStringOrBlank(parsedArgs, "--namespace") != ""
 
-	printNamespace := false
-	if argutils.ArgBoolOrFalse(parsedArgs, "--all-namespaces") || argutils.ArgStringOrBlank(parsedArgs, "--namespace") != "" {
-		printNamespace = true
-	}
+			var rp resourcePrinter
+			output := parsedArgs["--output"].(string)
+			switch output {
+			case "yaml", "yml":
+				rp = resourcePrinterYAML{}
+			case "json":
+				rp = resourcePrinterJSON{}
+			case "ps":
+				rp = resourcePrinterTable{wide: false, printNamespace: printNamespace}
+			case "wide":
+				rp = resourcePrinterTable{wide: true, printNamespace: printNamespace}
+			default:
+				// Output format may be a key=value pair, so split on "=" to find out.  Pull
+				// out the key and value, and split the value by "," as some options allow
+				// a multiple-valued value.
+				outputParms := strings.SplitN(output, "=", 2)
+				outputKey := outputParms[0]
+				outputValue := ""
+				outputValues := []string{}
+				if len(outputParms) == 2 {
+					outputValue = outputParms[1]
+					outputValues = strings.Split(outputValue, ",")
+				}
 
-	var rp resourcePrinter
-	output := parsedArgs["--output"].(string)
-	switch output {
-	case "yaml", "yml":
-		rp = resourcePrinterYAML{}
-	case "json":
-		rp = resourcePrinterJSON{}
-	case "ps":
-		rp = resourcePrinterTable{wide: false, printNamespace: printNamespace}
-	case "wide":
-		rp = resourcePrinterTable{wide: true, printNamespace: printNamespace}
-	default:
-		// Output format may be a key=value pair, so split on "=" to find out.  Pull
-		// out the key and value, and split the value by "," as some options allow
-		// a multiple-valued value.
-		outputParms := strings.SplitN(output, "=", 2)
-		outputKey := outputParms[0]
-		outputValue := ""
-		outputValues := []string{}
-		if len(outputParms) == 2 {
-			outputValue = outputParms[1]
-			outputValues = strings.Split(outputValue, ",")
-		}
+				switch outputKey {
+				case "go-template":
+					if outputValue == "" {
+						fmt.Printf("need to specify a template\n")
+						os.Exit(1)
+					}
+					rp = resourcePrinterTemplate{template: outputValue}
+				case "go-template-file":
+					if outputValue == "" {
+						fmt.Printf("need to specify a template file\n")
+						os.Exit(1)
+					}
+					rp = resourcePrinterTemplateFile{templateFile: outputValue}
+				case "custom-columns":
+					if outputValue == "" {
+						fmt.Printf("need to specify at least one column\n")
+						os.Exit(1)
+					}
+					rp = resourcePrinterTable{headings: outputValues}
+				}
+			}
 
-		switch outputKey {
-		case "go-template":
-			if outputValue == "" {
-				fmt.Printf("need to specify a template\n")
+			if rp == nil {
+				fmt.Printf("unrecognized output format '%s'\n", output)
 				os.Exit(1)
 			}
-			rp = resourcePrinterTemplate{template: outputValue}
-		case "go-template-file":
-			if outputValue == "" {
-				fmt.Printf("need to specify a template file\n")
+
+			results := executeConfigCommand(parsedArgs, actionGetOrList)
+
+			log.Infof("results: %+v", results)
+
+			if results.fileInvalid {
+				fmt.Printf("Failed to execute command: %v\n", results.err)
+				os.Exit(1)
+			} else if results.err != nil {
+				fmt.Printf("Failed to get resources: %v\n", results.err)
 				os.Exit(1)
 			}
-			rp = resourcePrinterTemplateFile{templateFile: outputValue}
-		case "custom-columns":
-			if outputValue == "" {
-				fmt.Printf("need to specify at least one column\n")
-				os.Exit(1)
+
+			if err := rp.print(results.client, results.resources); err != nil {
+				fmt.Println(err)
 			}
-			rp = resourcePrinterTable{headings: outputValues}
-		}
+		},
 	}
-
-	if rp == nil {
-		fmt.Printf("unrecognized output format '%s'\n", output)
-		os.Exit(1)
-	}
-
-	results := executeConfigCommand(parsedArgs, actionGetOrList)
-
-	log.Infof("results: %+v", results)
-
-	if results.fileInvalid {
-		fmt.Printf("Failed to execute command: %v\n", results.err)
-		os.Exit(1)
-	} else if results.err != nil {
-		fmt.Printf("Failed to get resources: %v\n", results.err)
-		os.Exit(1)
-	}
-
-	err = rp.print(results.client, results.resources)
-	if err != nil {
-		fmt.Println(err)
-	}
-}
+)

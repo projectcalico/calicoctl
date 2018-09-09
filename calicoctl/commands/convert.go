@@ -19,115 +19,103 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/projectcalico/calicoctl/calicoctl/commands/argutils"
-	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
-	"github.com/projectcalico/calicoctl/calicoctl/commands/v1resourceloader"
 	"github.com/projectcalico/libcalico-go/lib/apis/v1/unversioned"
 	"github.com/projectcalico/libcalico-go/lib/upgrade/converters"
 	validator "github.com/projectcalico/libcalico-go/lib/validator/v3"
+
+	"github.com/projectcalico/calicoctl/calicoctl/commands/argutils"
+	"github.com/projectcalico/calicoctl/calicoctl/commands/v1resourceloader"
 )
 
-func Convert(args []string) {
-	doc := constants.DatastoreIntro + `Usage:
-  calicoctl convert --filename=<FILENAME>
-                [--output=<OUTPUT>] [--ignore-validation]
+func init() {
+	convertCommandArgs = newConvertArgs(ConvertCommand.Flags())
+	ConvertCommand.MarkFlagRequired("filename")
+}
 
-Examples:
-  # Convert the contents of policy.yaml to v3 policy.
+var (
+	convertCommandArgs convertArgs
+	ConvertCommand     = &cobra.Command{
+		Use:   "convert",
+		Short: "Convert a Calico v1 manifest to v3",
+		Example: `# Convert the contents of policy.yaml to v3 policy.
   calicoctl convert -f ./policy.yaml -o yaml
 
   # Convert a policy based on the JSON passed into stdin.
-  cat policy.json | calicoctl convert -f -
+  cat policy.json | calicoctl convert -f -`,
+		Long: `Convert config files from Calico v1 to v3 API versions. Both YAML and JSON formats are accepted.
 
-Options:
-  -h --help                     Show this screen.
-  -f --filename=<FILENAME>      Filename to use to create the resource. If set to
-                                "-" loads from stdin.
-  -o --output=<OUTPUT FORMAT>   Output format. One of: yaml or json.
-                                [Default: yaml]
-  --ignore-validation           Skip validation on the converted manifest.
+  The default output will be printed to stdout in YAML format.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			parsedArgs := convertCommandArgs.mapArgs()
 
-
-Description:
-  Convert config files from Calico v1 to v3 API versions. Both YAML and JSON formats are accepted.
-
-  The default output will be printed to stdout in YAML format.
-`
-	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)
-	if err != nil {
-		fmt.Printf("Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
-		os.Exit(1)
-	}
-	if len(parsedArgs) == 0 {
-		return
-	}
-
-	var rp resourcePrinter
-	output := parsedArgs["--output"].(string)
-	// Only supported output formats are yaml (default) and json.
-	switch output {
-	case "yaml", "yml":
-		rp = resourcePrinterYAML{}
-	case "json":
-		rp = resourcePrinterJSON{}
-	default:
-		fmt.Printf("unrecognized output format '%s'\n", output)
-		os.Exit(1)
-	}
-
-	filename := argutils.ArgStringOrBlank(parsedArgs, "--filename")
-
-	// Load the V1 resource from file and convert to a slice
-	// of resources for easier handling.
-	resV1, err := v1resourceloader.CreateResourcesFromFile(filename)
-	if err != nil {
-		fmt.Printf("Failed to execute command: %v\n", err)
-		os.Exit(1)
-	}
-
-	var results []runtime.Object
-	for _, v1Resource := range resV1 {
-		v3Resource, err := convertResource(v1Resource)
-		if err != nil {
-			fmt.Printf("Failed to execute command: %v\n", err)
-			os.Exit(1)
-		}
-
-		// Remove any extra metadata the object might have.
-		rom := v3Resource.(v1.ObjectMetaAccessor).GetObjectMeta()
-		rom.SetNamespace("")
-		rom.SetUID("")
-		rom.SetResourceVersion("")
-		rom.SetCreationTimestamp(v1.Time{})
-		rom.SetDeletionTimestamp(nil)
-		rom.SetDeletionGracePeriodSeconds(nil)
-		rom.SetClusterName("")
-
-		ignoreValidation := argutils.ArgBoolOrFalse(parsedArgs, "--ignore-validation")
-		if !ignoreValidation {
-			if err := validator.Validate(v3Resource); err != nil {
-				fmt.Printf("Converted manifest resource(s) failed validation: %s\n", err)
-				fmt.Printf("Re-run the command with '--ignore-validation' flag to see the converted output.\n")
+			var rp resourcePrinter
+			output := parsedArgs["--output"].(string)
+			// Only supported output formats are yaml (default) and json.
+			switch output {
+			case "yaml", "yml":
+				rp = resourcePrinterYAML{}
+			case "json":
+				rp = resourcePrinterJSON{}
+			default:
+				fmt.Printf("unrecognized output format '%s'\n", output)
 				os.Exit(1)
 			}
-		}
 
-		results = append(results, v3Resource)
+			filename := argutils.ArgStringOrBlank(parsedArgs, "--filename")
+
+			// Load the V1 resource from file and convert to a slice
+			// of resources for easier handling.
+			resV1, err := v1resourceloader.CreateResourcesFromFile(filename)
+			if err != nil {
+				fmt.Printf("Failed to execute command: %v\n", err)
+				os.Exit(1)
+			}
+
+			var results []runtime.Object
+			for _, v1Resource := range resV1 {
+				v3Resource, err := convertResource(v1Resource)
+				if err != nil {
+					fmt.Printf("Failed to execute command: %v\n", err)
+					os.Exit(1)
+				}
+
+				// Remove any extra metadata the object might have.
+				rom := v3Resource.(v1.ObjectMetaAccessor).GetObjectMeta()
+				rom.SetNamespace("")
+				rom.SetUID("")
+				rom.SetResourceVersion("")
+				rom.SetCreationTimestamp(v1.Time{})
+				rom.SetDeletionTimestamp(nil)
+				rom.SetDeletionGracePeriodSeconds(nil)
+				rom.SetClusterName("")
+
+				ignoreValidation := argutils.ArgBoolOrFalse(parsedArgs, "--ignore-validation")
+				if !ignoreValidation {
+					if err := validator.Validate(v3Resource); err != nil {
+						fmt.Printf("Converted manifest resource(s) failed validation: %s\n", err)
+						fmt.Printf("Re-run the command with '--ignore-validation' flag to see the converted output.\n")
+						os.Exit(1)
+					}
+				}
+
+				results = append(results, v3Resource)
+			}
+
+			log.Infof("results: %+v", results)
+
+			err = rp.print(nil, results)
+			if err != nil {
+				fmt.Printf("Failed to execute command: %v\n", err)
+				os.Exit(1)
+			}
+		},
 	}
-
-	log.Infof("results: %+v", results)
-
-	err = rp.print(nil, results)
-	if err != nil {
-		fmt.Printf("Failed to execute command: %v\n", err)
-		os.Exit(1)
-	}
-}
+)
 
 // convertResource converts v1 resource into a v3 resource.
 func convertResource(v1resource unversioned.Resource) (converters.Resource, error) {

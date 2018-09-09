@@ -17,40 +17,27 @@ package commands
 import (
 	"fmt"
 	"os"
-	"strings"
 
-	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
+	"github.com/spf13/cobra"
 )
 
-func Create(args []string) {
-	doc := constants.DatastoreIntro + `Usage:
-  calicoctl create --filename=<FILENAME> [--skip-exists] [--config=<CONFIG>] [--namespace=<NS>]
+func init() {
+	createCommandArgs = newCreateResourceArgs(CreateCommand.Flags())
+	CreateCommand.MarkFlagRequired("filename")
+}
 
-Examples:
-  # Create a policy using the data in policy.yaml.
+var (
+	createCommandArgs createResourceArgs
+	CreateCommand     = &cobra.Command{
+		Use:   "create",
+		Short: "Create a Calico resource",
+		Example: `# Create a policy using the data in policy.yaml.
   calicoctl create -f ./policy.yaml
 
   # Create a policy based on the JSON passed into stdin.
-  cat policy.json | calicoctl create -f -
-
-Options:
-  -h --help                 Show this screen.
-  -f --filename=<FILENAME>  Filename to use to create the resource.  If set to
-                            "-" loads from stdin.
-     --skip-exists          Skip over and treat as successful any attempts to
-                            create an entry that already exists.
-  -c --config=<CONFIG>      Path to the file containing connection
-                            configuration in YAML or JSON format.
-                            [default: ` + constants.DefaultConfigPath + `]
-  -n --namespace=<NS>       Namespace of the resource.
-                            Only applicable to NetworkPolicy and WorkloadEndpoint.
-                            Uses the default namespace if not specified.
-
-Description:
-  The create command is used to create a set of resources by filename or stdin.
+  cat policy.json | calicoctl create -f -`,
+		Long: `The create command is used to create a set of resources by filename or stdin.
   JSON and YAML formats are accepted.
 
   Valid resource types are:
@@ -77,50 +64,43 @@ Description:
 
   The resources are created in the order they are specified.  In the event of a
   failure creating a specific resource it is possible to work out which
-  resource failed based on the number of resources successfully created.
-`
-	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)
-	if err != nil {
-		fmt.Printf("Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
-		os.Exit(1)
-	}
-	if len(parsedArgs) == 0 {
-		return
-	}
+  resource failed based on the number of resources successfully created.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			results := executeConfigCommand(createCommandArgs.mapArgs(), actionCreate)
+			log.Infof("results: %+v", results)
 
-	results := executeConfigCommand(parsedArgs, actionCreate)
-	log.Infof("results: %+v", results)
-
-	if results.fileInvalid {
-		fmt.Printf("Failed to execute command: %v\n", results.err)
-		os.Exit(1)
-	} else if results.numHandled == 0 {
-		if results.numResources == 0 {
-			fmt.Printf("No resources specified in file\n")
-		} else if results.numResources == 1 {
-			fmt.Printf("Failed to create '%s' resource: %v\n", results.singleKind, results.err)
-		} else if results.singleKind != "" {
-			fmt.Printf("Failed to create any '%s' resources: %v\n", results.singleKind, results.err)
-		} else {
-			fmt.Printf("Failed to create any resources: %v\n", results.err)
-		}
-		os.Exit(1)
-	} else if results.err == nil {
-		if results.singleKind != "" {
-			fmt.Printf("Successfully created %d '%s' resource(s)\n", results.numHandled, results.singleKind)
-		} else {
-			fmt.Printf("Successfully created %d resource(s)\n", results.numHandled)
-		}
-	} else {
-		fmt.Printf("Partial success: ")
-		if results.singleKind != "" {
-			fmt.Printf("created the first %d out of %d '%s' resources:\n",
-				results.numHandled, results.numResources, results.singleKind)
-		} else {
-			fmt.Printf("created the first %d out of %d resources:\n",
-				results.numHandled, results.numResources)
-		}
-		fmt.Printf("Hit error: %v\n", results.err)
-		os.Exit(1)
+			if results.fileInvalid {
+				fmt.Printf("Failed to execute command: %v\n", results.err)
+				os.Exit(1)
+			} else if results.numHandled == 0 {
+				if results.numResources == 0 {
+					fmt.Printf("No resources specified in file\n")
+				} else if results.numResources == 1 {
+					fmt.Printf("Failed to create '%s' resource: %v\n", results.singleKind, results.err)
+				} else if results.singleKind != "" {
+					fmt.Printf("Failed to create any '%s' resources: %v\n", results.singleKind, results.err)
+				} else {
+					fmt.Printf("Failed to create any resources: %v\n", results.err)
+				}
+				os.Exit(1)
+			} else if results.err == nil {
+				if results.singleKind != "" {
+					fmt.Printf("Successfully created %d '%s' resource(s)\n", results.numHandled, results.singleKind)
+				} else {
+					fmt.Printf("Successfully created %d resource(s)\n", results.numHandled)
+				}
+			} else {
+				fmt.Printf("Partial success: ")
+				if results.singleKind != "" {
+					fmt.Printf("created the first %d out of %d '%s' resources:\n",
+						results.numHandled, results.numResources, results.singleKind)
+				} else {
+					fmt.Printf("created the first %d out of %d resources:\n",
+						results.numHandled, results.numResources)
+				}
+				fmt.Printf("Hit error: %v\n", results.err)
+				os.Exit(1)
+			}
+		},
 	}
-}
+)

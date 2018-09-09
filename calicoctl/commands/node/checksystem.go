@@ -23,9 +23,9 @@ import (
 	"regexp"
 	"strings"
 
-	docopt "github.com/docopt/docopt-go"
 	goversion "github.com/mcuadros/go-version"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 // The minimum allowed linux kernel version is 2.6.24, which introduced network
@@ -33,54 +33,39 @@ import (
 const minKernelVersion = "2.6.24"
 
 // Required kernel modules to run Calico
-var requiredModules = []string{"xt_set", "ip6_tables"}
+var (
+	requiredModules = []string{"xt_set", "ip6_tables"}
 
-// Checksystem checks host system for compatible versions
-func Checksystem(args []string) {
-	doc := `Usage: 
-  calicoctl node checksystem
+	// Checksystem checks host system for compatible versions
+	ChecksystemCommand = &cobra.Command{
+		Use:   "checksystem",
+		Short: "Check the compatibility of this compute host to run a Calico node instance.",
+		Run: func(cmd *cobra.Command, args []string) {
+			// Make sure the command is run with super user privileges
+			enforceRoot()
 
-Options:
-  -h --help                 Show this screen.
+			systemOk := true
 
-Description:
-  Check the compatibility of this compute host to run a Calico node instance.
-`
+			fmt.Print("Checking kernel version...\n")
+			if err := checkKernelVersion(); err != nil {
+				systemOk = false
+			}
 
-	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)
-	if err != nil {
-		fmt.Printf("Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
-		os.Exit(1)
+			fmt.Print("Checking kernel modules...\n")
+			if err := checkKernelModules(); err != nil {
+				systemOk = false
+			}
+
+			// If any of the checks fail, print a message and exit
+			if !systemOk {
+				fmt.Printf("System doesn't meet one or more minimum systems requirements to run Calico\n")
+				os.Exit(1)
+			}
+
+			fmt.Printf("System meets minimum system requirements to run Calico!\n")
+		},
 	}
-	if len(parsedArgs) == 0 {
-		return
-	}
-
-	// Make sure the command is run with super user privileges
-	enforceRoot()
-
-	systemOk := true
-
-	fmt.Print("Checking kernel version...\n")
-	err = checkKernelVersion()
-	if err != nil {
-		systemOk = false
-	}
-
-	fmt.Print("Checking kernel modules...\n")
-	err = checkKernelModules()
-	if err != nil {
-		systemOk = false
-	}
-
-	// If any of the checks fail, print a message and exit
-	if !systemOk {
-		fmt.Printf("System doesn't meet one or more minimum systems requirements to run Calico\n")
-		os.Exit(1)
-	}
-
-	fmt.Printf("System meets minimum system requirements to run Calico!\n")
-}
+)
 
 // checkKernelVersion checks for minimum required kernel version
 func checkKernelVersion() error {

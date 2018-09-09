@@ -17,39 +17,24 @@ package commands
 import (
 	"fmt"
 	"os"
-	"strings"
 
-	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
+	"github.com/spf13/cobra"
 )
 
-func Apply(args []string) {
-	doc := constants.DatastoreIntro + `Usage:
-  calicoctl apply --filename=<FILENAME> [--config=<CONFIG>] [--namespace=<NS>]
+func init() {
+	applyCommandArgs = newBaseResourceArgs(ApplyCommand.Flags())
+	ApplyCommand.MarkFlagRequired("filename")
+}
 
-Examples:
-  # Apply a policy using the data in policy.yaml.
-  calicoctl apply -f ./policy.yaml
-
-  # Apply a policy based on the JSON passed into stdin.
-  cat policy.json | calicoctl apply -f -
-
-Options:
-  -h --help                 Show this screen.
-  -f --filename=<FILENAME>  Filename to use to apply the resource.  If set to
-                            "-" loads from stdin.
-  -c --config=<CONFIG>      Path to the file containing connection
-                            configuration in YAML or JSON format.
-                            [default: ` + constants.DefaultConfigPath + `]
-  -n --namespace=<NS>       Namespace of the resource.
-                            Only applicable to NetworkPolicy and WorkloadEndpoint.
-                            Uses the default namespace if not specified.
-
-Description:
-  The apply command is used to create or replace a set of resources by filename
-  or stdin.  JSON and YAML formats are accepted.
+var (
+	applyCommandArgs baseResourceArgs
+	ApplyCommand     = &cobra.Command{
+		Use: "apply",
+		Short: `Apply a resource by filename or stdin. This creates a resource 
+if it does not exist, and replaces a resource if it does exist.`,
+		Long: `The apply command is used to create or replace a set of 
+resources by filename or stdin.  JSON and YAML formats are accepted.
 
   Valid resource types are:
 
@@ -80,50 +65,48 @@ Description:
 
   When applying a resource to perform an update, the complete resource spec
   must be provided, it is not sufficient to supply only the fields that are
-  being updated.
-`
-	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)
-	if err != nil {
-		fmt.Printf("Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
-		os.Exit(1)
-	}
-	if len(parsedArgs) == 0 {
-		return
-	}
+  being updated.`,
+		Example: `# Apply a policy using the data in policy.yaml.
+  calicoctl apply -f ./policy.yaml
 
-	results := executeConfigCommand(parsedArgs, actionApply)
-	log.Infof("results: %+v", results)
+  # Apply a policy based on the JSON passed into stdin.
+  cat policy.json | calicoctl apply -f -`,
+		Run: func(cmd *cobra.Command, args []string) {
+			results := executeConfigCommand(applyCommandArgs.mapArgs(), actionApply)
+			log.Infof("results: %+v", results)
 
-	if results.fileInvalid {
-		fmt.Printf("Failed to execute command: %v\n", results.err)
-		os.Exit(1)
-	} else if results.numHandled == 0 {
-		if results.numResources == 0 {
-			fmt.Printf("No resources specified in file\n")
-		} else if results.numResources == 1 {
-			fmt.Printf("Failed to apply '%s' resource: %v\n", results.singleKind, results.err)
-		} else if results.singleKind != "" {
-			fmt.Printf("Failed to apply any '%s' resources: %v\n", results.singleKind, results.err)
-		} else {
-			fmt.Printf("Failed to apply any resources: %v\n", results.err)
-		}
-		os.Exit(1)
-	} else if results.err == nil {
-		if results.singleKind != "" {
-			fmt.Printf("Successfully applied %d '%s' resource(s)\n", results.numHandled, results.singleKind)
-		} else {
-			fmt.Printf("Successfully applied %d resource(s)\n", results.numHandled)
-		}
-	} else {
-		fmt.Printf("Partial success: ")
-		if results.singleKind != "" {
-			fmt.Printf("applied the first %d out of %d '%s' resources:\n",
-				results.numHandled, results.numResources, results.singleKind)
-		} else {
-			fmt.Printf("applied the first %d out of %d resources:\n",
-				results.numHandled, results.numResources)
-		}
-		fmt.Printf("Hit error: %v\n", results.err)
-		os.Exit(1)
+			if results.fileInvalid {
+				fmt.Printf("Failed to execute command: %v\n", results.err)
+				os.Exit(1)
+			} else if results.numHandled == 0 {
+				if results.numResources == 0 {
+					fmt.Printf("No resources specified in file\n")
+				} else if results.numResources == 1 {
+					fmt.Printf("Failed to apply '%s' resource: %v\n", results.singleKind, results.err)
+				} else if results.singleKind != "" {
+					fmt.Printf("Failed to apply any '%s' resources: %v\n", results.singleKind, results.err)
+				} else {
+					fmt.Printf("Failed to apply any resources: %v\n", results.err)
+				}
+				os.Exit(1)
+			} else if results.err == nil {
+				if results.singleKind != "" {
+					fmt.Printf("Successfully applied %d '%s' resource(s)\n", results.numHandled, results.singleKind)
+				} else {
+					fmt.Printf("Successfully applied %d resource(s)\n", results.numHandled)
+				}
+			} else {
+				fmt.Printf("Partial success: ")
+				if results.singleKind != "" {
+					fmt.Printf("applied the first %d out of %d '%s' resources:\n",
+						results.numHandled, results.numResources, results.singleKind)
+				} else {
+					fmt.Printf("applied the first %d out of %d resources:\n",
+						results.numHandled, results.numResources)
+				}
+				fmt.Printf("Hit error: %v\n", results.err)
+				os.Exit(1)
+			}
+		},
 	}
-}
+)

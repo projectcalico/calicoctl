@@ -6,6 +6,7 @@ import:
 - package: github.com/mcuadros/go-version
 - package: github.com/olekukonko/tablewriter
 - package: github.com/spf13/cobra
+- package: github.com/spf13/pflag
 - package: github.com/osrg/gobgp
   version: v1.22
   subpackages:

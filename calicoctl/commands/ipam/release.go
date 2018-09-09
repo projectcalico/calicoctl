@@ -18,77 +18,64 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/projectcalico/libcalico-go/lib/net"
 
-	docopt "github.com/docopt/docopt-go"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/argutils"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/clientmgr"
-	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
 )
 
-// IPAM takes keyword with an IP address then calls the subcommands.
-func Release(args []string) {
-	doc := constants.DatastoreIntro + `Usage:
-  calicoctl ipam release --ip=<IP> [--config=<CONFIG>]
-
-Options:
-  -h --help             Show this screen.
-     --ip=<IP>          IP address to release.
-  -c --config=<CONFIG>  Path to the file containing connection configuration in
-                        YAML or JSON format.
-                        [default: ` + constants.DefaultConfigPath + `]
-
-Description:
-  The ipam release command releases an IP address from the Calico IP Address
-  Manager that was been previously assigned to an endpoint.  When an IP address
-  is released, it becomes available for assignment to any endpoint.
-
-  Note that this does not remove the IP from any existing endpoints that may be
-  using it, so only use this command to clean up addresses from endpoints that
-  were not cleanly removed from Calico.
-`
-	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)
-	if err != nil {
-		fmt.Printf("Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(args, " "))
-		os.Exit(1)
-	}
-	if len(parsedArgs) == 0 {
-		return
-	}
-
-	ctx := context.Background()
-
-	// Create a new backend client from env vars.
-	cf := parsedArgs["--config"].(string)
-	client, err := clientmgr.NewClient(cf)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	ipamClient := client.IPAM()
-	passedIP := parsedArgs["--ip"].(string)
-
-	ip := argutils.ValidateIP(passedIP)
-	ips := []net.IP{ip}
-
-	// Call ReleaseIPs releases the IP and returns an empty slice as unallocatedIPs if
-	// release was successful else it returns back the slice with the IP passed in.
-	unallocatedIPs, err := ipamClient.ReleaseIPs(ctx, ips)
-	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Couldn't release the IP if the slice is not empty or IP might already be released/unassigned.
-	// This is not exactly an error, so not returning it to the caller.
-	if len(unallocatedIPs) != 0 {
-		fmt.Printf("IP address %s is not assigned\n", ip)
-		os.Exit(1)
-	}
-
-	// If unallocatedIPs slice is empty then IP was released Successfully.
-	fmt.Printf("Successfully released IP address %s\n", ip)
+func init() {
+	ipamReleaseArgs = newIPAMArgs(ReleaseCommand.Flags())
+	ReleaseCommand.MarkFlagRequired("ip")
 }
+
+var (
+	ipamReleaseArgs ipamArgs
+	ReleaseCommand  = &cobra.Command{
+		Use:   "release",
+		Short: "Release a Calico assigned IP address.",
+		Long: `The ipam release command releases an IP address from the Calico IP Address
+Manager that was been previously assigned to an endpoint.  When an IP address
+is released, it becomes available for assignment to any endpoint.
+
+Note that this does not remove the IP from any existing endpoints that may be
+using it, so only use this command to clean up addresses from endpoints that
+were not cleanly removed from Calico.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			ctx := context.Background()
+
+			// Create a new backend client from env vars.
+			client, err := clientmgr.NewClient(*ipamReleaseArgs.config)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			ipamClient := client.IPAM()
+
+			ip := argutils.ValidateIP(*ipamReleaseArgs.ip)
+			ips := []net.IP{ip}
+
+			// Call ReleaseIPs releases the IP and returns an empty slice as unallocatedIPs if
+			// release was successful else it returns back the slice with the IP passed in.
+			unallocatedIPs, err := ipamClient.ReleaseIPs(ctx, ips)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				os.Exit(1)
+			}
+
+			// Couldn't release the IP if the slice is not empty or IP might already be released/unassigned.
+			// This is not exactly an error, so not returning it to the caller.
+			if len(unallocatedIPs) != 0 {
+				fmt.Printf("IP address %s is not assigned\n", ip)
+				os.Exit(1)
+			}
+
+			// If unallocatedIPs slice is empty then IP was released Successfully.
+			fmt.Printf("Successfully released IP address %s\n", ip)
+		},
+	}
+)
