@@ -37,7 +37,7 @@ import:
   vcs: git
   version: v1.0.4
 - package: github.com/projectcalico/libcalico-go
-  version: release-v3.0
+  version: 720be4945426e442eedce60005da8becc578125b
   subpackages:
   - lib/apis/v3
   - lib/clientv3
