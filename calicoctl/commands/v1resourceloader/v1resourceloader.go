@@ -22,9 +22,9 @@ import (
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
+	yaml "gopkg.in/yaml.v2"
 
 	yamlsep "github.com/projectcalico/calicoctl/calicoctl/util/yaml"
-	"github.com/projectcalico/go-yaml-wrapper"
 	apiv1 "github.com/projectcalico/libcalico-go/lib/apis/v1"
 	"github.com/projectcalico/libcalico-go/lib/apis/v1/unversioned"
 	v1validator "github.com/projectcalico/libcalico-go/lib/validator/v1"

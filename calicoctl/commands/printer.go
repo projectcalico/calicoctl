@@ -30,7 +30,7 @@ import (
 
 	"github.com/projectcalico/calicoctl/calicoctl/resourcemgr"
 	"github.com/projectcalico/go-json/json"
-	"github.com/projectcalico/go-yaml-wrapper"
+	yaml "github.com/projectcalico/go-yaml-wrapper"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
