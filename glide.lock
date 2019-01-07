@@ -1,5 +1,5 @@
 hash: 8938a157190d3ac150ed249c85d8741a58fd980cae5b25fc7ad6c259f5da52c6
-updated: 2019-01-03T04:08:53.533654437Z
+updated: 2019-01-07T09:35:00.423678-08:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -16,7 +16,7 @@ imports:
   - autorest/azure
   - autorest/date
 - name: github.com/beorn7/perks
-  version: 3a771d992973f24aa725d07868b467d1ddfceafb
+  version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
   - quantile
 - name: github.com/coreos/etcd
@@ -150,7 +150,7 @@ imports:
 - name: github.com/olekukonko/tablewriter
   version: e6d60cf7ba1f42d86d54cdf5508611c4aafb3970
 - name: github.com/onsi/ginkgo
-  version: 3774a09d95489ccaa16032e0770d08ea77ba6184
+  version: 2e1be8f7d90e9d3e3e58b0ce470f2f14d075406f
   subpackages:
   - config
   - extensions/table
@@ -171,7 +171,7 @@ imports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: 7615b9433f86a8bdf29709bf288bc4fd0636a369
+  version: 65fb64232476ad9046e57c26cd0bff3d3a8dc6cd
   subpackages:
   - format
   - internal/assertion
@@ -247,10 +247,9 @@ imports:
   - lib/validator/v3
   - lib/watch
 - name: github.com/prometheus/client_golang
-  version: 773f5027234d0b08adf766be34f55df2f312abf7
+  version: 5cec1d0429b02e4323e042eb04dafdb079ddf568
   subpackages:
   - prometheus
-  - prometheus/internal
 - name: github.com/prometheus/client_model
   version: 6f3806018612930941127f2a7c6c453ba2c527d2
   subpackages:
@@ -279,7 +278,7 @@ imports:
 - name: github.com/shirou/w32
   version: bb4de0191aa41b5507caa14b0650cdbddcd9280b
 - name: github.com/sirupsen/logrus
-  version: d682213848ed68c0a260ca37d6dd5ace8423f5ba
+  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
 - name: github.com/spf13/afero
   version: d40851caa0d747393da1ffb28f7f9d8b4eeffebd
   subpackages:
