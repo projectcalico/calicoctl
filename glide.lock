@@ -1,5 +1,5 @@
-hash: 83d4f5e861d74a4dd93cc8c7aeff635bfd016b0697e2edff8b929d7709929ced
-updated: 2019-02-21T10:38:31.469477336Z
+hash: f5b67bda73a54222c29152fe552d57893d510ae1ac957ab1bd0ff74ef3da66b0
+updated: 2019-02-21T12:14:48.983924684Z
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -291,9 +291,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/sirupsen/logrus
-  version: d682213848ed68c0a260ca37d6dd5ace8423f5ba
-  repo: git@github.com:/sirupsen/logrus
-  vcs: git
+  version: e1e72e9de974bd926e5c56f83753fba2df402ce5
 - name: github.com/spf13/afero
   version: 63644898a8da0bc22138abf860edaf5277b6102e
   subpackages:
@@ -417,6 +415,10 @@ imports:
   version: d5d1b5820637886def9eef33e03a27a9f166942c
 - name: gopkg.in/yaml.v2
   version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
+- name: https://github.com/sirupsen/logrus.git
+  version: d682213848ed68c0a260ca37d6dd5ace8423f5ba
+  repo: git@github.com:/sirupsen/logrus
+  vcs: git
 - name: k8s.io/api
   version: a315a049e7a93e5455f7fefce1ba136d85054687
   subpackages:
