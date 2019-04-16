@@ -15,7 +15,7 @@ import:
   - json
 - package: github.com/projectcalico/go-yaml-wrapper
 - package: github.com/projectcalico/libcalico-go
-  version: 1bc161956072ea9d8d5dba0920caeb26fbc283a1
+  version: 727a39e77d674af6e7d6684b941916183d80f5de
   subpackages:
   - lib/apiconfig
   - lib/apis/v1
@@ -48,6 +48,8 @@ import:
   version: dd481f35df2c3b50c42087e2f8e3890e0f889711
 # Pin to a compatible version. Later versions cause build to fail
 # with missing symbols in unix package.
+- package: github.com/vishvananda/netlink
+  version: b9cafe4a8544a27110dad06be07d48bbe5f292dd
 - package: github.com/vishvananda/netns
   version: 13995c7128ccc8e51e9a6bd2b551020a27180abd
 testImport:
