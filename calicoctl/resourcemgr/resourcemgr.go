@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	defaults "github.com/mcuadros/go-defaults"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/argutils"
 	yamlsep "github.com/projectcalico/calicoctl/calicoctl/util/yaml"
 	yaml "github.com/projectcalico/go-yaml-wrapper"
@@ -403,6 +404,7 @@ func unmarshalResource(tm unstructured.Unstructured, b []byte) ([]runtime.Object
 		return nil, err
 	}
 
+	defaults.SetDefaults(unpacked)
 	log.Infof("Type of unpacked data: %v", reflect.TypeOf(unpacked))
 	if err = validator.Validate(unpacked); err != nil {
 		return nil, err
@@ -434,6 +436,7 @@ func unmarshalSliceOfResources(tml []unstructured.Unstructured, b []byte) ([]run
 		return nil, err
 	}
 
+	defaults.SetDefaults(unpacked)
 	// Validate the data in the structures.  The validator does not handle slices, so
 	// validate each resource separately.
 	for _, r := range unpacked {

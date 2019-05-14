@@ -61,3 +61,4 @@ testImport:
   subpackages:
   - extensions/table
 - package: github.com/onsi/gomega
+- package: github.com/mcuadros/go-defaults
