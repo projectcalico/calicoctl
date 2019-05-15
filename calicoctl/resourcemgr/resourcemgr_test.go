@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/projectcalico/calicoctl/calicoctl/resourcemgr"
 	api "github.com/projectcalico/libcalico-go/lib/apis/v3"
@@ -28,122 +29,126 @@ import (
 )
 
 const (
-	IppoolV6WithNeverVxlan = `kind: IPPool
+	DefaultIpPoolTemplate = `kind: IPPool
 apiVersion: projectcalico.org/v3
 metadata:
-  name: my-ippool
+  name: {{NAME}}
 spec:
-  cidr: 2002::/64
-  ipipMode: Never
-  vxlanMode: Never
+  cidr: {{CIDR}}
+  ipipMode: {{IPIPMODE}}
+  vxlanMode: {{VXLANMODE}}
   natOutgoing: true
 `
-	IppoolV6MissingVxlan = `kind: IPPool
+	MissingVxlanIpPoolTemplate = `kind: IPPool
 apiVersion: projectcalico.org/v3
 metadata:
-  name: my-ippool
+  name: {{NAME}}
 spec:
-  cidr: 2002::/64
-  ipipMode: Never
-  natOutgoing: true
-`
-	IppoolV4WithAlwaysVxlan = `kind: IPPool
-apiVersion: projectcalico.org/v3
-metadata:
-  name: my-ippool
-spec:
-  cidr: 192.168.0.0/16
-  ipipMode: Never
-  vxlanMode: Always
-  natOutgoing: true
-`
-	IppoolV6WithAlwaysVxlan = `kind: IPPool
-apiVersion: projectcalico.org/v3
-metadata:
-  name: my-ippool
-spec:
-  cidr: 2002::/64
-  ipipMode: Never
-  vxlanMode: Always
-  natOutgoing: true
-`
-	IppoolV6WithErrorVxlan = `kind: IPPool
-apiVersion: projectcalico.org/v3
-metadata:
-  name: my-ippool
-spec:
-  cidr: 2002::/64
-  ipipMode: Never
-  vxlanMode: NotDefined
-  natOutgoing: true
-`
-	IppoolV6WithBothIPIPAndVxlan = `kind: IPPool
-apiVersion: projectcalico.org/v3
-metadata:
-  name: my-ippool
-spec:
-  cidr: 2002::/64
-  ipipMode: Always
-  vxlanMode: Always
-  natOutgoing: true
-`
-	IppoolV4WithBothIPIPAndVxlan = `kind: IPPool
-apiVersion: projectcalico.org/v3
-metadata:
-  name: my-ippool
-spec:
-  cidr: 192.168.0.0/16
-  ipipMode: Always
-  vxlanMode: Always
+  cidr: {{CIDR}}
+  ipipMode: {{IPIPMODE}}
   natOutgoing: true
 `
 )
 
 var _ = Describe("Create resource from file", func() {
+	const CidrV6 = "2002::/64"
+	const CidrV4 = "192.168.0.0/16"
+	const PoolName = "my-ippool"
+	const AnotherPoolName = "another-ippool"
+
+	const VxlanModeNever = string(api.VXLANModeNever)
+	const VxlanModeAlways = string(api.VXLANModeAlways)
+	const IpipModeNever = string(api.IPIPModeNever)
+	const IpipModeAlways = string(api.IPIPModeAlways)
+
+	ipPoolV6WithNeverVxlan := ipPoolSpec(DefaultIpPoolTemplate, CidrV6, PoolName, VxlanModeNever, IpipModeNever)
+	anotherIpPoolV6WithNeverVxlan := ipPoolSpec(DefaultIpPoolTemplate, CidrV6, AnotherPoolName, VxlanModeNever, IpipModeNever)
+	ipPoolV4WithAlwaysVxlan := ipPoolSpec(DefaultIpPoolTemplate, CidrV4, PoolName, VxlanModeAlways, IpipModeNever)
+	anotherIpPoolV4WithAlwaysVxlan := ipPoolSpec(DefaultIpPoolTemplate, CidrV4, AnotherPoolName, VxlanModeAlways, IpipModeNever)
+	ipPoolV6WithAlwaysVxlan := ipPoolSpec(DefaultIpPoolTemplate, CidrV6, PoolName, VxlanModeAlways, IpipModeNever)
+	ipPoolV6WithBothIPIPAndVxlan := ipPoolSpec(DefaultIpPoolTemplate, CidrV6, PoolName, VxlanModeAlways, IpipModeAlways)
+	ipPoolV4WithBothIPIPAndVxlan := ipPoolSpec(DefaultIpPoolTemplate, CidrV4, PoolName, VxlanModeAlways, IpipModeAlways)
+	ipPoolV6WithErrorVxlan := ipPoolSpec(DefaultIpPoolTemplate, CidrV6, PoolName, "NOT_DEFINED", IpipModeNever)
+	ipPoolV6WithMissingVxlan := ipPoolSpecMissingVxlan(MissingVxlanIpPoolTemplate, CidrV6, PoolName, IpipModeNever)
+	anotherIpPoolV6WithMissingVxlan := ipPoolSpecMissingVxlan(MissingVxlanIpPoolTemplate, CidrV6, AnotherPoolName, IpipModeNever)
+
+	ipPoolV6 := ipPool(CidrV6, PoolName, api.VXLANModeNever)
+	ipPoolV4 := ipPool(CidrV4, PoolName, api.VXLANModeAlways)
+	anotherIpPoolV6 := ipPool(CidrV6, AnotherPoolName, api.VXLANModeNever)
+	anotherIpPoolV4 := ipPool(CidrV4, AnotherPoolName, api.VXLANModeAlways)
+
 	It("Should create IPPOOL V6 with Vxlan to Never", func() {
-		resources, err := createResources(IppoolV6WithNeverVxlan)
+		resources, err := createResources(ipPoolV6WithNeverVxlan)
 		Expect(err).NotTo(HaveOccurred())
 
-		expectedIpPools := ipPpols(ipPool("2002::/64", api.VXLANModeNever, api.IPIPModeNever))
-
+		expectedIpPools := ipPools(ipPoolV6)
 		expectResourcesToMatch(resources, expectedIpPools)
 	})
 
 	It("Should create IPPOOL V4 with Vxlan to Always", func() {
-		resources, err := createResources(IppoolV4WithAlwaysVxlan)
+		resources, err := createResources(ipPoolV4WithAlwaysVxlan)
 		Expect(err).NotTo(HaveOccurred())
 
-		expectedIpPools := ipPpols(ipPool("192.168.0.0/16", api.VXLANModeAlways, api.IPIPModeNever))
-
+		expectedIpPools := ipPools(ipPoolV4)
 		expectResourcesToMatch(resources, expectedIpPools)
 	})
 
 	It("Should create IPPOOL V6 with missing Vxlan to Never", func() {
-		resources, err := createResources(IppoolV6MissingVxlan)
+		resources, err := createResources(ipPoolV6WithMissingVxlan)
 		Expect(err).NotTo(HaveOccurred())
 
-		expectedIpPools := ipPpols(ipPool("2002::/64", api.VXLANModeNever, api.IPIPModeNever))
+		expectedIpPools := ipPools(ipPoolV6)
+		expectResourcesToMatch(resources, expectedIpPools)
+	})
+
+	It("Should create 2 IPPOOL V6 with Vxlan to Never", func() {
+		resources, err := createResources(ipPoolV6WithNeverVxlan, anotherIpPoolV6WithNeverVxlan)
+		Expect(err).NotTo(HaveOccurred())
+
+		expectedIpPools := ipPools(ipPoolV6, anotherIpPoolV6)
+		expectResourcesToMatch(resources, expectedIpPools)
+	})
+
+	It("Should create 2 IPPOOL V6 - one with Vxlan to Never and one to Always", func() {
+		resources, err := createResources(ipPoolV6WithNeverVxlan, anotherIpPoolV4WithAlwaysVxlan)
+		Expect(err).NotTo(HaveOccurred())
+
+		expectedIpPools := ipPools(ipPoolV6, anotherIpPoolV4)
+		expectResourcesToMatch(resources, expectedIpPools)
+	})
+
+	It("Should create 2 IPPOOL V6 with missing Vxlan to Never", func() {
+		resources, err := createResources(ipPoolV6WithMissingVxlan, anotherIpPoolV6WithMissingVxlan)
+		Expect(err).NotTo(HaveOccurred())
+
+		expectedIpPools := ipPools(ipPoolV6, anotherIpPoolV6)
 
 		expectResourcesToMatch(resources, expectedIpPools)
 	})
 
+	It("Should create no resources from an empty Spec", func() {
+		resources, err := createResources()
+		Expect(err).NotTo(HaveOccurred())
+		expectResourcesToMatch(resources, []*api.IPPool{})
+	})
+
 	It("Should not create IPPOOL V6 set to Always", func() {
-		_, err := createResources(IppoolV6WithAlwaysVxlan)
+		_, err := createResources(ipPoolV6WithAlwaysVxlan)
 		Expect(err).To(HaveOccurred())
 	})
 
 	It("Should not create IPPOOL V6 when Vxlan is not defined", func() {
-		_, err := createResources(IppoolV6WithErrorVxlan)
+		_, err := createResources(ipPoolV6WithErrorVxlan)
 		Expect(err).To(HaveOccurred())
 	})
 
 	It("Should not create IPPOOL V6 when Vxlan and IpIp are both defined", func() {
-		_, err := createResources(IppoolV6WithBothIPIPAndVxlan)
+		_, err := createResources(ipPoolV6WithBothIPIPAndVxlan)
 		Expect(err).To(HaveOccurred())
 	})
 
 	It("Should not create IPPOOL V4 when Vxlan and IpIp are both defined", func() {
-		_, err := createResources(IppoolV4WithBothIPIPAndVxlan)
+		_, err := createResources(ipPoolV4WithBothIPIPAndVxlan)
 		Expect(err).To(HaveOccurred())
 	})
 })
@@ -155,20 +160,50 @@ func expectResourcesToMatch(resources []runtime.Object, expectedIpPools []*api.I
 	}
 }
 
-func ipPool(cidr string, vxlanMode api.VXLANMode, ipipMode api.IPIPMode) *api.IPPool {
-	ippool := api.NewIPPool()
-	ippool.Name = "my-ippool"
-	ippool.Spec = api.IPPoolSpec{CIDR: cidr, VXLANMode: vxlanMode, IPIPMode: ipipMode, NATOutgoing: true}
-	return ippool
+func ipPoolSpec(ipPoolSpec string, cidr string, name string, vxlanMode string, ipIpMode string) string {
+	macros := map[string]string{
+		"{{NAME}}":      name,
+		"{{CIDR}}":      cidr,
+		"{{VXLANMODE}}": vxlanMode,
+		"{{IPIPMODE}}":  ipIpMode,
+	}
+
+	return replace(macros, ipPoolSpec)
 }
 
-func ipPpols(elements ...*api.IPPool) []*api.IPPool {
+func ipPoolSpecMissingVxlan(ipPoolSpec string, cidr string, name string, ipIpMode string) string {
+	macros := map[string]string{
+		"{{NAME}}":     name,
+		"{{CIDR}}":     cidr,
+		"{{IPIPMODE}}": ipIpMode,
+	}
+
+	return replace(macros, ipPoolSpec)
+}
+
+func replace(macros map[string]string, spec string) string {
+	for macro, replacement := range macros {
+		spec = strings.Replace(spec, macro, replacement, 1)
+	}
+	return spec
+}
+
+func ipPool(cidr string, name string, vxlanMode api.VXLANMode) *api.IPPool {
+	ipPool := api.NewIPPool()
+	ipPool.Name = name
+	ipPool.Spec = api.IPPoolSpec{CIDR: cidr, VXLANMode: vxlanMode, IPIPMode: api.IPIPModeNever, NATOutgoing: true}
+	return ipPool
+}
+
+func ipPools(elements ...*api.IPPool) []*api.IPPool {
 	return elements
 }
 
-func createResources(spec string) ([]runtime.Object, error) {
-	By("Writing the spec to a temporary location")
-	file := writeSpec(spec)
+func createResources(specs ...string) ([]runtime.Object, error) {
+	By("Writing specs to a temporary location")
+	content := strings.Join(specs, "\n---\n")
+	file := writeSpec(content)
+	By(fmt.Sprintf("Specs that will be used are: %s", content))
 	defer os.Remove(file.Name())
 	By(fmt.Sprintf("Creating resources from file %s", file.Name()))
 	return resourcemgr.CreateResourcesFromFile(file.Name())

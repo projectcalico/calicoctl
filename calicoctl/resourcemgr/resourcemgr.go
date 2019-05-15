@@ -400,6 +400,7 @@ func unmarshalResource(tm unstructured.Unstructured, b []byte) ([]runtime.Object
 		return nil, err
 	}
 
+	// Setting default values to resource before un marshalling
 	defaults.SetDefaults(unpacked)
 	if err = yaml.UnmarshalStrict(b, unpacked); err != nil {
 		return nil, err
@@ -429,10 +430,12 @@ func unmarshalSliceOfResources(tml []unstructured.Unstructured, b []byte) ([]run
 		if err != nil {
 			return nil, err
 		}
+
 		unpacked[i] = r
+		// Setting default values to resource before un marshalling
+		defaults.SetDefaults(unpacked[i])
 	}
 
-	defaults.SetDefaults(unpacked)
 	if err := yaml.UnmarshalStrict(b, &unpacked); err != nil {
 		return nil, err
 	}
