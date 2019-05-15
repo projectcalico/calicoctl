@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Tigera, Inc. All rights reserved.
+// Copyright (c) 2017,2015-2019 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -400,11 +400,11 @@ func unmarshalResource(tm unstructured.Unstructured, b []byte) ([]runtime.Object
 		return nil, err
 	}
 
+	defaults.SetDefaults(unpacked)
 	if err = yaml.UnmarshalStrict(b, unpacked); err != nil {
 		return nil, err
 	}
 
-	defaults.SetDefaults(unpacked)
 	log.Infof("Type of unpacked data: %v", reflect.TypeOf(unpacked))
 	if err = validator.Validate(unpacked); err != nil {
 		return nil, err
@@ -432,11 +432,11 @@ func unmarshalSliceOfResources(tml []unstructured.Unstructured, b []byte) ([]run
 		unpacked[i] = r
 	}
 
+	defaults.SetDefaults(unpacked)
 	if err := yaml.UnmarshalStrict(b, &unpacked); err != nil {
 		return nil, err
 	}
 
-	defaults.SetDefaults(unpacked)
 	// Validate the data in the structures.  The validator does not handle slices, so
 	// validate each resource separately.
 	for _, r := range unpacked {
