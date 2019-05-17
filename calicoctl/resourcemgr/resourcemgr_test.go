@@ -48,6 +48,14 @@ spec:
   ipipMode: {{IPIPMODE}}
   natOutgoing: true
 `
+	MissingIpIpPoolTemplate = `kind: IPPool
+apiVersion: projectcalico.org/v3
+metadata:
+  name: {{NAME}}
+spec:
+  cidr: {{CIDR}}
+  natOutgoing: true
+`
 )
 
 var _ = Describe("Create resource from file", func() {
@@ -71,6 +79,7 @@ var _ = Describe("Create resource from file", func() {
 	ipPoolV6WithErrorVxlan := ipPoolSpec(DefaultIpPoolTemplate, CidrV6, PoolName, "NOT_DEFINED", IpipModeNever)
 	ipPoolV6WithMissingVxlan := ipPoolSpecMissingVxlan(MissingVxlanIpPoolTemplate, CidrV6, PoolName, IpipModeNever)
 	anotherIpPoolV6WithMissingVxlan := ipPoolSpecMissingVxlan(MissingVxlanIpPoolTemplate, CidrV6, AnotherPoolName, IpipModeNever)
+	ipPoolV6WithMissingIpIp := ipPoolSpecMissingIpIp(MissingIpIpPoolTemplate, CidrV6, PoolName)
 
 	ipPoolV6 := ipPool(CidrV6, PoolName, api.VXLANModeNever)
 	ipPoolV4 := ipPool(CidrV4, PoolName, api.VXLANModeAlways)
@@ -95,6 +104,14 @@ var _ = Describe("Create resource from file", func() {
 
 	It("Should create IPPOOL V6 with missing Vxlan to Never", func() {
 		resources, err := createResources(ipPoolV6WithMissingVxlan)
+		Expect(err).NotTo(HaveOccurred())
+
+		expectedIpPools := ipPools(ipPoolV6)
+		expectResourcesToMatch(resources, expectedIpPools)
+	})
+
+	It("Should create IPPOOL V6 with IpIp", func() {
+		resources, err := createResources(ipPoolV6WithMissingIpIp)
 		Expect(err).NotTo(HaveOccurred())
 
 		expectedIpPools := ipPools(ipPoolV6)
@@ -176,6 +193,15 @@ func ipPoolSpecMissingVxlan(ipPoolSpec string, cidr string, name string, ipIpMod
 		"{{NAME}}":     name,
 		"{{CIDR}}":     cidr,
 		"{{IPIPMODE}}": ipIpMode,
+	}
+
+	return replace(macros, ipPoolSpec)
+}
+
+func ipPoolSpecMissingIpIp(ipPoolSpec string, cidr string, name string) string {
+	macros := map[string]string{
+		"{{NAME}}": name,
+		"{{CIDR}}": cidr,
 	}
 
 	return replace(macros, ipPoolSpec)
