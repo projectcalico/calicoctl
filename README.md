@@ -78,13 +78,35 @@ To list all possible targets, run `make help`.
 
 2. [Install Glide](https://github.com/Masterminds/glide#install).
 
-3. Populate the `vendor/` directory in the project's root with this project's dependencies:
+3. Add mirror:
+
+   ```
+   glide mirror set https://k8s.io/client-go https://github.com/kubernetes/client-go --vcs git
+   glide mirror set https://k8s.io/apimachinery https://github.com/kubernetes/apimachinery --vcs git
+   glide mirror set https://k8s.io/api https://github.com/kubernetes/api --vcs git
+   glide mirror set https://google.golang.org/grpc https://github.com/grpc/grpc-go --vcs git
+   glide mirror set https://google.golang.org/genproto https://github.com/google/go-genproto --vcs git
+   glide mirror set https://google.golang.org/appengine https://github.com/golang/appengine --vcs git
+   glide mirror set https://golang.org/x/time https://github.com/golang/time --vcs git
+   glide mirror set https://golang.org/x/oauth2 https://github.com/golang/oauth2 --vcs git
+   glide mirror set https://golang.org/x/mobile https://github.com/golang/mobile --vcs git
+   glide mirror set https://golang.org/x/crypto https://github.com/golang/crypto --vcs git
+   glide mirror set https://golang.org/x/net https://github.com/golang/net --vcs git
+   glide mirror set https://golang.org/x/tools https://github.com/golang/tools --vcs git
+   glide mirror set https://golang.org/x/text https://github.com/golang/text --vcs git
+   glide mirror set https://golang.org/x/image https://github.com/golang/image --vcs git
+   glide mirror set https://golang.org/x/sys https://github.com/golang/sys --vcs git
+   glide mirror set https://golang.org/x/lint https://github.com/golang/lint --vcs git
+   glide mirror set https://cloud.google.com/go https://github.com/googleapis/google-cloud-go --vcs git
+   ```
+
+4. Populate the `vendor/` directory in the project's root with this project's dependencies:
 
    ```
    glide install -strip-vendor
    ```
 
-4. Build the binary:
+5. Build the binary:
    ```
    make build
    ```
