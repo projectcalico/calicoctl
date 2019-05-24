@@ -233,12 +233,12 @@ func config(client client.Interface) func(string) string {
 				if bgpConfig, err := client.BGPConfigurations().Get(context.Background(), "default", options.GetOptions{}); err != nil {
 					// Check if it was an actual error accessing the data
 					if _, ok := err.(calicoErrors.ErrorResourceDoesNotExist); !ok {
-						return "unknown"
+						asValue = "unknown"
+					} else {
+						// Use the default ASNumber of 64512 when there is none configured (first ASN reserved for private use).
+						// https://en.m.wikipedia.org/wiki/Autonomous_system_(Internet)#ASN_Table
+						asValue = "64512"
 					}
-
-					// Use the default ASNumber of 64512 when there is none configured (first ASN reserved for private use).
-					// https://en.m.wikipedia.org/wiki/Autonomous_system_(Internet)#ASN_Table
-					asValue = "64512"
 				} else {
 					asValue = bgpConfig.Spec.ASNumber.String()
 				}
