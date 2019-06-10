@@ -63,7 +63,7 @@ Description:
 	cf := parsedArgs["--config"].(string)
 	client, err := clientmgr.NewClient(cf)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
 	showBlocks := parsedArgs["--show-blocks"].(bool)
@@ -84,7 +84,10 @@ Description:
 		// IP address is assigned.
 		fmt.Printf("IP %s is in use\n", ip)
 		if len(attr) != 0 {
-			fmt.Printf("Attributes: %v\n", attr)
+			fmt.Println("Attributes:")
+			for k, v := range attr {
+				fmt.Printf("  %v: %v\n", k, v)
+			}
 		} else {
 			fmt.Println("No attributes defined")
 		}
