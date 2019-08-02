@@ -22,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var calicoctl = "/go/src/github.com/projectcalico/calicoctl/bin/calicoctl-linux-amd64"
+var calicoctl = "/github.com/projectcalico/calicoctl/bin/calicoctl-linux-amd64"
 
 func Calicoctl(args ...string) string {
 	out, err := CalicoctlMayFail(args...)
