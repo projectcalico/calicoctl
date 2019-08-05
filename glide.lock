@@ -1,5 +1,5 @@
-hash: 05897b4413c35e9cdba91701d8ba760c6bf8d06edfa7db370944cc0cab6b4391
-updated: 2019-06-21T04:10:16.468991841Z
+hash: f5bfaae3b616419ce96ebdff558dd1b2e116067958d01eed71f113ffa6222789
+updated: 2019-08-05T10:38:52.746019619+01:00
 imports:
 - name: cloud.google.com/go
   version: 3b1ae45394a234c385be014e9a488f2bb6eef821
@@ -16,7 +16,7 @@ imports:
   - autorest/azure
   - autorest/date
 - name: github.com/beorn7/perks
-  version: 4b2b341e8d7715fae06375aa633dbb6e91b3fb46
+  version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
   - quantile
 - name: github.com/coreos/etcd
@@ -45,7 +45,7 @@ imports:
 - name: github.com/eapache/queue
   version: 093482f3f8ce946c05bcba64badd2c82369e084d
 - name: github.com/fsnotify/fsnotify
-  version: 1485a34d5d5723fea214f5710708e19a831720e4
+  version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
 - name: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - name: github.com/go-ole/go-ole
@@ -115,7 +115,7 @@ imports:
   - json/scanner
   - json/token
 - name: github.com/hpcloud/tail
-  version: a30252cb686a21eb2d0b98132633053ec2f7f1e5
+  version: a1dbeea552b7c8df4b542c66073e393de198a800
   subpackages:
   - ratelimiter
   - util
@@ -138,8 +138,6 @@ imports:
   version: f2b4162afba35581b6d4a50d3b8f34e33c144682
 - name: github.com/kelseyhightower/envconfig
   version: dd1402a4d99de9ac2f396cd6fcb957bc2c695ec1
-- name: github.com/konsorten/go-windows-terminal-sequences
-  version: f55edac94c9bbba5d6182a4be46d86a2c9b5b50e
 - name: github.com/leodido/go-urn
   version: a67a23e1c1af3c66528573bb86a87246477277c1
 - name: github.com/magiconair/properties
@@ -147,11 +145,11 @@ imports:
 - name: github.com/mattn/go-runewidth
   version: 703b5e6b11ae25aeb2af9ebb5d5fdf8fa2575211
 - name: github.com/matttproud/golang_protobuf_extensions
-  version: c182affec369e30f25d3eb8cd8a478dee585ae7d
+  version: c12348ce28de40eed0136aa2b644d0ee0650e56c
   subpackages:
   - pbutil
 - name: github.com/mcuadros/go-version
-  version: 92cdf37c5b7579ebaf7a036da94b40995972088d
+  version: 88e56e02bea1c203c99222c365fa52a69996ccac
 - name: github.com/mitchellh/mapstructure
   version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
 - name: github.com/modern-go/concurrent
@@ -159,7 +157,7 @@ imports:
 - name: github.com/modern-go/reflect2
   version: 05fbef0ca5da472bbf96c9322b84a53edc03c9fd
 - name: github.com/olekukonko/tablewriter
-  version: 7e037d187b0c13d81ccf0dd1c6b990c2759e6597
+  version: 93462a5dfaa69905a8243682186e36764caf8680
 - name: github.com/onsi/ginkgo
   version: eea6ad008b96acdaa524f5b409513bf062b500ad
   subpackages:
@@ -211,7 +209,7 @@ imports:
 - name: github.com/pborman/uuid
   version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
 - name: github.com/pelletier/go-toml
-  version: 65b27e6823c427415d156c92d7034dd57a154cf8
+  version: d9a27b8052b61ed9ff043993c141af2acfb50027
 - name: github.com/peterbourgon/diskv
   version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/projectcalico/go-json
@@ -223,7 +221,7 @@ imports:
 - name: github.com/projectcalico/go-yaml-wrapper
   version: 598e54215bee41a19677faa4f0c32acd2a87eb56
 - name: github.com/projectcalico/libcalico-go
-  version: 7d7eb71dd165c7615238b84c987ddeb9e93b0f29
+  version: bf00054ed881fc4023e6e748c5faba3ad0757028
   subpackages:
   - lib/apiconfig
   - lib/apis/v1
@@ -263,11 +261,11 @@ imports:
   - prometheus
   - prometheus/internal
 - name: github.com/prometheus/client_model
-  version: fd36f4220a901265f90734c3183c5f0c91daa0b8
+  version: fa8ad6fec33561be4280a8f0514318c79d7f6cb6
   subpackages:
   - go
 - name: github.com/prometheus/common
-  version: e3fb1a1acd7605367a2b378bc2e2f893c05174b7
+  version: cfeb6f9992ffa54aaa4f2170ade4067ee478b250
   subpackages:
   - expfmt
   - internal/bitbucket.org/ww/goautoneg
@@ -279,7 +277,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/shirou/gopsutil
-  version: 2cbc9195c892b304060269ef280375236d2fcac9
+  version: 27ec6a0789cefd42d1aa3ea7455b48fce7a401db
   subpackages:
   - cpu
   - host
@@ -290,9 +288,9 @@ imports:
 - name: github.com/shirou/w32
   version: bb4de0191aa41b5507caa14b0650cdbddcd9280b
 - name: github.com/sirupsen/logrus
-  version: 8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f
+  version: d682213848ed68c0a260ca37d6dd5ace8423f5ba
 - name: github.com/spf13/afero
-  version: 588a75ec4f32903aa5e39a2619ba6a4631e28424
+  version: f4711e4db9e9a1d3887343acb72b2bbfc2f686f5
   subpackages:
   - mem
 - name: github.com/spf13/cast
@@ -302,7 +300,7 @@ imports:
 - name: github.com/spf13/pflag
   version: 583c0c0531f06d5278b7d917446061adc344b5cd
 - name: github.com/spf13/viper
-  version: 7a605a50e69cd1ea431c4a1e6eebe9b287ef6de4
+  version: d104d259b3380cb653bb793756823c3c41b37b53
 - name: github.com/StackExchange/wmi
   version: e0a55b97c70558c92ce14085e41b35a894e93d3d
 - name: github.com/termie/go-shutil
@@ -316,8 +314,6 @@ imports:
 - name: golang.org/x/crypto
   version: 9419663f5a44be8b34ca85f08abc5fe1be11f8a3
   subpackages:
-  - bcrypt
-  - blowfish
   - ssh/terminal
 - name: golang.org/x/net
   version: 1c05540f6879653db88113bc4a2b70aec4bd491f
@@ -407,10 +403,10 @@ imports:
   - status
   - tap
   - transport
-- name: gopkg.in/fsnotify.v1
-  version: 7be54206639f256967dd82fa767397ba5f8f48f5
+- name: gopkg.in/fsnotify/fsnotify.v1
+  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: gopkg.in/go-playground/validator.v9
-  version: 46b4b1e301c24cac870ffcb4ba5c8a703d1ef475
+  version: b199fa0642d29caca62b6a99d65cc981ba5edc3b
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
 - name: gopkg.in/tomb.v1
