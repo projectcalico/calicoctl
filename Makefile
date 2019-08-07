@@ -38,13 +38,17 @@ ifeq ($(ARCH),x86_64)
 	override ARCH=amd64
 endif
 
-# Build mounts for running in "local build" mode. Mount in libcalico, but null out
-# the vendor directory. This allows an easy build using local development code,
+# Build mounts for running in "local build" mode. This allows an easy build using local development code,
 # assuming that there is a local checkout of libcalico in the same directory as this repo.
-LOCAL_BUILD_MOUNTS ?=
-ifeq ($(LOCAL_BUILD),true)
-LOCAL_BUILD_MOUNTS = -v $(CURDIR)/../libcalico-go:/$(PACKAGE_NAME)/vendor/github.com/projectcalico/libcalico-go:ro \
-	-v $(CURDIR)/.empty:/$(PACKAGE_NAME)/vendor/github.com/projectcalico/libcalico-go/vendor:ro
+PHONY:local_build
+
+ifdef LOCAL_BUILD
+EXTRA_DOCKER_ARGS+=-v $(CURDIR)/../libcalico-go:/go/src/github.com/projectcalico/libcalico-go:rw
+local_build:
+	go mod edit -replace=github.com/projectcalico/libcalico-go=../libcalico-go
+else
+local_build:
+	-go mod edit -dropreplace=github.com/projectcalico/libcalico-go
 endif
 
 # we want to be able to run the same recipe on multiple targets keyed on the image name
@@ -122,9 +126,8 @@ LIBCALICOGO_PATH?=none
 .PHONY: clean
 ## Clean enough that a new release build will be clean
 clean:
-	-chmod -R +w .go-pkg-cache
 	find . -name '*.created-$(ARCH)' -exec rm -f {} +
-	rm -rf bin build certs *.tar vendor .go-pkg-cache
+	rm -rf bin build certs *.tar
 	docker rmi $(BUILD_IMAGE):latest-$(ARCH) || true
 	docker rmi $(BUILD_IMAGE):$(VERSION)-$(ARCH) || true
 ifeq ($(ARCH),amd64)
@@ -143,46 +146,40 @@ build-all: $(addprefix bin/calicoctl-linux-,$(VALIDARCHES)) bin/calicoctl-window
 ## Build the binary for the current architecture and platform
 build: bin/calicoctl-$(OS)-$(ARCH)
 
-EXTRA_DOCKER_ARGS	:= -e GO111MODULE=on
-BUILD_FLAGS		:= -mod=vendor
-GINKGO_ARGS		:= -mod=vendor
+EXTRA_DOCKER_ARGS	+= -e GO111MODULE=on
+
+ifdef GOPATH
+	EXTRA_DOCKER_ARGS += -v $(GOPATH)/pkg/mod:/go/pkg/mod:rw
+endif
 
 DOCKER_RUN := mkdir -p .go-pkg-cache && \
-	   docker run --rm \
-		      --net=host \
-		      $(EXTRA_DOCKER_ARGS) \
-		      -e LOCAL_USER_ID=$(LOCAL_USER_ID) \
-		      -v $(CURDIR):/$(PACKAGE_NAME):rw \
-		      -v $(CURDIR)/.go-pkg-cache:/go-cache:rw \
-		      -e GOCACHE=/go-cache \
-		      -w /$(PACKAGE_NAME) \
-		      -e GOARCH=$(ARCH)
-
-## Create the vendor directory
-vendor: go.mod go.sum
-	if [ "$(LIBCALICOGO_PATH)" != "none" ]; then \
-		EXTRA_DOCKER_ARGS="-v $(LIBCALICOGO_PATH):/projectcalico/libcalico-go:ro"; \
-	fi; \
-	$(DOCKER_RUN) $(CALICO_BUILD) go mod vendor
+        docker run --rm \
+                --net=host \
+                $(EXTRA_DOCKER_ARGS) \
+                -e LOCAL_USER_ID=$(LOCAL_USER_ID) \
+                -e GOCACHE=/go-cache \
+                -e GOARCH=$(ARCH) \
+                -e GOPATH=/go \
+                -v $(CURDIR):/go/src/$(PACKAGE_NAME):rw \
+                -v $(CURDIR)/.go-pkg-cache:/go-cache:rw \
+                -w /go/src/$(PACKAGE_NAME)
 
 # Default the libcalico repo and version but allow them to be overridden
 LIBCALICO_BRANCH?=$(shell git rev-parse --abbrev-ref HEAD)
 LIBCALICO_REPO?=github.com/projectcalico/libcalico-go
 LIBCALICO_VERSION?=$(shell git ls-remote git@github.com:projectcalico/libcalico-go $(LIBCALICO_BRANCH) 2>/dev/null | cut -f 1)
-LIBCALICO_OLDVER?=$(shell grep libcalico-go go.mod | cut -d' ' -f2)
+LIBCALICO_OLDVER?=$(shell go list -m -f "{{.Version}}" github.com/projectcalico/libcalico-go)
 
 ## Update libcalico pin in go.mod
 update-libcalico:
-	$(DOCKER_RUN) $(CALICO_BUILD) sh -c '\
-	echo "Updating libcalico-go to $(LIBCALICO_VERSION) from $(LIBCALICO_REPO)"; \
-	echo "Old version: $(LIBCALICO_OLDVER)";\
-	if [ "$(LIBCALICO_VERSION)" != "$(LIBCALICO_OLDVER)" ]; then \
-		sed -i "/libcalico-go/d" go.mod go.sum; \
+	$(DOCKER_RUN) -i $(CALICO_BUILD) sh -c '\
+	if [ $(LIBCALICO_VERSION) != $(LIBCALICO_OLDVER) ]; then \
+		echo "Updating libcalico version $(LIBCALICO_OLDVER) to $(LIBCALICO_VERSION) from $(LIBCALICO_REPO)"; \
+		go mod edit -droprequire github.com/projectcalico/libcalico-go; \
 		go get $(LIBCALICO_REPO)@$(LIBCALICO_VERSION); \
-		if [ "$(LIBCALICO_REPO)" != "github.com/projectcalico/libcalico-go" ]; then \
-			go mod edit -replace github.com/projectcalico/libcalico-go=$(LIBCALICO_REPO)@$(LIBCALICO_VERSION); \
+		if [ $(LIBCALICO_REPO) != "github.com/projectcalico/libcalico-go" ]; then \
+			go mod edit -replace github.com/projectcalico/typha=$(LIBCALICO_REPO)@$(LIBCALICO_VERSION); \
 		fi;\
-		go mod vendor; \
 	fi'
 
 # The supported different binary names. For each, ensure that an OS and ARCH is set
@@ -194,17 +191,16 @@ bin/calicoctl-darwin-amd64: OS=darwin
 bin/calicoctl-windows-amd64: OS=windows
 bin/calicoctl-linux-%: OS=linux
 
-bin/calicoctl-%: $(SRC_FILES) vendor
+bin/calicoctl-%: local_build $(SRC_FILES)
 	mkdir -p bin
 	-mkdir -p .go-pkg-cache
 	$(DOCKER_RUN) \
 	  -e OS=$(OS) -e ARCH=$(ARCH) \
 	  -e GOOS=$(OS) -e GOARCH=$(ARCH) \
 	  -e CALICOCTL_GIT_REVISION=$(CALICOCTL_GIT_REVISION) \
-	  -v $(CURDIR)/bin:/$(PACKAGE_NAME)/bin \
-	  $(LOCAL_BUILD_MOUNTS) \
+	  -v $(CURDIR)/bin:/go/src/$(PACKAGE_NAME)/bin \
 	  $(CALICO_BUILD) \
-	  go build -v $(BUILD_FLAGS) -o bin/calicoctl-$(OS)-$(ARCH) $(LDFLAGS) "./calicoctl/calicoctl.go"
+	  go build -v -o bin/calicoctl-$(OS)-$(ARCH) $(LDFLAGS) "./calicoctl/calicoctl.go"
 
 # Overrides for the binaries that need different output names
 bin/calicoctl: bin/calicoctl-linux-amd64
@@ -291,7 +287,7 @@ sub-tag-images-%:
 # TODO: re-enable these linters !
 LINT_ARGS := --disable gosimple,errcheck,deadcode,govet,unused
 
-static-checks: vendor
+static-checks:
 	$(DOCKER_RUN) $(CALICO_BUILD) golangci-lint run --deadline 5m $(LINT_ARGS)
 
 .PHONY: fix
@@ -309,17 +305,17 @@ install-git-hooks:
 ###############################################################################
 .PHONY: ut
 ## Run the tests in a container. Useful for CI, Mac dev.
-ut: bin/calicoctl-linux-amd64
-	$(DOCKER_RUN) $(LOCAL_BUILD_MOUNTS) $(CALICO_BUILD) sh -c 'cd /$(PACKAGE_NAME) && ginkgo -cover -r --skipPackage vendor calicoctl/* $(GINKGO_ARGS)'
+ut: local_build bin/calicoctl-linux-amd64
+	$(DOCKER_RUN) $(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && ginkgo -cover -r --skipPackage vendor calicoctl/*'
 
 ###############################################################################
 # FVs
 ###############################################################################
 .PHONY: fv
 ## Run the tests in a container. Useful for CI, Mac dev.
-fv: bin/calicoctl-linux-amd64
+fv: local_build bin/calicoctl-linux-amd64
 	$(MAKE) run-etcd-host
-	$(DOCKER_RUN) $(LOCAL_BUILD_MOUNTS) $(CALICO_BUILD) sh -c 'cd /$(PACKAGE_NAME) && go test $(BUILD_FLAGS) ./tests/fv'
+	$(DOCKER_RUN) $(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && go test ./tests/fv'
 	$(MAKE) stop-etcd
 
 ###############################################################################
@@ -373,7 +369,7 @@ run-etcd-host:
 stop-etcd:
 	@-docker rm -f calico-etcd
 
-foss-checks: vendor
+foss-checks:
 	@echo Running $@...
 	$(DOCKER_RUN) -e FOSSA_API_KEY=$(FOSSA_API_KEY) \
 	$(CALICO_BUILD) /usr/local/bin/fossa
