@@ -149,7 +149,7 @@ build: bin/calicoctl-$(OS)-$(ARCH)
 EXTRA_DOCKER_ARGS	+= -e GO111MODULE=on
 
 ifdef GOPATH
-	LOCAL_GOPATH := $(shell echo $GOPATH | cut -d':' -f1)
+	LOCAL_GOPATH?=$(shell echo $(GOPATH) | cut -d':' -f1)
 	EXTRA_DOCKER_ARGS += -v $(LOCAL_GOPATH)/pkg/mod:/go/pkg/mod:rw
 endif
 
@@ -194,7 +194,6 @@ bin/calicoctl-linux-%: OS=linux
 
 bin/calicoctl-%: local_build $(SRC_FILES)
 	mkdir -p bin
-	-mkdir -p .go-pkg-cache
 	$(DOCKER_RUN) \
 	  -e OS=$(OS) -e ARCH=$(ARCH) \
 	  -e GOOS=$(OS) -e GOARCH=$(ARCH) \
