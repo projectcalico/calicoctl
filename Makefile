@@ -178,7 +178,7 @@ LIBCALICO_OLDVER?=$(shell go list -m -f "{{.Version}}" github.com/projectcalico/
 ## Update libcalico pin in go.mod
 update-libcalico:
 	$(DOCKER_RUN) -i $(CALICO_BUILD) sh -c '\
-	if [ $(LIBCALICO_VERSION) != $(LIBCALICO_OLDVER) ]; then \
+	if [[ ! -z "$(LIBCALICO_VERSION)" ]] && [[ "$(LIBCALICO_VERSION)" != "$(LIBCALICO_OLDVER)" ]]; then \
 		echo "Updating libcalico version $(LIBCALICO_OLDVER) to $(LIBCALICO_VERSION) from $(LIBCALICO_REPO)"; \
 		go mod edit -droprequire github.com/projectcalico/libcalico-go; \
 		go get $(LIBCALICO_REPO)@$(LIBCALICO_VERSION); \
@@ -191,7 +191,7 @@ git-status:
 	git status --porcelain
 
 git-commit:
-	git commit -m "Semaphore Automatic Update" --author "Semaphore Automatic Update <marvin@tigera.io>" go.mod go.sum
+	git diff-index --quiet HEAD || git commit -m "Semaphore Automatic Update" --author "Semaphore Automatic Update <marvin@tigera.io>" go.mod go.sum
 
 git-push:
 	git push
