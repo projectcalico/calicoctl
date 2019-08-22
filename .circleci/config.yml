@@ -6,8 +6,12 @@ jobs:
     environment:
       CIRCLE_ARTIFACTS: ~/projectcalico/calicoctl/bin
     steps:
+    - run:
+      name: Precreate go mod's cache directory so that it gets the right ownership
+      command: |
+          mkdir -p /home/circleci/.go_workspace/pkg/mod
     - checkout
     - run: make bin/calicoctl
     - store_artifacts:
         path: ~/projectcalico/calicoctl/bin
-  
+
