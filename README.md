@@ -75,13 +75,7 @@ To list all possible targets, run `make help`.
    git clone https://github.com/projectcalico/calicoctl.git $GOPATH/src/github.com/projectcalico/calicoctl
    ```
 
-2. Populate the `vendor/` directory in the project's root with the required dependencies:
-
-   ```
-   go mod vendor
-   ```
-
-4. Build the binary:
+2. Build the binary:
    ```
    make build
    ```
