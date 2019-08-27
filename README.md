@@ -69,19 +69,16 @@ To list all possible targets, run `make help`.
 
 ##### Native Builds
 
-1. Assuming you have already installed **go version 1.7.1+**,
-   ensure you've cloned this repository into your Go project path.
+1. Ensure you've cloned this repository into your Go project path:
 
    ```
    git clone https://github.com/projectcalico/calicoctl.git $GOPATH/src/github.com/projectcalico/calicoctl
    ```
 
-2. [Install Glide](https://github.com/Masterminds/glide#install).
-
-3. Populate the `vendor/` directory in the project's root with this project's dependencies:
+2. Populate the `vendor/` directory in the project's root with the required dependencies:
 
    ```
-   glide install -strip-vendor
+   go mod vendor
    ```
 
 4. Build the binary:
