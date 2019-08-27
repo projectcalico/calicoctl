@@ -54,7 +54,7 @@ done
 if $gofmt_failed; then
   echo
   echo "Some files failed gofmt check. Run"
-  echo "  go fmt ./..."
+  echo "  go fmt \$(go list ./...)"
   echo "to format all files."
 fi
 
