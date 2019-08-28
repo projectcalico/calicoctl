@@ -220,7 +220,6 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 				continue
 			default:
 				results.err = err
-				break
 			}
 		}
 
