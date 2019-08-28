@@ -51,6 +51,7 @@ type ResourceManager interface {
 	Update(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceObject, error)
 	Delete(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceObject, error)
 	GetOrList(ctx context.Context, client client.Interface, resource ResourceObject) (runtime.Object, error)
+	Patch(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceObject, error)
 }
 
 // All Calico resources implement the resource interface.
@@ -91,6 +92,7 @@ type resourceHelper struct {
 	delete            ResourceActionCommand
 	get               ResourceActionCommand
 	list              ResourceListActionCommand
+	patch             ResourceActionCommand
 }
 
 func (r resourceHelper) String() string {
@@ -281,6 +283,12 @@ func (rh resourceHelper) GetOrList(ctx context.Context, client client.Interface,
 	}
 
 	return rh.list(ctx, client, resource)
+}
+
+// TODO: implement patch method
+// Patch ...
+func (rh resourceHelper) Patch(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceObject, error) {
+	return resource, errors.New("Patch method not yet implemented")
 }
 
 // Return the Resource Manager for a particular resource type.

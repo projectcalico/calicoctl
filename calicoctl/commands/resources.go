@@ -41,6 +41,7 @@ const (
 	actionUpdate
 	actionDelete
 	actionGetOrList
+	actionPatch
 )
 
 // Convert loaded resources to a slice of resources for easier processing.
@@ -109,7 +110,7 @@ type commandResults struct {
 }
 
 // executeConfigCommand is main function called by all of the resource management commands
-// in calicoctl (apply, create, replace, get and delete).  This provides common function
+// in calicoctl (apply, create, replace, get, delete and patch).  This provides common function
 // for all these commands:
 // 	-  Load resources from file (or if not specified determine the resource from
 // 	   the command line options).
@@ -137,7 +138,7 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 		}
 	} else {
 		// Filename is not specific so extract the resource from the arguments. This
-		// is only useful for delete and get functions - but we don't need to check that
+		// is only useful for delete, get and patch functions - but we don't need to check that
 		// here since the command syntax requires a filename for the other resource
 		// management commands.
 		var err error
@@ -214,7 +215,7 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 		res, err := executeResourceAction(args, client, r, action)
 		if err != nil {
 			switch action {
-			case actionDelete, actionGetOrList:
+			case actionDelete, actionGetOrList, actionPatch:
 				results.resErrs = append(results.resErrs, err)
 				continue
 			default:
@@ -227,7 +228,7 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 		// Skip removing cluster specific metadata if this is is called as a "list"
 		// operation (no specific name is specified).
 		if export && nameSpecified {
-			for i, _ := range res {
+			for i := range res {
 				rom := res[i].(v1.ObjectMetaAccessor).GetObjectMeta()
 				rom.SetNamespace("")
 				rom.SetUID("")
@@ -270,7 +271,8 @@ func executeResourceAction(args map[string]interface{}, client client.Interface,
 		resOut, err = rm.Delete(ctx, client, resource)
 	case actionGetOrList:
 		resOut, err = rm.GetOrList(ctx, client, resource)
-
+	case actionPatch:
+		resOut, err = rm.Patch(ctx, client, resource)
 	}
 
 	// Skip over some errors depending on command line options.
