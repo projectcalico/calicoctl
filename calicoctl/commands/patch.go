@@ -80,7 +80,7 @@ Description:
   terminating error unless the --skip-not-exists flag is set.  If this flag is
   set, resources that do not exist are skipped.
 
-  When deleting resources by type, only a single type may be specified at a
+  When patching resources by type, only a single type may be specified at a
   time.  The name is required along with any and other identifiers required to
   uniquely identify a resource of the specified type.
 
@@ -89,7 +89,7 @@ Description:
   flag is set then skipped resources are included in the success count.
 
   The resources are patched in the order they are specified.  In the event of a
-  failure deleting a specific resource it is possible to work out which
+  failure patching a specific resource it is possible to work out which
   resource failed based on the number of resources successfully patched.
 `
 

@@ -287,7 +287,7 @@ func (rh resourceHelper) GetOrList(ctx context.Context, client client.Interface,
 // TODO: implement patch method
 // Patch ...
 func (rh resourceHelper) Patch(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceObject, error) {
-	return resource, errors.New("Patch method not yet implemented")
+	return resource, fmt.Errorf("Patch method not yet implemented")
 }
 
 // Return the Resource Manager for a particular resource type.
