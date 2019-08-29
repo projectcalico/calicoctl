@@ -460,6 +460,10 @@ endif
 
 ## Verifies the release artifacts produces by `make release-build` are correct.
 release-verify: release-prereqs
+	# go.sum can sometimes be updated as part of the build. However, we don't care about those changes when verifying 
+	# a release, so ignore them here.
+	git checkout go.sum
+
 	# Check the reported version is correct for each release artifact.
 	if ! docker run $(BUILD_IMAGE):$(VERSION)-$(ARCH) version | grep 'Version:\s*$(VERSION)$$'; then \
 	  echo "Reported version:" `docker run $(BUILD_IMAGE):$(VERSION)-$(ARCH) version` "\nExpected version: $(VERSION)"; \
