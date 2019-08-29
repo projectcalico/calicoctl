@@ -84,13 +84,7 @@ Description:
   time.  The name is required along with any and other identifiers required to
   uniquely identify a resource of the specified type.
 
-  The output of the command indicates how many resources were successfully
-  patched, and the error reason if an error occurred.  If the --skip-not-exists
-  flag is set then skipped resources are included in the success count.
-
-  The resources are patched in the order they are specified.  In the event of a
-  failure patching a specific resource it is possible to work out which
-  resource failed based on the number of resources successfully patched.
+  ...
 `
 
 	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)
