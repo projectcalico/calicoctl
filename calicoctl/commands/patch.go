@@ -26,7 +26,7 @@ import (
 func Patch(args []string) error {
 	// TODO: write coherent description.
 	doc := constants.DatastoreIntro + `Usage:
-  calicoctl patch <KIND> [<NAME>] --patch=<PATCH> [--type=<TYPE>] [--config=<CONFIG>] [--namespace=<NS>]
+  calicoctl patch <KIND> <NAME> --patch=<PATCH> [--type=<TYPE>] [--config=<CONFIG>] [--namespace=<NS>]
 
 Examples:
   # Partially update a node using a strategic merge patch.
