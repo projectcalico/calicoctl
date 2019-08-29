@@ -32,7 +32,7 @@ func main() {
     replace   Replace a resource by filename or stdin.
     apply     Apply a resource by filename or stdin.  This creates a resource
               if it does not exist, and replaces a resource if it does exists.
-	patch     Patch a pre-exisiting resource in place.
+    patch     Patch a pre-exisiting resource in place.
     delete    Delete a resource identified by file, stdin or resource type and
               name.
     get       Get a resource identified by file, stdin or resource type and
