@@ -26,38 +26,31 @@ import (
 func Patch(args []string) error {
 	// TODO: write coherent description.
 	doc := constants.DatastoreIntro + `Usage:
-  calicoctl patch ( (<KIND> [<NAME>...]) |
-                   --filename=<FILE>)
-                   [--skip-not-exists] [--config=<CONFIG>] [--namespace=<NS>]
+  calicoctl patch <KIND> [<NAME>] --patch=<PATCH> [--type=<TYPE>] [--config=<CONFIG>] [--namespace=<NS>]
 
 Examples:
   # Patch a policy using the type and name specified in policy.yaml.
-  calicoctl patch -f ./policy.yaml
+  calicoctl patch node node-0 -p '{"spec":{"unschedulable":true}}'
 
   # Patch a policy based on the type and name in the YAML passed into stdin.
-  cat policy.yaml | calicoctl patch -f -
-
-  # Patch policies with names "foo" and "bar"
-  calicoctl patch policy foo bar
+  cat patch.yaml | calicoctl patch node node-0 -p -
 
 Options:
-  -h --help                 Show this screen.
-  -s --skip-not-exists      Skip over and treat as successful, resources that
-                            don't exist.
-  -f --filename=<FILENAME>  Filename to use to patch the resource.  If set to
-                            "-" loads from stdin.
-  -c --config=<CONFIG>      Path to the file containing connection
-                            configuration in YAML or JSON format.
-                            [default: ` + constants.DefaultConfigPath + `]
-  -n --namespace=<NS>       Namespace of the resource.
-                            Only applicable to NetworkPolicy and WorkloadEndpoint.
-                            Only applicable to NetworkPolicy, NetworkSet, and WorkloadEndpoint.
-                            Uses the default namespace if not specified.
+  -h --help                  Show this screen.
+  -p --patch=<PATCH>         Spec to use to patch the resource.  If set
+                             to "-" loads from stdin.
+  -t --type=<TYPE>           Format of patch type, JSON or YAML.
+                             JSON is used by default.
+  -c --config=<CONFIG>       Path to the file containing connection
+                             configuration in YAML or JSON format.
+                             [default: ` + constants.DefaultConfigPath + `]
+  -n --namespace=<NS>        Namespace of the resource.
+                             Only applicable to NetworkPolicy, NetworkSet, and WorkloadEndpoint.
+                             Uses the default namespace if not specified.
 
 Description:
-  The patch command is used to patch a set of resources by filename or stdin,
-  or by type and identifiers.  JSON and YAML formats are accepted for file and
-  stdin format.
+  The patch command is used to patch a specific resource by type and identifiers in place.
+  JSON and YAML formats are accepted.
 
   Valid resource types are:
 
@@ -98,16 +91,10 @@ Description:
 	results := executeConfigCommand(parsedArgs, actionPatch)
 	log.Infof("results: %+v", results)
 
-	if results.fileInvalid {
-		return fmt.Errorf("Failed to execute command: %v", results.err)
-	} else if results.numResources == 0 {
+	if results.numResources == 0 {
 		return fmt.Errorf("No resources specified")
 	} else if results.err == nil && results.numHandled > 0 {
-		if results.singleKind != "" {
-			fmt.Printf("Successfully patched %d '%s' resource(s)\n", results.numHandled, results.singleKind)
-		} else {
-			fmt.Printf("Successfully patched %d resource(s)\n", results.numHandled)
-		}
+		fmt.Printf("Successfully patched %d '%s' resource\n", results.numHandled, results.singleKind)
 	} else if results.err != nil {
 		return fmt.Errorf("Hit error: %v", results.err)
 	}
@@ -115,11 +102,7 @@ Description:
 	if len(results.resErrs) > 0 {
 		var errStr string
 		for _, err := range results.resErrs {
-			if results.singleKind != "" {
-				errStr += fmt.Sprintf("Failed to patch '%s' resource: %v\n", results.singleKind, err)
-			} else {
-				errStr += fmt.Sprintf("Failed to patch resource: %v\n", err)
-			}
+			errStr += fmt.Sprintf("Failed to patch '%s' resource: %v\n", results.singleKind, err)
 		}
 		return fmt.Errorf(errStr)
 	}
