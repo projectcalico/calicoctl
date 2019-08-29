@@ -29,11 +29,14 @@ func Patch(args []string) error {
   calicoctl patch <KIND> [<NAME>] --patch=<PATCH> [--type=<TYPE>] [--config=<CONFIG>] [--namespace=<NS>]
 
 Examples:
-  # Patch a policy using the type and name specified in policy.yaml.
-  calicoctl patch node node-0 -p '{"spec":{"unschedulable":true}}'
+  # Partially update a node using a strategic merge patch.
+  calicoctl patch node node-0 --patch '{"spec":{"unschedulable":true}}'
 
-  # Patch a policy based on the type and name in the YAML passed into stdin.
-  cat patch.yaml | calicoctl patch node node-0 -p -
+  # Partially update a node using a strategic merge patch. Specify the patch as YAML.
+  calicoctl patch node node-0 --patch $'spec:\n unschedulable: true'
+
+  # Partially update a node using a json merge patch.
+  calicoctl patch node node-0 --patch '{"spec":{"unschedulable":true}}' --type json
 
 Options:
   -h --help                  Show this screen.
