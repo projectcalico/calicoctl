@@ -39,8 +39,10 @@ Options:
   -h --help                  Show this screen.
   -p --patch=<PATCH>         Spec to use to patch the resource.  If set
                              to "-" loads from stdin.
-  -t --type=<TYPE>           Format of patch type, JSON or YAML.
-                             JSON is used by default.
+  -t --type=<TYPE>           Format of patch type:
+                                json        JSON Patch, RFC 6902 (default)
+                                merge       JSON Merge Patch, RFC 7386
+                                strategic   Strategic merge patch
   -c --config=<CONFIG>       Path to the file containing connection
                              configuration in YAML or JSON format.
                              [default: ` + constants.DefaultConfigPath + `]
