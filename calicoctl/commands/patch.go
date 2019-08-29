@@ -40,9 +40,9 @@ Options:
   -p --patch=<PATCH>         Spec to use to patch the resource.  If set
                              to "-" loads from stdin.
   -t --type=<TYPE>           Format of patch type:
-                                json        JSON Patch, RFC 6902 (default)
+                                json        JSON Patch, RFC 6902
                                 merge       JSON Merge Patch, RFC 7386
-                                strategic   Strategic merge patch
+                                strategic   Strategic merge patch (default)
   -c --config=<CONFIG>       Path to the file containing connection
                              configuration in YAML or JSON format.
                              [default: ` + constants.DefaultConfigPath + `]
