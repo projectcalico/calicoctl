@@ -215,7 +215,7 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 		res, err := executeResourceAction(args, client, r, action)
 		if err != nil {
 			switch action {
-			case actionDelete, actionGetOrList, actionPatch:
+			case actionDelete, actionGetOrList:
 				results.resErrs = append(results.resErrs, err)
 				continue
 			default:
@@ -271,7 +271,9 @@ func executeResourceAction(args map[string]interface{}, client client.Interface,
 	case actionGetOrList:
 		resOut, err = rm.GetOrList(ctx, client, resource)
 	case actionPatch:
-		resOut, err = rm.Patch(ctx, client, resource)
+		// TODO: this could panic
+		patch := args["--patch"].(string)
+		resOut, err = rm.Patch(ctx, client, resource, patch)
 	}
 
 	// Skip over some errors depending on command line options.

@@ -37,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// The ResourceManager interface provides useful function for each resource type.  This includes:
+// ResourceManager provides a useful function for each resource type.  This includes:
 //	-  Commands to assist with generation of table output format of resources
 //	-  Commands to manage resource instances through an un-typed interface.
 type ResourceManager interface {
@@ -50,16 +50,16 @@ type ResourceManager interface {
 	Update(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceObject, error)
 	Delete(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceObject, error)
 	GetOrList(ctx context.Context, client client.Interface, resource ResourceObject) (runtime.Object, error)
-	Patch(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceObject, error)
+	Patch(ctx context.Context, client client.Interface, resource ResourceObject, patch string) (ResourceObject, error)
 }
 
-// All Calico resources implement the resource interface.
+// ResourceObject is implemented by all Calico resources
 type ResourceObject interface {
 	runtime.Object
 	v1.ObjectMetaAccessor
 }
 
-// All Calico resources list implement the resource interface.
+// ResourceListObject is implemented by all Calico resources lists
 type ResourceListObject interface {
 	runtime.Object
 	v1.ListMetaAccessor
@@ -91,15 +91,14 @@ type resourceHelper struct {
 	delete            ResourceActionCommand
 	get               ResourceActionCommand
 	list              ResourceListActionCommand
-	patch             ResourceActionCommand
 }
 
-func (r resourceHelper) String() string {
-	if !r.isList {
-		return fmt.Sprintf("Resource(%s %s)", r.resource.GetObjectKind(), r.resource.GetObjectKind().GroupVersionKind())
+func (rh resourceHelper) String() string {
+	if !rh.isList {
+		return fmt.Sprintf("Resource(%s %s)", rh.resource.GetObjectKind(), rh.resource.GetObjectKind().GroupVersionKind())
 
 	}
-	return fmt.Sprintf("Resource(%s %s)", r.listResource.GetObjectKind(), r.listResource.GetListMeta().GetResourceVersion())
+	return fmt.Sprintf("Resource(%s %s)", rh.listResource.GetObjectKind(), rh.listResource.GetListMeta().GetResourceVersion())
 }
 
 // Store a resourceHelper for each resource.
@@ -286,11 +285,26 @@ func (rh resourceHelper) GetOrList(ctx context.Context, client client.Interface,
 
 // TODO: implement patch method
 // Patch ...
-func (rh resourceHelper) Patch(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceObject, error) {
-	return resource, fmt.Errorf("Patch method not yet implemented")
+func (rh resourceHelper) Patch(ctx context.Context, client client.Interface, resource ResourceObject, patch string) (ResourceObject, error) {
+	r, err := rh.GetOrList(ctx, client, resource)
+	if err != nil {
+		return resource, fmt.Errorf("getting existing resource: %v", err)
+	}
+
+	// Copy the resource to prevent modifying the input resource metadata.
+	resource = r.DeepCopyObject().(ResourceObject)
+
+	// TODO: implement strategic merge
+
+	resource, err = rh.Update(ctx, client, resource)
+	if err != nil {
+		return resource, fmt.Errorf("updating existing resource: %v", err)
+	}
+
+	return resource, nil
 }
 
-// Return the Resource Manager for a particular resource type.
+// GetResourceManager returns the Resource Manager for a particular resource type.
 func GetResourceManager(resource runtime.Object) ResourceManager {
 	return helpers[resource.GetObjectKind().GroupVersionKind()]
 }
@@ -361,10 +375,8 @@ func newResource(tm schema.GroupVersionKind) (runtime.Object, error) {
 	_, ok = new.Interface().(ResourceObject)
 	if ok {
 		return new.Interface().(ResourceObject), nil
-	} else {
-		return new.Interface().(ResourceListObject), nil
 	}
-
+	return new.Interface().(ResourceListObject), nil
 }
 
 // Create the resource from the specified byte array encapsulating the resource.
