@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -169,8 +168,8 @@ func executeConfigCommand(args map[string]interface{}, action action) commandRes
 	cf := args["--config"].(string)
 	client, err := clientmgr.NewClient(cf)
 	if err != nil {
-		fmt.Printf("Failed to create Calico API client: %s\n", err)
-		os.Exit(1)
+		//fmt.Printf("Failed to create Calico API client: %s\n", err)
+		//os.Exit(1)
 	}
 	log.Infof("Client: %v", client)
 

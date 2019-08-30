@@ -283,20 +283,19 @@ func (rh resourceHelper) GetOrList(ctx context.Context, client client.Interface,
 	return rh.list(ctx, client, resource)
 }
 
-// TODO: implement patch method
-// Patch ...
+// Patch is an un-typed method to patch an existing resource.
 func (rh resourceHelper) Patch(ctx context.Context, client client.Interface, resource ResourceObject, patch string) (ResourceObject, error) {
-	r, err := rh.GetOrList(ctx, client, resource)
+	ro, err := rh.get(ctx, client, resource)
 	if err != nil {
-		return resource, fmt.Errorf("getting existing resource: %v", err)
+		return ro, err
 	}
 
 	// Copy the resource to prevent modifying the input resource metadata.
-	resource = r.DeepCopyObject().(ResourceObject)
+	resource = ro.DeepCopyObject().(ResourceObject)
 
 	// TODO: implement strategic merge
 
-	resource, err = rh.Update(ctx, client, resource)
+	resource, err = rh.update(ctx, client, resource)
 	if err != nil {
 		return resource, fmt.Errorf("updating existing resource: %v", err)
 	}
@@ -452,7 +451,7 @@ func unmarshalSliceOfResources(tml []unstructured.Unstructured, b []byte) ([]run
 	return unpacked, nil
 }
 
-// Create the Resource from the specified file f.
+// CreateResourcesFromFile creates the Resource from the specified file f.
 // 	-  The file format may be JSON or YAML encoding of either a single resource or list of
 // 	   resources as defined by the API objects in /api.
 // 	-  A filename of "-" means "Read from stdin".
@@ -559,7 +558,7 @@ func (rh resourceHelper) GetTableTemplate(headings []string, printNamespace bool
 	return buf.String(), nil
 }
 
-// mergeMetadataForUpdate merges the Metadata for a stored ResourceObject and a potentail
+// mergeMetadataForUpdate merges the Metadata for a stored ResourceObject and a potential
 // update. All metadata in the potential update will be overwritten by the stored object
 // except for Labels and Annotations. This prevents accidental modifications to the metadata
 // fields by forcing updates to those fields to be handled by internal or more involved
