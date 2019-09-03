@@ -292,7 +292,9 @@ func (rh resourceHelper) Patch(ctx context.Context, client client.Interface, res
 
 	// Copy the resource to prevent modifying the input resource metadata.
 	resource = ro.DeepCopyObject().(ResourceObject)
+	resource = mergeMetadataForUpdate(ro, resource)
 
+	// TODO: unmarshal patch into specific type
 	// TODO: implement strategic merge
 
 	resource, err = rh.update(ctx, client, resource)
