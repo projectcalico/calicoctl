@@ -17,6 +17,7 @@ package resourcemgr
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -290,11 +291,14 @@ func (rh resourceHelper) Patch(ctx context.Context, client client.Interface, res
 		return ro, err
 	}
 
-	// Copy the resource to prevent modifying the input resource metadata.
-	resource = ro.DeepCopyObject().(ResourceObject)
 	resource = mergeMetadataForUpdate(ro, resource)
 
-	// TODO: unmarshal patch into specific type
+	// Unmarshal patch for comparison
+	p := interface{}
+	if err := json.Unmarshal([]byte(patch), &p); err != nil {
+		return resource, fmt.Errorf("updating unmarshalling patch: %v", err)
+	}
+
 	// TODO: implement strategic merge
 
 	resource, err = rh.update(ctx, client, resource)
