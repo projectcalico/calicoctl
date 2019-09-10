@@ -36,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
 // ResourceManager provides a useful function for each resource type.  This includes:
@@ -285,6 +286,8 @@ func (rh resourceHelper) GetOrList(ctx context.Context, client client.Interface,
 }
 
 // Patch is an un-typed method to patch an existing resource.
+// It currently take a partial JSON object and attempts to perform a strategic merge
+// on the existing resource.
 func (rh resourceHelper) Patch(ctx context.Context, client client.Interface, resource ResourceObject, patch string) (ResourceObject, error) {
 	ro, err := rh.get(ctx, client, resource)
 	if err != nil {
@@ -293,13 +296,29 @@ func (rh resourceHelper) Patch(ctx context.Context, client client.Interface, res
 
 	resource = mergeMetadataForUpdate(ro, resource)
 
-	// Unmarshal patch for comparison
-	p := interface{}
-	if err := json.Unmarshal([]byte(patch), &p); err != nil {
-		return resource, fmt.Errorf("updating unmarshalling patch: %v", err)
+	// Marshal original obj for comparison
+	original, err := json.Marshal(ro)
+	if err != nil {
+		return resource, fmt.Errorf("marshalling original resource: %v", err)
 	}
 
-	// TODO: implement strategic merge
+	// perform strategic merge
+	patched, err := strategicpatch.StrategicMergePatch(original, []byte(patch), reflect.TypeOf(ro))
+	if err != nil {
+		return resource, fmt.Errorf("permorming strategic merge patch: %v", err)
+	}
+
+	// convert patched data to resource
+	resources, err := createResourcesFromBytes(patched)
+	if err != nil {
+		return resource, fmt.Errorf("creating resource from patched data: %v", err)
+	}
+
+	if len(resources) < 1 {
+		return resource, fmt.Errorf("invalid number of patched resources: %v", len(resources))
+	}
+
+	resource = resources[0].(ResourceObject)
 
 	resource, err = rh.update(ctx, client, resource)
 	if err != nil {

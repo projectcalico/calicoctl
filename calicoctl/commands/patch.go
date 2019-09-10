@@ -32,9 +32,6 @@ Examples:
   # Partially update a node using a strategic merge patch.
   calicoctl patch node node-0 --patch '{"spec":{"unschedulable":true}}'
 
-  # Partially update a node using a strategic merge patch. Specify the patch as YAML.
-  calicoctl patch node node-0 --patch $'spec:\n unschedulable: true'
-
   # Partially update a node using a json merge patch.
   calicoctl patch node node-0 --patch '{"spec":{"unschedulable":true}}' --type json
 
@@ -43,8 +40,8 @@ Options:
   -p --patch=<PATCH>         Spec to use to patch the resource.  If set
                              to "-" loads from stdin.
   -t --type=<TYPE>           Format of patch type:
-                                json        JSON Patch, RFC 6902
-                                merge       JSON Merge Patch, RFC 7386
+                                json        JSON Patch, RFC 6902 (not yet implemented)
+								merge       JSON Merge Patch, RFC 7386 (not yet implemented)
                                 strategic   Strategic merge patch (default)
   -c --config=<CONFIG>       Path to the file containing connection
                              configuration in YAML or JSON format.
@@ -55,7 +52,7 @@ Options:
 
 Description:
   The patch command is used to patch a specific resource by type and identifiers in place.
-  JSON and YAML formats are accepted.
+  Currently, only JSON format is accepted.
 
   Valid resource types are:
 
@@ -81,8 +78,6 @@ Description:
   When patching resources by type, only a single type may be specified at a
   time.  The name is required along with any and other identifiers required to
   uniquely identify a resource of the specified type.
-
-  ...
 `
 
 	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)

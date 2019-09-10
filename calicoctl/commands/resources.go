@@ -271,7 +271,6 @@ func executeResourceAction(args map[string]interface{}, client client.Interface,
 	case actionGetOrList:
 		resOut, err = rm.GetOrList(ctx, client, resource)
 	case actionPatch:
-		// TODO: this could panic
 		patch := args["--patch"].(string)
 		resOut, err = rm.Patch(ctx, client, resource, patch)
 	}
