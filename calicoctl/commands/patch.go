@@ -41,7 +41,7 @@ Options:
                              to "-" loads from stdin.
   -t --type=<TYPE>           Format of patch type:
                                 json        JSON Patch, RFC 6902 (not yet implemented)
-								merge       JSON Merge Patch, RFC 7386 (not yet implemented)
+                                merge       JSON Merge Patch, RFC 7386 (not yet implemented)
                                 strategic   Strategic merge patch (default)
   -c --config=<CONFIG>       Path to the file containing connection
                              configuration in YAML or JSON format.
