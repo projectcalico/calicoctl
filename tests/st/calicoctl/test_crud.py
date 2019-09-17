@@ -1023,8 +1023,20 @@ class TestCalicoctlCommands(TestBase):
         rc = calicoctl("label nodes node1 cluster --remove")
         rc.assert_error("can not remove label")
 
+    def test_patch(self):
+        """
+        Test that a basic CRUD flow for patch command works.
+        """
+        rc = calicoctl("create", data=node_name1_rev1)
+        rc.assert_no_error()
 
+        rc = calicoctl("patch nodes node1 -p '{\"spec\":{\"bgp\": {\"routeReflectorClusterID\": \"192.168.0.1\"}}}'")
+        rc.assert_no_error()
 
+        rc = calicoctl("get nodes node1 -o yaml")
+        rc.assert_no_error()
+        node1_rev2 = rc.decoded
+        self.assertEqual("192.168.0.1",node1_rev2['spec']['bgp']['routeReflectorClusterID'])
 
 #
 #

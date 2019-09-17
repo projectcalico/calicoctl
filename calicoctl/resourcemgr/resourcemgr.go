@@ -303,7 +303,7 @@ func (rh resourceHelper) Patch(ctx context.Context, client client.Interface, res
 	}
 
 	// perform strategic merge
-	patched, err := strategicpatch.StrategicMergePatch(original, []byte(patch), reflect.TypeOf(ro))
+	patched, err := strategicpatch.StrategicMergePatch(original, []byte(patch), ro.DeepCopyObject().(ResourceObject))
 	if err != nil {
 		return resource, fmt.Errorf("permorming strategic merge patch: %v", err)
 	}
