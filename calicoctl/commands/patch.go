@@ -24,7 +24,6 @@ import (
 )
 
 func Patch(args []string) error {
-	// TODO: write coherent description.
 	doc := constants.DatastoreIntro + `Usage:
   calicoctl patch <KIND> <NAME> --patch=<PATCH> [--type=<TYPE>] [--config=<CONFIG>] [--namespace=<NS>]
 
