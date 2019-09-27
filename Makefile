@@ -62,7 +62,7 @@ VALIDARCHES = $(filter-out $(EXCLUDEARCH),$(ARCHES))
 OS := $(shell uname -s | tr A-Z a-z)
 
 ###############################################################################
-GO_BUILD_VER?=v0.23
+GO_BUILD_VER?=v0.25
 ETCD_VER?=v3.3.7
 
 BUILD_IMAGE?=calico/ctl
