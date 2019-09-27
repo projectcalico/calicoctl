@@ -536,7 +536,7 @@ endif
 help: # Some kind of magic from https://gist.github.com/rcmachado/af3db315e31383502660
 	@echo "calicoctl Makefile"
 	@echo
-	@echo "Dependencies: docker 1.12+; go 1.8+"
+	@echo "Dependencies: docker 1.12+; go 1.13+"
 	@echo
 	@echo "For some target, set ARCH=<target> OS=<os> to build for a given target architecture and OS."
 	@awk '/^[a-zA-Z\-\_0-9\/]+:/ {				      \
