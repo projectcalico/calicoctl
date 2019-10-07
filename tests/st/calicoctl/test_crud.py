@@ -279,6 +279,24 @@ class TestCalicoctlCommands(TestBase):
         rc = calicoctl("replace", data=networkpolicy_name1_rev2)
         rc.assert_error(text=NOT_FOUND)
 
+    def test_create_single_invalid_resource(self):
+        """
+        Test that creating a single invalid resource returns an appropriate error
+        """
+        rc = calicoctl("create", data=bgppeer_invalid, format="json")
+        rc.assert_error(text="error with field PeerIP = 'badpeerIP'")
+        rc.assert_output_not_contains("Partial success")
+        rc.assert_output_contains("Failed to create 'BGPPeer' resource")
+
+    def test_create_all_invalid_resources(self):
+        """
+        Test that creating multiple invalid resources returns an appropriate error
+        """
+        rc = calicoctl("create", data=bgppeer_multiple_invalid, format="json")
+        rc.assert_error(text="error with field PeerIP = 'badpeerIP'")
+        rc.assert_output_not_contains("Partial success")
+        rc.assert_output_contains("Failed to create any 'BGPPeer' resources")
+
     def test_apply_single_invalid_resource(self):
         """
         Test that applying a single invalid resource returns an appropriate error
