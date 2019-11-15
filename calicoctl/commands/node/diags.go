@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"bytes"
 
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
@@ -222,6 +223,13 @@ func writeDiags(cmds diagCmd, dir string) {
 	content, err := exec.Command(parts[0], parts[1:]...).CombinedOutput()
 	if err != nil {
 		fmt.Printf("Failed to run command: %s\nError: %s\n", cmds.cmd, string(content))
+		if strings.Compare(cmds.cmd, "iptables-save -c") == 0 {
+			fmt.Printf("Fallback: iptables\n")
+			content = walkIPTables("/proc/net/ip_tables_names", "iptables")
+		} else if strings.Compare(cmds.cmd, "ip6tables-save -c") == 0 {
+			fmt.Printf("Fallback: ip6tables\n")
+			content = walkIPTables("/proc/net/ip6_tables_names", "ip6tables")
+		}
 	}
 
 	// This is for the commands we want to run but don't want to save the output
@@ -234,4 +242,40 @@ func writeDiags(cmds diagCmd, dir string) {
 	if err := ioutil.WriteFile(fp, content, 0666); err != nil {
 		log.Errorf("Error writing diags to file: %s\n", err)
 	}
+}
+
+func walkIPTables(file string, command string)([]byte) {
+
+	tablesFile, err := os.Open(file)
+	if err != nil {
+		fmt.Printf("Failed to open: %s\n", file)
+	}
+
+	command, err = exec.LookPath(command)
+	if err != nil {
+		fmt.Printf("Failed to run command: %s\nError: Not found in PATH\n", command)
+	}
+
+	scanner := bufio.NewScanner(tablesFile)
+	scanner.Split(bufio.ScanLines)
+
+	var persist string
+	for scanner.Scan() {
+		table := scanner.Text()
+		cmd := exec.Command(command, "-S", "-t", table)
+
+		var rules, errbuf bytes.Buffer
+		cmd.Stdout = &rules
+		cmd.Stderr = &errbuf
+		err = cmd.Run()
+
+		if err != nil {
+			fmt.Printf("ERROR in %s: %s", table, errbuf.String())
+		} else {
+			persist += fmt.Sprintf("*%s\n%sCOMMIT\n", table, rules.String())
+		}
+	}
+
+	tablesFile.Close()
+	return []byte(persist)
 }
