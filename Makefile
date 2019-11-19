@@ -157,9 +157,9 @@ st: bin/calicoctl-linux-amd64
 # arm64: 3.3.7-arm64
 # ppc64le: 3.3.7-ppc64le
 # s390x is not available
-COREOS_ETCD?=quay.io/coreos/etcd:$(ETCD_VER)-$(ARCH)
+COREOS_ETCD?=quay.io/coreos/etcd:$(ETCD_VERSION)-$(ARCH)
 ifeq ($(ARCH),amd64)
-COREOS_ETCD=quay.io/coreos/etcd:$(ETCD_VER)
+COREOS_ETCD=quay.io/coreos/etcd:$(ETCD_VERSION)
 endif
 .PHONY: run-etcd-host
 run-etcd-host:
