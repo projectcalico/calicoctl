@@ -4,7 +4,7 @@ GO_BUILD_VER=v0.27
 MAKE_BRANCH?=$(GO_BUILD_VER)
 MAKE_REPO?=https://raw.githubusercontent.com/projectcalico/go-build/$(MAKE_BRANCH)/Makefile.common
 
-get_common:=$(shell wget -nv $(MAKE_REPO) -O Makefile.common)
+get_common:=$(shell wget -nc -nv $(MAKE_REPO) -O Makefile.common)
 include Makefile.common
 
 BUILD_IMAGE?=calico/ctl
