@@ -1,11 +1,22 @@
 PACKAGE_NAME=github.com/projectcalico/calicoctl
 GO_BUILD_VER=v0.27
 
+###############################################################################
+# Download and include Makefile.common before anything else
+###############################################################################
 MAKE_BRANCH?=$(GO_BUILD_VER)
-MAKE_REPO?=https://raw.githubusercontent.com/projectcalico/go-build/$(MAKE_BRANCH)/Makefile.common
+MAKE_REPO?=https://raw.githubusercontent.com/projectcalico/go-build/$(MAKE_BRANCH)
 
-get_common:=$(shell wget -nc -nv $(MAKE_REPO) -O Makefile.common)
+Makefile.common: Makefile.common.$(MAKE_BRANCH)
+	cp "$<" "$@"
+Makefile.common.$(MAKE_BRANCH):
+	# Clean up any files downloaded from other branches so they don't accumulate.
+	rm -f Makefile.common.*
+	wget -nv $(MAKE_REPO)/Makefile.common -O "$@"
+
 include Makefile.common
+
+###############################################################################
 
 BUILD_IMAGE?=calico/ctl
 PUSH_IMAGES?=$(BUILD_IMAGE) quay.io/calico/ctl
