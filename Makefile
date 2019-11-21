@@ -318,36 +318,3 @@ endif
 ifeq (, $(shell which ghr))
 	$(error Unable to find `ghr` in PATH, run this: go get -u github.com/tcnksm/ghr)
 endif
-
-###############################################################################
-# Developer helper scripts (not used by build or test)
-###############################################################################
-.PHONY: help
-## Display this help text
-help: # Some kind of magic from https://gist.github.com/rcmachado/af3db315e31383502660
-	@echo "calicoctl Makefile"
-	@echo
-	@echo "Dependencies: docker 1.12+; go 1.8+"
-	@echo
-	@echo "For some target, set ARCH=<target> BUILDOS=<os> to build for a given target architecture and OS."
-	@awk '/^[a-zA-Z\-\_0-9\/]+:/ {				      \
-		nb = sub( /^## /, "", helpMsg );				\
-		if(nb == 0) {						   \
-			helpMsg = $$0;					      \
-			nb = sub( /^[^:]*:.* ## /, "", helpMsg );		   \
-		}							       \
-		if (nb)							 \
-			printf "\033[1;31m%-" width "s\033[0m %s\n", $$1, helpMsg;  \
-	}								   \
-	{ helpMsg = $$0 }'						  \
-	width=20							    \
-	$(MAKEFILE_LIST)
-	@echo
-	@echo "-----------------------------------------"
-	@echo "Building for $(BUILDOS)-$(ARCH) INSTALL_FLAG=$(INSTALL_FLAG)"
-	@echo
-	@echo "ARCH (target):	  $(ARCH)"
-	@echo "OS (target):	    $(BUILDOS)"
-	@echo "BUILDARCH (host):       $(BUILDARCH)"
-	@echo "CALICO_BUILD:     $(CALICO_BUILD)"
-	@echo "-----------------------------------------"
