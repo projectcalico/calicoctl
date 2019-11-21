@@ -6,13 +6,14 @@ GO_BUILD_VER=v0.27
 ###############################################################################
 MAKE_BRANCH?=$(GO_BUILD_VER)
 MAKE_REPO?=https://raw.githubusercontent.com/projectcalico/go-build/$(MAKE_BRANCH)
+WGET?=/usr/bin/wget
 
 Makefile.common: Makefile.common.$(MAKE_BRANCH)
 	cp "$<" "$@"
-Makefile.common.$(MAKE_BRANCH):
+Makefile.common.$(MAKE_BRANCH): $(WGET)
 	# Clean up any files downloaded from other branches so they don't accumulate.
 	rm -f Makefile.common.*
-	wget -nv $(MAKE_REPO)/Makefile.common -O "$@"
+	$(WGET) -nv $(MAKE_REPO)/Makefile.common -O "$@"
 
 include Makefile.common
 
