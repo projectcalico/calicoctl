@@ -2,7 +2,9 @@ PACKAGE_NAME=github.com/projectcalico/calicoctl
 GO_BUILD_VER=v0.27
 
 ###############################################################################
-# Download and include Makefile.common before anything else
+# Download and include Makefile.common
+#   Additions to EXTRA_DOCKER_ARGS need to happen before the include since
+#   that variable is evaluated when we declare DOCKER_RUN and siblings.
 ###############################################################################
 MAKE_BRANCH?=$(GO_BUILD_VER)
 MAKE_REPO?=https://raw.githubusercontent.com/projectcalico/go-build/$(MAKE_BRANCH)
@@ -14,6 +16,17 @@ Makefile.common.$(MAKE_BRANCH): $(WGET)
 	# Clean up any files downloaded from other branches so they don't accumulate.
 	rm -f Makefile.common.*
 	$(WGET) -nv $(MAKE_REPO)/Makefile.common -O "$@"
+
+# Build mounts for running in "local build" mode. This allows an easy build using local development code,
+# assuming that there is a local checkout of libcalico in the same directory as this repo.
+ifdef LOCAL_BUILD
+PHONY: set-up-local-build
+LOCAL_BUILD_DEP:=set-up-local-build
+
+EXTRA_DOCKER_ARGS+=-v $(CURDIR)/../libcalico-go:/go/src/github.com/projectcalico/libcalico-go:rw
+$(LOCAL_BUILD_DEP):
+	$(DOCKER_RUN) $(CALICO_BUILD) go mod edit -replace=github.com/projectcalico/libcalico-go=../libcalico-go
+endif
 
 include Makefile.common
 
@@ -37,19 +50,6 @@ endif
 
 LDFLAGS=-ldflags "-X $(PACKAGE_NAME)/calicoctl/commands.VERSION=$(GIT_VERSION) \
 	-X $(PACKAGE_NAME)/calicoctl/commands.GIT_REVISION=$(CALICOCTL_GIT_REVISION) -s -w"
-
-# Build mounts for running in "local build" mode. This allows an easy build using local development code,
-# assuming that there is a local checkout of libcalico in the same directory as this repo.
-PHONY:local_build
-
-ifdef LOCAL_BUILD
-EXTRA_DOCKER_ARGS+=-v $(CURDIR)/../libcalico-go:/go/src/github.com/projectcalico/libcalico-go:rw
-local_build:
-	$(DOCKER_RUN) $(CALICO_BUILD) go mod edit -replace=github.com/projectcalico/libcalico-go=../libcalico-go
-else
-local_build:
-	@echo "Building calicoctl"
-endif
 
 .PHONY: clean
 ## Clean enough that a new release build will be clean
@@ -88,7 +88,7 @@ bin/calicoctl-darwin-amd64: BUILDOS=darwin
 bin/calicoctl-windows-amd64: BUILDOS=windows
 bin/calicoctl-linux-%: BUILDOS=linux
 
-bin/calicoctl-%: local_build $(SRC_FILES)
+bin/calicoctl-%: $(LOCAL_BUILD_DEP) $(SRC_FILES)
 	mkdir -p bin
 	$(DOCKER_RUN) \
 	  -e CALICOCTL_GIT_REVISION=$(CALICOCTL_GIT_REVISION) \
@@ -124,7 +124,7 @@ sub-image-%:
 ###############################################################################
 .PHONY: ut
 ## Run the tests in a container. Useful for CI, Mac dev.
-ut: local_build bin/calicoctl-linux-amd64
+ut: $(LOCAL_BUILD_DEP) bin/calicoctl-linux-amd64
 	$(DOCKER_RUN) $(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && ginkgo -cover -r calicoctl/*'
 
 ###############################################################################
@@ -132,7 +132,7 @@ ut: local_build bin/calicoctl-linux-amd64
 ###############################################################################
 .PHONY: fv
 ## Run the tests in a container. Useful for CI, Mac dev.
-fv: local_build bin/calicoctl-linux-amd64
+fv: $(LOCAL_BUILD_DEP) bin/calicoctl-linux-amd64
 	$(MAKE) run-etcd-host
 	$(DOCKER_RUN) $(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && go test ./tests/fv'
 	$(MAKE) stop-etcd
