@@ -80,6 +80,9 @@ bin/calicoctl-%-s390x: ARCH=s390x
 bin/calicoctl-darwin-amd64: BUILDOS=darwin
 bin/calicoctl-windows-amd64: BUILDOS=windows
 bin/calicoctl-linux-%: BUILDOS=linux
+# We reinvoke make here to re-evaluate BUILDOS and ARCH so the correct values
+# for multi-platform builds are used. When make is initially invoked, BUILDOS
+# and ARCH are defined with default values (Linux and amd64).
 bin/calicoctl-%: $(LOCAL_BUILD_DEP) $(SRC_FILES)
 	$(MAKE) build-calicoctl BUILDOS=$(BUILDOS) ARCH=$(ARCH)
 build-calicoctl:
