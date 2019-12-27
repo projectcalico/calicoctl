@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Tigera, Inc. All rights reserved.
+// Copyright (c) 2016-2017, 2019 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"sync"
 
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
@@ -41,12 +42,15 @@ type diagCmd struct {
 func Diags(args []string) error {
 	var err error
 	doc := `Usage:
-  calicoctl node diags [--log-dir=<LOG_DIR>]
+  calicoctl node diags [--log-dir=<LOG_DIR>] [-A] [--all-nodes]
 
 Options:
   -h --help               Show this screen.
      --log-dir=<LOG_DIR>  The directory containing Calico logs.
                           [default: /var/log/calico]
+
+  -A --all-nodes          Run Diagnostics on all nodes.
+                          [default: false]
 
 Description:
   This command is used to gather diagnostic information from a Calico node.
@@ -57,7 +61,7 @@ Description:
   diagnostics to http://transfer.sh for easy sharing of the data. Note that the
   uploaded files will be deleted after 14 days.
 
-  This command must be run on the specific Calico node that you are gathering
+  This command can be run on the specific Calico node that you are gathering
   diagnostics for.
 `
 
@@ -69,11 +73,14 @@ Description:
 		return nil
 	}
 
-	return runDiags(arguments["--log-dir"].(string))
+	logDir := arguments["--log-dir"].(string)
+	all_nodes := arguments["-A"].(bool) || arguments["--all-nodes"].(bool)
+
+	return runDiags(logDir, all_nodes)
 }
 
 // runDiags takes logDir and runs a sequence of commands to collect diagnostics
-func runDiags(logDir string) error {
+func runDiags(logDir string, all_nodes bool) error {
 
 	// Note: in for the cmd field in this struct, it  can't handle args quoted with space in it
 	// For example, you can't add cmd "do this", since after the `strings.Fields` it will become `"do` and `this"`
@@ -91,10 +98,8 @@ func runDiags(logDir string) error {
 		{"Dumping ipsets (container)", "docker run --rm --privileged --net=host calico/node ipset list", "ipset_container"},
 		{"Copying journal for calico-node.service", "journalctl -u calico-node.service --no-pager", "journalctl_calico_node"},
 		{"Dumping felix stats", "pkill -SIGUSR1 felix", ""},
+		{"Dumping calico logs", "grep '' /var/log/calico/*", "calico-logs"},
 	}
-
-	// Make sure the command is run with super user privileges
-	enforceRoot()
 
 	fmt.Println("Collecting diagnostics")
 
@@ -116,8 +121,38 @@ func runDiags(logDir string) error {
 	}
 	diagsTmpDir := filepath.Join(tmpDir, "diagnostics")
 
-	for _, v := range cmds {
-		writeDiags(v, diagsTmpDir)
+	if (all_nodes) {
+		var wg sync.WaitGroup
+		for _, node := range getCalicoNodes("calico-system") {
+			for _, cmd := range cmds {
+				wg.Add(1)
+				go func(node string, namespace string, diagsTmpDir string, cmd diagCmd, wg *sync.WaitGroup) {
+					content, _ := runCommand(node, namespace, cmd.cmd)
+					// This is for the commands we want to run but don't want to save the output
+					// or for commands that don't produce any output to stdout
+					if cmd.filename == "" {
+						wg.Done()
+						return;
+					}
+
+					fp := filepath.Join(diagsTmpDir, node + "-" + cmd.filename)
+					if err := ioutil.WriteFile(fp, content, 0666); err != nil {
+						log.Errorf("Error writing diags to file: %s\n", err)
+					}
+
+					wg.Done()
+				} (node, "calico-system", diagsTmpDir, cmd, &wg)
+			}
+		}
+
+		wg.Wait()
+	} else {
+		// Make sure the command is run with super user privileges
+		enforceRoot()
+
+		for _, v := range cmds {
+			writeDiags(v, diagsTmpDir)
+		}
 	}
 
 	tmpLogDir := filepath.Join(diagsTmpDir, "logs")
@@ -159,6 +194,26 @@ such as transfer.sh using curl or similar.  For example:
 	fmt.Println()
 
 	return nil
+}
+
+// runCommand will run a command against a Kubernetes pod.
+func runCommand(pod string, namespace string, command string) ([]byte, error) {
+	run := []string{"kubectl", "exec", "-n", namespace, pod, "--", "bash", "-c"}
+	run = append(run, command)
+	output, err := exec.Command(run[0], run[1:]...).CombinedOutput()
+	return output, err
+}
+
+
+// getCalicoNodes returns all of the calico-nodes in a Kubernetes environment.
+func getCalicoNodes(namespace string) ([]string) {
+	content, err := exec.Command("kubectl", "get", "pod", "-l", "k8s-app=calico-node", "-n", "calico-system", "-o", "jsonpath={.items[*].metadata.name}").CombinedOutput()
+	if err != nil {
+		fmt.Printf("Could not run kubectl command: %s\n", string(content))
+		return strings.Fields("")
+	}
+
+	return strings.Fields(string(content))
 }
 
 // getNodeContainerLogs will attempt to grab logs for any "calico" named containers for hosted installs.
