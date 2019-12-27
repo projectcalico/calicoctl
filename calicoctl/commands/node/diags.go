@@ -110,7 +110,7 @@ func runDiags(logDir string) error {
 		return fmt.Errorf("Error changing directory to temp directory to dump logs: %v", err)
 	}
 
-	err = os.Mkdir("diagnostics", os.ModeDir)
+	err = os.Mkdir("diagnostics", os.ModeDir | 0750)
 	if err != nil {
 		return fmt.Errorf("Error creating diagnostics directory: %v\n", err)
 	}
