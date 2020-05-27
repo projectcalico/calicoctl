@@ -15,6 +15,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -113,10 +114,23 @@ Description:
 		return nil
 	}
 
-	// TODO: Check that the datastore is locked. This will be added during the lock/unlock work.
+	cf := parsedArgs["--config"].(string)
+	// Get the backend client.
+	client, err := clientmgr.NewClient(cf)
+	if err != nil {
+		return err
+	}
+
+	// Check that the datastore is locked.
+	ctx := context.Background()
+	locked, err := checkLocked(ctx, client)
+	if err != nil {
+		return fmt.Errorf("Error while checking if datastore was locked: %s", err)
+	} else if !locked {
+		return fmt.Errorf("Datastore is not locked. Run the `calicoctl lock` command in order to begin migration.")
+	}
 
 	// Check that the datastore configured datastore is etcd
-	cf := parsedArgs["--config"].(string)
 	cfg, err := clientmgr.LoadClientConfig(cf)
 	if err != nil {
 		log.Info("Error loading config")
@@ -129,12 +143,6 @@ Description:
 
 	// Loop through all the resource types to retrieve every resource available by the v3 API.
 	for _, r := range allV3Resources {
-		/*
-			switch r {
-			case "nodes":
-				// Nodes need to be handled a little differently
-				// Get the node objects
-		*/
 		mockArgs := map[string]interface{}{
 			"<KIND>":   r,
 			"<NAME>":   []string{},
@@ -180,25 +188,6 @@ Description:
 					return fmt.Errorf("Unable to process metadata for export for Node resource: %s", err)
 				}
 			}
-			/*
-				resourceList, ok := resource.(*apiv3.NodeList)
-				if !ok {
-					return fmt.Errorf("Failed to convert resource to NodeList object: %+v", resource)
-				}
-				for i, node := range nodeList.Items {
-					if len(node.Spec.OrchRefs) > 1 {
-						return fmt.Errorf("Multiple orchestrator references on the Node object. Need to resolve in order to process for migration")
-					}
-					node.GetObjectMeta().SetName(node.Spec.OrchRefs[0].NodeName)
-					node.GetObjectMeta().SetUID("")
-					node.GetObjectMeta().SetResourceVersion("")
-					node.GetObjectMeta().SetCreationTimestamp(v1.Time{})
-					node.GetObjectMeta().SetDeletionTimestamp(nil)
-					node.GetObjectMeta().SetDeletionGracePeriodSeconds(nil)
-					node.GetObjectMeta().SetClusterName("")
-					nodeList.Items[i] = node
-				}
-			*/
 		}
 
 		rp := resourcePrinterYAML{}
@@ -220,24 +209,6 @@ Description:
 
 		// Add the yaml separator between resource types
 		fmt.Print("---\n")
-		/*
-			default:
-				// Create mocked args in order to retrieve Get resources.
-				mockArgs := []string{"get", r, "--output=yaml", "--export", "--config=" + cf}
-
-				// Add the --all-namespaces argument for namespaced resources
-				if _, ok := namespacedResources[r]; ok {
-					mockArgs = append(mockArgs, "--all-namespaces")
-				}
-				err = Get(mockArgs)
-				if err != nil {
-					return fmt.Errorf("Failed to export resource type %s: %s\n", resourceDisplayMap[r], err)
-				}
-
-				// Add the yaml separator between resource types
-				fmt.Print("---\n")
-			}
-		*/
 	}
 
 	// Denote separation between the v3 resources stored in YAML and the cluster GUID
@@ -263,20 +234,29 @@ Description:
 		} else {
 			fmt.Printf("%s\n", string(output))
 		}
-		// Print the Cluster GUID
-		//fmt.Printf("%s\n", clusterinfo.Spec.ClusterGUID)
+	}
+
+	if len(results.resErrs) > 0 {
+		var errStr string
+		for i, err := range results.resErrs {
+			errStr += err.Error()
+			if (i + 1) != len(results.resErrs) {
+				errStr += "\n"
+			}
+		}
+		return fmt.Errorf(errStr)
 	}
 
 	// Denote separation between resources stored in YAML and the JSON IPAM resources.
 	fmt.Print("===\n")
 
-	// Use the v1 API in order to retrieve IPAM resources
 	// Get the backend client.
-	client, err := clientmgr.NewClient(cf)
+	client, err = clientmgr.NewClient(cf)
 	if err != nil {
 		return err
 	}
 
+	// Use the v1 API in order to retrieve IPAM resources
 	ipam := NewMigrateIPAM(client)
 	err = ipam.PullFromDatastore()
 	if err != nil {

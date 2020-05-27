@@ -227,7 +227,7 @@ func (m *migrateIPAM) PushToDatastore() ipamResults {
 
 	for _, bakv := range m.BlockAffinities {
 		kv := &model.KVPair{
-			Key: &model.BlockAffinityKey{
+			Key: model.BlockAffinityKey{
 				CIDR: bakv.Key.CIDR,
 				Host: bakv.Key.Host,
 			},
@@ -245,7 +245,7 @@ func (m *migrateIPAM) PushToDatastore() ipamResults {
 
 	for _, bkv := range m.IPAMBlocks {
 		kv := &model.KVPair{
-			Key: &model.BlockKey{
+			Key: model.BlockKey{
 				CIDR: bkv.Key.CIDR,
 			},
 			Value:    bkv.Value,
@@ -262,7 +262,7 @@ func (m *migrateIPAM) PushToDatastore() ipamResults {
 
 	for _, hkv := range m.IPAMHandles {
 		kv := &model.KVPair{
-			Key:      hkv.Key,
+			Key:      *hkv.Key,
 			Value:    hkv.Value,
 			Revision: hkv.Revision,
 			TTL:      hkv.TTL,
@@ -279,7 +279,7 @@ func (m *migrateIPAM) PushToDatastore() ipamResults {
 	if m.IPAMConfig != nil {
 		ipamConfigCount = 1
 		kv := &model.KVPair{
-			Key:      m.IPAMConfig.Key,
+			Key:      *m.IPAMConfig.Key,
 			Value:    m.IPAMConfig.Value,
 			Revision: m.IPAMConfig.Revision,
 			TTL:      m.IPAMConfig.TTL,

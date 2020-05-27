@@ -111,6 +111,10 @@ Description:
 			err = commands.Export(args)
 		case "import":
 			err = commands.Import(args)
+		case "lock":
+			err = commands.Lock(args)
+		case "unlock":
+			err = commands.Unlock(args)
 		default:
 			err = fmt.Errorf("Unknown command: %q\n%s", command, doc)
 		}

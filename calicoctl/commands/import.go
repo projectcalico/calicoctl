@@ -28,12 +28,9 @@ import (
 
 	"github.com/projectcalico/calicoctl/calicoctl/commands/clientmgr"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
-	//bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
-	//"github.com/projectcalico/libcalico-go/lib/backend/model"
-	client "github.com/projectcalico/libcalico-go/lib/clientv3"
-	//"github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 	"k8s.io/apimachinery/pkg/api/meta"
 )
@@ -46,7 +43,6 @@ Options:
   -h --help                 Show this screen.
   -f --filename=<FILENAME>  Filename to use to import resources.  If set to
                             "-" loads from stdin.
-			    [default: -]
   -c --config=<CONFIG>      Path to the file containing connection
                             configuration in YAML or JSON format.
                             [default: ` + constants.DefaultConfigPath + `]
@@ -71,22 +67,6 @@ Description:
 		return err
 	}
 
-	// Ensure that the cluster info resource is initialized.
-	ctx := context.Background()
-	if err := client.EnsureInitialized(ctx, "", ""); err != nil {
-		return fmt.Errorf("Unable to initialize cluster information for the datastore migration: %s", err)
-	}
-
-	// TODO: Check that the datastore is locked. This will be added during the lock/unlock work.
-
-	// TODO: On failure, print instructions on how to cleanse datastore
-	/*
-		err = checkCalicoResourcesNotExist(parsedArgs)
-		if err != nil {
-			return fmt.Errorf("Datastore already has Calico resources: %s. INSERT INSTRUCTIONS TO DELETE", err)
-		}
-	*/
-
 	// Check that the datastore configured datastore is kubernetes
 	cfg, err := clientmgr.LoadClientConfig(cf)
 	if err != nil {
@@ -96,6 +76,22 @@ Description:
 
 	if cfg.Spec.DatastoreType != apiconfig.Kubernetes {
 		return fmt.Errorf("Invalid datastore type: %s to import to for datastore migration. Datastore type must be kubernetes", cfg.Spec.DatastoreType)
+	}
+
+	// TODO: Attempt to import the CRDs here
+
+	// TODO: On failure, print instructions on how to cleanse datastore
+	/*
+		err = checkCalicoResourcesNotExist(parsedArgs)
+		if err != nil {
+			return fmt.Errorf("Datastore already has Calico resources: %s. INSERT INSTRUCTIONS TO DELETE", err)
+		}
+	*/
+
+	// Ensure that the cluster info resource is initialized.
+	ctx := context.Background()
+	if err := client.EnsureInitialized(ctx, "", ""); err != nil {
+		return fmt.Errorf("Unable to initialize cluster information for the datastore migration: %s", err)
 	}
 
 	// Split file into v3 API, ClusterGUID, and IPAM components
@@ -143,6 +139,8 @@ Description:
 		}
 		return fmt.Errorf("Hit error(s): %v", results.resErrs)
 	}
+
+	fmt.Print("Datastore information successfully imported. To complete the datastore migration, run `calicoctl unlock` and modify your calico configuration to match the kubenretes datastore.\n")
 
 	return nil
 }
