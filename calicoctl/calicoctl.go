@@ -42,6 +42,8 @@ func main() {
     ipam      IP address management.
     node      Calico node management.
     version   Display the version of calicoctl.
+    export    Export the Calico datastore objects for migration
+    import    Import the Calico datastore objects for migration
 
 Options:
   -h --help               Show this screen.
@@ -105,6 +107,10 @@ Description:
 			err = commands.Node(args)
 		case "ipam":
 			err = commands.IPAM(args)
+		case "export":
+			err = commands.Export(args)
+		case "import":
+			err = commands.Import(args)
 		default:
 			err = fmt.Errorf("Unknown command: %q\n%s", command, doc)
 		}
