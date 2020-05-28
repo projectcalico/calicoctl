@@ -85,7 +85,7 @@ bin/calicoctl-linux-%: BUILDOS=linux
 # and ARCH are defined with default values (Linux and amd64).
 bin/calicoctl-%: $(LOCAL_BUILD_DEP) $(SRC_FILES)
 	$(MAKE) build-calicoctl BUILDOS=$(BUILDOS) ARCH=$(ARCH)
-build-calicoctl:
+build-calicoctl: remote-deps
 	mkdir -p bin
 	$(DOCKER_RUN) \
 	  -e CALICOCTL_GIT_REVISION=$(CALICOCTL_GIT_REVISION) \
@@ -97,6 +97,12 @@ bin/calicoctl: bin/calicoctl-linux-amd64
 	cp $< $@
 bin/calicoctl-windows-amd64.exe: bin/calicoctl-windows-amd64
 	mv $< $@
+
+remote-deps: mod-download
+	$(DOCKER_RUN) $(CALICO_BUILD) sh -ec ' \
+		$(GIT_CONFIG_SSH) \
+		cp -r `go list -m -f "{{.Dir}}" github.com/projectcalico/libcalico-go`/config config; \
+		chmod -R +w config/'
 
 ###############################################################################
 # Building the image

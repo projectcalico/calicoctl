@@ -93,6 +93,7 @@ Description:
 	if err := client.EnsureInitialized(ctx, "", ""); err != nil {
 		return fmt.Errorf("Unable to initialize cluster information for the datastore migration: %s", err)
 	}
+	// TODO: Need to ensure the datastore is locked here.
 
 	// Split file into v3 API, ClusterGUID, and IPAM components
 	filename := parsedArgs["--filename"].(string)
@@ -101,7 +102,6 @@ Description:
 		return fmt.Errorf("Error while reading migration file: %s\n", err)
 	}
 
-	// TODO: Figure out why nodes hit an update error
 	// Apply v3 API resources
 	err = updateV3Resources(v3Yaml)
 	if err != nil {
