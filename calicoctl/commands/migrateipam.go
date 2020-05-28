@@ -47,14 +47,10 @@ type BlockAffinityKey struct {
 }
 
 type IPAMBlockKVPair struct {
-	Key      *BlockKey
+	Key      *model.BlockKey
 	Value    *model.AllocationBlock
 	Revision string
 	TTL      time.Duration // For writes, if non-zero, key has a TTL.
-}
-
-type BlockKey struct {
-	CIDR net.IPNet `json:"cidr,omitempty"`
 }
 
 type IPAMHandleKVPair struct {
@@ -127,14 +123,9 @@ func (m *migrateIPAM) PullFromDatastore() error {
 	// Convert all of the abstract KV Pairs into the appropriate types.
 	blocks := []*IPAMBlockKVPair{}
 	for _, item := range blockKVList.KVPairs {
-		modelBlockKey, ok := item.Key.(model.BlockKey)
+		blockKey, ok := item.Key.(model.BlockKey)
 		if !ok {
 			return fmt.Errorf("Could not convert %+v to a BlockKey", item.Key)
-		}
-
-		// Convert this to a key that has values for json encoding.
-		blockKey := BlockKey{
-			CIDR: modelBlockKey.CIDR,
 		}
 
 		block, ok := item.Value.(*model.AllocationBlock)
@@ -244,9 +235,10 @@ func (m *migrateIPAM) PushToDatastore() ipamResults {
 	}
 
 	for _, bkv := range m.IPAMBlocks {
+		// Need to recreate the BlockKey since the CIDR is not stored in the json representation.
 		kv := &model.KVPair{
 			Key: model.BlockKey{
-				CIDR: bkv.Key.CIDR,
+				CIDR: bkv.Value.CIDR,
 			},
 			Value:    bkv.Value,
 			Revision: bkv.Revision,
@@ -261,6 +253,8 @@ func (m *migrateIPAM) PushToDatastore() ipamResults {
 	}
 
 	for _, hkv := range m.IPAMHandles {
+		// Need to copy over the handle ID since it isn't stored in the json representation.
+		hkv.Value.HandleID = hkv.Key.HandleID
 		kv := &model.KVPair{
 			Key:      *hkv.Key,
 			Value:    hkv.Value,
