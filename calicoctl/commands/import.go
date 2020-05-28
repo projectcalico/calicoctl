@@ -79,6 +79,10 @@ Description:
 	}
 
 	// TODO: Attempt to import the CRDs here
+	err = importCRDs()
+	if err != nil {
+		return fmt.Errorf("Error applying the CRDs necessary to begin datastore import: %s", err)
+	}
 
 	// TODO: On failure, print instructions on how to cleanse datastore
 	/*
@@ -140,7 +144,7 @@ Description:
 		return fmt.Errorf("Hit error(s): %v", results.resErrs)
 	}
 
-	fmt.Print("Datastore information successfully imported. To complete the datastore migration, run `calicoctl unlock` and modify your calico configuration to match the kubenretes datastore.\n")
+	fmt.Print("Datastore information successfully imported. To complete the datastore migration, run `calicoctl unlock` and modify your calico configuration to match the kubernetes datastore.\n")
 
 	return nil
 }
@@ -248,5 +252,14 @@ func updateV3Resources(data []byte) error {
 		return fmt.Errorf("Failed to import v3 resources: %s\n", err)
 	}
 
+	return nil
+}
+
+func importCRDs() error {
+	// TODO: Figure out how to grab the libcalico CRDs
+
+	// Start a kube client
+
+	// Apply the CRDs
 	return nil
 }
