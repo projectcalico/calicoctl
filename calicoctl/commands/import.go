@@ -25,14 +25,19 @@ import (
 
 	"github.com/docopt/docopt-go"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/projectcalico/calicoctl/calicoctl/commands/clientmgr"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
+	"github.com/projectcalico/calicoctl/calicoctl/commands/crds"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
-	"k8s.io/apimachinery/pkg/api/meta"
 )
 
 func Import(args []string) error {
@@ -78,26 +83,32 @@ Description:
 		return fmt.Errorf("Invalid datastore type: %s to import to for datastore migration. Datastore type must be kubernetes", cfg.Spec.DatastoreType)
 	}
 
-	// TODO: Attempt to import the CRDs here
-	err = importCRDs()
+	err = importCRDs(cfg)
 	if err != nil {
 		return fmt.Errorf("Error applying the CRDs necessary to begin datastore import: %s", err)
 	}
 
 	// TODO: On failure, print instructions on how to cleanse datastore
-	/*
-		err = checkCalicoResourcesNotExist(parsedArgs)
-		if err != nil {
-			return fmt.Errorf("Datastore already has Calico resources: %s. INSERT INSTRUCTIONS TO DELETE", err)
-		}
-	*/
+	err = checkCalicoResourcesNotExist(parsedArgs, client)
+	if err != nil {
+		// TODO: Add something like 'calicoctl migrate clean' to delete all the CRDs to wipe out the Calico resources.
+		return fmt.Errorf("Datastore already has Calico resources: %s. Clear out all Calico resources by deleting all Calico CRDs.", err)
+	}
 
 	// Ensure that the cluster info resource is initialized.
 	ctx := context.Background()
 	if err := client.EnsureInitialized(ctx, "", ""); err != nil {
 		return fmt.Errorf("Unable to initialize cluster information for the datastore migration: %s", err)
 	}
-	// TODO: Need to ensure the datastore is locked here.
+
+	// Make sure that the datastore is locked. Since the call to EnsureInitialized
+	// should initialize it to unlocked, lock it before we continue.
+	locked, err := checkLocked(ctx, client)
+	if err != nil {
+		return fmt.Errorf("Error while checking if datastore was locked: %s", err)
+	} else if !locked {
+		Lock([]string{"lock", "-c", cf})
+	}
 
 	// Split file into v3 API, ClusterGUID, and IPAM components
 	filename := parsedArgs["--filename"].(string)
@@ -112,7 +123,7 @@ Description:
 		return fmt.Errorf("Failed to import v3 resources: %s\n", err)
 	}
 
-	// Create the cluster info resource. This should not exist since calico-node was only writing to the etcd datastore.
+	// Update the clusterinfo resource with the data from the old datastore.
 	err = updateClusterInfo(ctx, client, clusterInfoJson)
 	if err != nil {
 		return fmt.Errorf("Failed to update cluster information: %s", err)
@@ -144,6 +155,7 @@ Description:
 		return fmt.Errorf("Hit error(s): %v", results.resErrs)
 	}
 
+	// TODO: Be more specific on how to do the calico configuration change.
 	fmt.Print("Datastore information successfully imported. To complete the datastore migration, run `calicoctl unlock` and modify your calico configuration to match the kubernetes datastore.\n")
 
 	return nil
@@ -172,9 +184,15 @@ func splitImportFile(filename string) ([]byte, []byte, []byte, error) {
 	return split[0], split[1], split[2], nil
 }
 
-func checkCalicoResourcesNotExist(args map[string]interface{}) error {
+func checkCalicoResourcesNotExist(args map[string]interface{}, c client.Interface) error {
 	// Loop through all the v3 resources to see if anything is returned
-	for _, r := range allV3Resources {
+	extendedV3Resources := append(allV3Resources, "clusterinfo")
+	for _, r := range extendedV3Resources {
+		// Skip nodes since they are backed by the Kubernetes node resource
+		if r == "nodes" {
+			continue
+		}
+
 		// Create mocked args in order to retrieve Get resources.
 		mockArgs := map[string]interface{}{
 			"<KIND>":   r,
@@ -204,6 +222,17 @@ func checkCalicoResourcesNotExist(args map[string]interface{}) error {
 				return fmt.Errorf("Failed to retrieve %s resources during datastore check: %v", resourceDisplayMap[r], results.err)
 			}
 		}
+	}
+
+	// Check if any IPAM resources exist
+	ipam := NewMigrateIPAM(c)
+	err := ipam.PullFromDatastore()
+	if err != nil {
+		return fmt.Errorf("Failed to retrieve IPAM resources during datastore check: %s", err)
+	}
+
+	if !ipam.IsEmpty() {
+		return fmt.Errorf("Found existing IPAM resources")
 	}
 
 	return nil
@@ -255,11 +284,79 @@ func updateV3Resources(data []byte) error {
 	return nil
 }
 
-func importCRDs() error {
-	// TODO: Figure out how to grab the libcalico CRDs
-
+func importCRDs(cfg *apiconfig.CalicoAPIConfig) error {
+	// TODO: Add the apiextensions clientset and handling logic to the libcalico-go kubeclient
 	// Start a kube client
+	// Use the kubernetes client code to load the kubeconfig file and combine it with the overrides.
+	configOverrides := &clientcmd.ConfigOverrides{}
+	var overridesMap = []struct {
+		variable *string
+		value    string
+	}{
+		{&configOverrides.ClusterInfo.Server, cfg.Spec.K8sAPIEndpoint},
+		{&configOverrides.AuthInfo.ClientCertificate, cfg.Spec.K8sCertFile},
+		{&configOverrides.AuthInfo.ClientKey, cfg.Spec.K8sKeyFile},
+		{&configOverrides.ClusterInfo.CertificateAuthority, cfg.Spec.K8sCAFile},
+		{&configOverrides.AuthInfo.Token, cfg.Spec.K8sAPIToken},
+	}
+
+	// Set an explicit path to the kubeconfig if one
+	// was provided.
+	loadingRules := clientcmd.ClientConfigLoadingRules{}
+	if cfg.Spec.Kubeconfig != "" {
+		loadingRules.ExplicitPath = cfg.Spec.Kubeconfig
+	}
+
+	// Using the override map above, populate any non-empty values.
+	for _, override := range overridesMap {
+		if override.value != "" {
+			*override.variable = override.value
+		}
+	}
+	if cfg.Spec.K8sInsecureSkipTLSVerify {
+		configOverrides.ClusterInfo.InsecureSkipTLSVerify = true
+	}
+
+	// A kubeconfig file was provided.  Use it to load a config, passing through
+	// any overrides.
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&loadingRules, configOverrides).ClientConfig()
+	if err != nil {
+		return err
+	}
+
+	cs, err := clientset.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+	log.Debugf("Created k8s CRD ClientSet: %+v", cs)
 
 	// Apply the CRDs
+	for _, crd := range crds.CalicoCRDs {
+		_, err := cs.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
+		if err != nil {
+			if kerrors.IsAlreadyExists(err) {
+				// If the CRD already exists attempt to update it.
+				// Need to retrieve the current CRD first.
+				currentCRD, err := cs.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crd.GetObjectMeta().GetName(), v1.GetOptions{})
+				if err != nil {
+					return fmt.Errorf("Error retrieving existing CRD to update: %s: %s", crd.GetObjectMeta().GetName(), err)
+				}
+
+				// Use the resource version so that the current CRD can be overwritten.
+				crd.GetObjectMeta().SetResourceVersion(currentCRD.GetObjectMeta().GetResourceVersion())
+
+				// Update the CRD.
+				_, err = cs.ApiextensionsV1beta1().CustomResourceDefinitions().Update(crd)
+				if err != nil {
+					return fmt.Errorf("Error updating CRD %s: %s", crd.GetObjectMeta().GetName(), err)
+				}
+			} else {
+				return fmt.Errorf("Error creating CRD %s: %s", crd.GetObjectMeta().GetName(), err)
+			}
+		}
+		log.Debugf("Applied %s CRD", crd.GetObjectMeta().GetName())
+	}
+
 	return nil
 }

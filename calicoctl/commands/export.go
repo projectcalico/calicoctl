@@ -141,6 +141,7 @@ Description:
 		return fmt.Errorf("Invalid datastore type: %s to export from for datastore migration. Datastore type must be etcdv3", cfg.Spec.DatastoreType)
 	}
 
+	rp := resourcePrinterYAML{}
 	// Loop through all the resource types to retrieve every resource available by the v3 API.
 	for _, r := range allV3Resources {
 		mockArgs := map[string]interface{}{
@@ -152,8 +153,19 @@ Description:
 			"get":      true,
 		}
 		results := executeConfigCommand(mockArgs, actionGetOrList)
+		if len(results.resErrs) > 0 {
+			var errStr string
+			for i, err := range results.resErrs {
+				errStr += err.Error()
+				if (i + 1) != len(results.resErrs) {
+					errStr += "\n"
+				}
+			}
+			return fmt.Errorf(errStr)
+		}
+
 		for _, resource := range results.resources {
-			// Remove relevant metadata because the --export flag does not for lists.
+			// Remove relevant metadata because the --export flag does not remove it for lists.
 			err := meta.EachListItem(resource, func(obj runtime.Object) error {
 				rom := obj.(v1.ObjectMetaAccessor).GetObjectMeta()
 				rom.SetUID("")
@@ -176,11 +188,18 @@ Description:
 						return fmt.Errorf("Failed to convert resource to Node object for migration processing: %+v", obj)
 					}
 
-					if len(node.Spec.OrchRefs) > 1 {
-						return fmt.Errorf("Multiple orchestrator references on the Node object. Need to resolve in order to process for migration")
+					var newNodeName string
+					for _, orchRef := range node.Spec.OrchRefs {
+						if orchRef.Orchestrator == "k8s" {
+							newNodeName = orchRef.NodeName
+						}
 					}
 
-					node.GetObjectMeta().SetName(node.Spec.OrchRefs[0].NodeName)
+					if newNodeName == "" {
+						return fmt.Errorf("Node %s missing a 'k8s' orchestrator reference. Unable to export data unless every node has a 'k8s' orchestrator reference", node.GetObjectMeta().GetName())
+					}
+
+					node.GetObjectMeta().SetName(newNodeName)
 
 					return nil
 				})
@@ -190,28 +209,16 @@ Description:
 			}
 		}
 
-		rp := resourcePrinterYAML{}
 		err = rp.print(results.client, results.resources)
 		if err != nil {
 			return err
-		}
-
-		if len(results.resErrs) > 0 {
-			var errStr string
-			for i, err := range results.resErrs {
-				errStr += err.Error()
-				if (i + 1) != len(results.resErrs) {
-					errStr += "\n"
-				}
-			}
-			return fmt.Errorf(errStr)
 		}
 
 		// Add the yaml separator between resource types
 		fmt.Print("---\n")
 	}
 
-	// Denote separation between the v3 resources stored in YAML and the cluster GUID
+	// Denote separation between the v3 resources and the cluster info resource which requires separate handling on import.
 	fmt.Print("===\n")
 	mockArgs := map[string]interface{}{
 		"<KIND>":   "clusterinfos",
@@ -248,6 +255,8 @@ Description:
 	}
 
 	// Denote separation between resources stored in YAML and the JSON IPAM resources.
+	// IPAM resources are stored in JSON since the objects are not supported by the v3 API
+	// and are not meant to be used with other calicoctl commands except for import.
 	fmt.Print("===\n")
 
 	// Get the backend client.

@@ -19,11 +19,12 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/errors"
-	"github.com/projectcalico/libcalico-go/lib/net"
 )
 
 type migrateIPAM struct {
@@ -35,35 +36,30 @@ type migrateIPAM struct {
 }
 
 type BlockAffinityKVPair struct {
-	Key      string
-	Value    *model.BlockAffinity
-	Revision string
-	TTL      time.Duration // For writes, if non-zero, key has a TTL.
+	Key   string
+	Value *model.BlockAffinity
+	TTL   time.Duration // For writes, if non-zero, key has a TTL.
 }
 
 type IPAMBlockKVPair struct {
-	Key      string
-	Value    *model.AllocationBlock
-	Revision string
-	TTL      time.Duration // For writes, if non-zero, key has a TTL.
+	Key   string
+	Value *model.AllocationBlock
+	TTL   time.Duration // For writes, if non-zero, key has a TTL.
 }
 
 type IPAMHandleKVPair struct {
-	Key      string
-	Value    *model.IPAMHandle
-	Revision string
-	TTL      time.Duration // For writes, if non-zero, key has a TTL.
+	Key   string
+	Value *model.IPAMHandle
+	TTL   time.Duration // For writes, if non-zero, key has a TTL.
 }
 
 type IPAMConfigKVPair struct {
-	Key      string
-	Value    *model.IPAMConfig
-	Revision string
-	TTL      time.Duration // For writes, if non-zero, key has a TTL.
+	Key   string
+	Value *model.IPAMConfig
+	TTL   time.Duration // For writes, if non-zero, key has a TTL.
 }
 
 // ipamResults contains the results from executing an IPAM backend command
-// TODO: May not need this if we decide not to print out the resources that were imported
 type ipamResults struct {
 	// The number of resources that are being configured.
 	numResources int
@@ -71,9 +67,6 @@ type ipamResults struct {
 	// The number of resources that were actually configured.  This will
 	// never be 0 without an associated error.
 	numHandled int
-
-	// The results returned from each invocation
-	resources []*model.KVPair
 
 	// Errors associated with individual resources
 	resErrs []error
@@ -128,10 +121,9 @@ func (m *migrateIPAM) PullFromDatastore() error {
 			return fmt.Errorf("Could not convert %+v to an AllocationBlock", item.Value)
 		}
 		blocks = append(blocks, &IPAMBlockKVPair{
-			Key:      blockKey,
-			Value:    block,
-			Revision: item.Revision,
-			TTL:      item.TTL,
+			Key:   blockKey,
+			Value: block,
+			TTL:   item.TTL,
 		})
 	}
 
@@ -147,10 +139,9 @@ func (m *migrateIPAM) PullFromDatastore() error {
 			return fmt.Errorf("Could not convert %+v to a BlockAffinity", item.Value)
 		}
 		blockAffinities = append(blockAffinities, &BlockAffinityKVPair{
-			Key:      blockAffinityKey,
-			Value:    blockAffinity,
-			Revision: item.Revision,
-			TTL:      item.TTL,
+			Key:   blockAffinityKey,
+			Value: blockAffinity,
+			TTL:   item.TTL,
 		})
 	}
 
@@ -165,10 +156,9 @@ func (m *migrateIPAM) PullFromDatastore() error {
 			return fmt.Errorf("Could not convert %+v to an IPAMHandle", item.Value)
 		}
 		ipamHandles = append(ipamHandles, &IPAMHandleKVPair{
-			Key:      handleKey,
-			Value:    handle,
-			Revision: item.Revision,
-			TTL:      item.TTL,
+			Key:   handleKey,
+			Value: handle,
+			TTL:   item.TTL,
 		})
 	}
 
@@ -183,10 +173,9 @@ func (m *migrateIPAM) PullFromDatastore() error {
 			return fmt.Errorf("Could not convert %+v to an IPAMConfig", ipamConfigKV.Value)
 		}
 		ipamConfig = &IPAMConfigKVPair{
-			Key:      configKey,
-			Value:    config,
-			Revision: ipamConfigKV.Revision,
-			TTL:      ipamConfigKV.TTL,
+			Key:   configKey,
+			Value: config,
+			TTL:   ipamConfigKV.TTL,
 		}
 	}
 
@@ -202,7 +191,6 @@ func (m *migrateIPAM) PushToDatastore() ipamResults {
 	ctx := context.Background()
 	errs := []error{}
 	handled := 0
-	resources := []*model.KVPair{}
 
 	for _, bakv := range m.BlockAffinities {
 		kv := &model.KVPair{
@@ -214,7 +202,7 @@ func (m *migrateIPAM) PushToDatastore() ipamResults {
 		if err != nil {
 			errs = append(errs, fmt.Errorf("Error trying to create block affinity %s: %s\n", kv.Key.String(), err))
 		}
-		resources = append(resources, created)
+		log.Debugf("Created Block Affinity: %+v", created)
 		handled++
 	}
 
@@ -229,7 +217,7 @@ func (m *migrateIPAM) PushToDatastore() ipamResults {
 		if err != nil {
 			errs = append(errs, fmt.Errorf("Error trying to create block affinity %s: %s\n", kv.Key.String(), err))
 		}
-		resources = append(resources, created)
+		log.Debugf("Created IPAM Block: %+v", created)
 		handled++
 	}
 
@@ -251,7 +239,7 @@ func (m *migrateIPAM) PushToDatastore() ipamResults {
 		if err != nil {
 			errs = append(errs, fmt.Errorf("Error trying to create block affinity %s: %s\n", kv.Key.String(), err))
 		}
-		resources = append(resources, created)
+		log.Debugf("Created IPAM Handle: %+v", created)
 		handled++
 	}
 
@@ -268,14 +256,22 @@ func (m *migrateIPAM) PushToDatastore() ipamResults {
 		if err != nil {
 			errs = append(errs, fmt.Errorf("Error trying to create block affinity %s: %s\n", kv.Key.String(), err))
 		}
-		resources = append(resources, created)
+		log.Debugf("Created IPAM Config: %+v", created)
 		handled++
 	}
 
 	return ipamResults{
 		numResources: len(m.BlockAffinities) + len(m.IPAMBlocks) + len(m.IPAMHandles) + ipamConfigCount,
 		numHandled:   handled,
-		resources:    resources,
 		resErrs:      errs,
 	}
+}
+
+func (m *migrateIPAM) IsEmpty() bool {
+	ipamConfigCount := 0
+	if m.IPAMConfig != nil {
+		ipamConfigCount = 1
+	}
+
+	return len(m.BlockAffinities)+len(m.IPAMBlocks)+len(m.IPAMHandles)+ipamConfigCount == 0
 }
