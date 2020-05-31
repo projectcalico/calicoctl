@@ -107,14 +107,8 @@ Description:
 			err = commands.Node(args)
 		case "ipam":
 			err = commands.IPAM(args)
-		case "export":
-			err = commands.Export(args)
-		case "import":
-			err = commands.Import(args)
-		case "lock":
-			err = commands.Lock(args)
-		case "unlock":
-			err = commands.Unlock(args)
+		case "migrate":
+			err = commands.Migrate(args)
 		default:
 			err = fmt.Errorf("Unknown command: %q\n%s", command, doc)
 		}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commands
+package migrate
 
 import (
 	"bytes"
@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/projectcalico/calicoctl/calicoctl/commands/clientmgr"
+	"github.com/projectcalico/calicoctl/calicoctl/commands/common"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/crds"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
@@ -42,7 +43,7 @@ import (
 
 func Import(args []string) error {
 	doc := `Usage:
-  calicoctl import --filename=<FILENAME> [--config=<CONFIG>]
+  calicoctl migrate import --filename=<FILENAME> [--config=<CONFIG>]
 
 Options:
   -h --help                 Show this screen.
@@ -107,7 +108,7 @@ Description:
 	if err != nil {
 		return fmt.Errorf("Error while checking if datastore was locked: %s", err)
 	} else if !locked {
-		Lock([]string{"lock", "-c", cf})
+		Lock([]string{"migrate", "lock", "-c", cf})
 	}
 
 	// Split file into v3 API, ClusterGUID, and IPAM components
@@ -118,7 +119,7 @@ Description:
 	}
 
 	// Apply v3 API resources
-	err = updateV3Resources(v3Yaml)
+	err = updateV3Resources(cf, v3Yaml)
 	if err != nil {
 		return fmt.Errorf("Failed to import v3 resources: %s\n", err)
 	}
@@ -208,18 +209,18 @@ func checkCalicoResourcesNotExist(args map[string]interface{}, c client.Interfac
 		}
 
 		// Get resources
-		results := executeConfigCommand(mockArgs, actionGetOrList)
+		results := common.ExecuteConfigCommand(mockArgs, common.ActionGetOrList)
 
 		// Loop through the result lists and see if anything exists
-		for _, resource := range results.resources {
+		for _, resource := range results.Resources {
 			if meta.LenList(resource) > 0 {
-				return fmt.Errorf("Found existing Calico %s resource", results.singleKind)
+				return fmt.Errorf("Found existing Calico %s resource", results.SingleKind)
 			}
 
-			if results.fileInvalid {
-				return fmt.Errorf("Failed to execute command: %v", results.err)
-			} else if results.err != nil {
-				return fmt.Errorf("Failed to retrieve %s resources during datastore check: %v", resourceDisplayMap[r], results.err)
+			if results.FileInvalid {
+				return fmt.Errorf("Failed to execute command: %v", results.Err)
+			} else if results.Err != nil {
+				return fmt.Errorf("Failed to retrieve %s resources during datastore check: %v", resourceDisplayMap[r], results.Err)
 			}
 		}
 	}
@@ -263,7 +264,7 @@ func updateClusterInfo(ctx context.Context, c client.Interface, clusterInfoJson 
 	return nil
 }
 
-func updateV3Resources(data []byte) error {
+func updateV3Resources(cf string, data []byte) error {
 	// Create tempfile so the v3 resources can be created using Apply
 	tempfile, err := ioutil.TempFile("", "v3migration")
 	if err != nil {
@@ -275,8 +276,12 @@ func updateV3Resources(data []byte) error {
 		return fmt.Errorf("Error while writing to temporary v3 migration file: %s\n", err)
 	}
 
-	mockArgs := []string{"apply", "-f", tempfile.Name()}
-	err = Apply(mockArgs)
+	mockArgs := map[string]interface{}{
+		"--config":   cf,
+		"--filename": tempfile.Name(),
+		"apply":      true,
+	}
+	err = applyV3(mockArgs)
 	if err != nil {
 		return fmt.Errorf("Failed to import v3 resources: %s\n", err)
 	}
@@ -356,6 +361,45 @@ func importCRDs(cfg *apiconfig.CalicoAPIConfig) error {
 			}
 		}
 		log.Debugf("Applied %s CRD", crd.GetObjectMeta().GetName())
+	}
+
+	return nil
+}
+
+func applyV3(args map[string]interface{}) error {
+	results := common.ExecuteConfigCommand(args, common.ActionApply)
+	log.Infof("results: %+v", results)
+
+	if results.FileInvalid {
+		return fmt.Errorf("Failed to execute command: %v", results.Err)
+	} else if results.NumHandled == 0 {
+		if results.NumResources == 0 {
+			return fmt.Errorf("No resources specified in file")
+		} else if results.NumResources == 1 {
+			return fmt.Errorf("Failed to apply '%s' resource: %v", results.SingleKind, results.ResErrs)
+		} else if results.SingleKind != "" {
+			return fmt.Errorf("Failed to apply any '%s' resources: %v", results.SingleKind, results.ResErrs)
+		} else {
+			return fmt.Errorf("Failed to apply any resources: %v", results.ResErrs)
+		}
+	} else if len(results.ResErrs) == 0 {
+		if results.SingleKind != "" {
+			fmt.Printf("Successfully applied %d '%s' resource(s)\n", results.NumHandled, results.SingleKind)
+		} else {
+			fmt.Printf("Successfully applied %d resource(s)\n", results.NumHandled)
+		}
+	} else {
+		if results.NumHandled-len(results.ResErrs) > 0 {
+			fmt.Printf("Partial success: ")
+			if results.SingleKind != "" {
+				fmt.Printf("applied the first %d out of %d '%s' resources:\n",
+					results.NumHandled, results.NumResources, results.SingleKind)
+			} else {
+				fmt.Printf("applied the first %d out of %d resources:\n",
+					results.NumHandled, results.NumResources)
+			}
+		}
+		return fmt.Errorf("Hit error(s): %v", results.ResErrs)
 	}
 
 	return nil

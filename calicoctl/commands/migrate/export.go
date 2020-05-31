@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commands
+package migrate
 
 import (
 	"context"
@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/projectcalico/calicoctl/calicoctl/commands/clientmgr"
+	"github.com/projectcalico/calicoctl/calicoctl/commands/common"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
@@ -71,7 +72,7 @@ var namespacedResources map[string]struct{} = map[string]struct{}{
 
 func Export(args []string) error {
 	doc := `Usage:
-  calicoctl export [--config=<CONFIG>]
+  calicoctl migrate export [--config=<CONFIG>]
 
 Options:
   -h --help                 Show this screen.
@@ -141,7 +142,7 @@ Description:
 		return fmt.Errorf("Invalid datastore type: %s to export from for datastore migration. Datastore type must be etcdv3", cfg.Spec.DatastoreType)
 	}
 
-	rp := resourcePrinterYAML{}
+	rp := common.ResourcePrinterYAML{}
 	// Loop through all the resource types to retrieve every resource available by the v3 API.
 	for _, r := range allV3Resources {
 		mockArgs := map[string]interface{}{
@@ -152,19 +153,19 @@ Description:
 			"--output": "yaml",
 			"get":      true,
 		}
-		results := executeConfigCommand(mockArgs, actionGetOrList)
-		if len(results.resErrs) > 0 {
+		results := common.ExecuteConfigCommand(mockArgs, common.ActionGetOrList)
+		if len(results.ResErrs) > 0 {
 			var errStr string
-			for i, err := range results.resErrs {
+			for i, err := range results.ResErrs {
 				errStr += err.Error()
-				if (i + 1) != len(results.resErrs) {
+				if (i + 1) != len(results.ResErrs) {
 					errStr += "\n"
 				}
 			}
 			return fmt.Errorf(errStr)
 		}
 
-		for _, resource := range results.resources {
+		for _, resource := range results.Resources {
 			// Remove relevant metadata because the --export flag does not remove it for lists.
 			err := meta.EachListItem(resource, func(obj runtime.Object) error {
 				rom := obj.(v1.ObjectMetaAccessor).GetObjectMeta()
@@ -209,7 +210,7 @@ Description:
 			}
 		}
 
-		err = rp.print(results.client, results.resources)
+		err = rp.Print(results.Client, results.Resources)
 		if err != nil {
 			return err
 		}
@@ -228,8 +229,8 @@ Description:
 		"--output": "yaml",
 		"get":      true,
 	}
-	results := executeConfigCommand(mockArgs, actionGetOrList)
-	for _, resource := range results.resources {
+	results := common.ExecuteConfigCommand(mockArgs, common.ActionGetOrList)
+	for _, resource := range results.Resources {
 		clusterinfo, ok := resource.(*apiv3.ClusterInformation)
 		if !ok {
 			return fmt.Errorf("Failed to convert resource to ClusterInformation object: %+v", resource)
@@ -243,11 +244,11 @@ Description:
 		}
 	}
 
-	if len(results.resErrs) > 0 {
+	if len(results.ResErrs) > 0 {
 		var errStr string
-		for i, err := range results.resErrs {
+		for i, err := range results.ResErrs {
 			errStr += err.Error()
-			if (i + 1) != len(results.resErrs) {
+			if (i + 1) != len(results.ResErrs) {
 				errStr += "\n"
 			}
 		}

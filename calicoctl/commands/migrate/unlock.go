@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commands
+package migrate
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 
 func Unlock(args []string) error {
 	doc := `Usage:
-  calicoctl unlock [--config=<CONFIG>]
+  calicoctl migrate unlock [--config=<CONFIG>]
 
 Options:
   -h --help                 Show this screen.
