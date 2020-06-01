@@ -17,8 +17,11 @@ package clientmgr
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
+
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/projectcalico/calicoctl/calicoctl/commands/constants"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
@@ -30,6 +33,37 @@ import (
 // parameter not loaded from file.
 func NewClient(cf string) (client.Interface, error) {
 	cfg, err := LoadClientConfig(cf)
+
+	// Set kubeconfig path
+	kubeconfigPath, exists := os.LookupEnv("KUBECONFIG")
+	if !exists {
+		kubeconfigPath = filepath.Join(
+			os.Getenv("HOME"), ".kube", "config",
+		)
+	}
+	cfg.Spec.KubeConfig.Kubeconfig = kubeconfigPath
+
+	// Look up datastore type
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	if err != nil {
+		log.Info("Error loading config")
+		return nil, err
+	}
+
+	// If datastore type env var found, set it
+	datastoreType := apiconfig.EtcdV3
+	for _, v := range config.ExecProvider.Env {
+		if v.Name == "DATASTORE_TYPE" {
+			// Set to kubernetes if config indicates; default to etcd
+			if v.Value == "kubernetes" {
+				datastoreType = apiconfig.Kubernetes
+			}
+			break
+		}
+	}
+
+	cfg.Spec.DatastoreType = datastoreType
+
 	if err != nil {
 		log.Info("Error loading config")
 		return nil, err
