@@ -108,7 +108,10 @@ Description:
 	if err != nil {
 		return fmt.Errorf("Error while checking if datastore was locked: %s", err)
 	} else if !locked {
-		Lock([]string{"migrate", "lock", "-c", cf})
+		err := Lock([]string{"migrate", "lock", "-c", cf})
+		if err != nil {
+			return fmt.Errorf("Error while attempting to lock the datastore for import: %s", err)
+		}
 	}
 
 	// Split file into v3 API, ClusterGUID, and IPAM components
