@@ -128,7 +128,7 @@ Description:
 	if err != nil {
 		return fmt.Errorf("Error while checking if datastore was locked: %s", err)
 	} else if !locked {
-		return fmt.Errorf("Datastore is not locked. Run the `calicoctl lock` command in order to begin migration.")
+		return fmt.Errorf("Datastore is not locked. Run the `calicoctl migrate lock` command in order to begin migration.")
 	}
 
 	// Check that the datastore configured datastore is etcd

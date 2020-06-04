@@ -650,7 +650,31 @@ node_name3_rev1 = {
         'bgp': {
             'ipv4Address': '1.2.3.6/24',
             'ipv6Address': 'aa:bb:cc::dd/120',
+        },
+        'orchRefs': {
+            'nodeName': 'node3',
+            'orchestrator': 'k8s',
         }
+    }
+}
+
+node_name4_rev1 = {
+    'apiVersion': API_VERSION,
+    'kind': 'Node',
+    'metadata': {
+        'name': 'node4',
+    },
+    'spec': {
+        'bgp': {
+            'ipv4Address': '1.2.3.4/24',
+            'ipv6Address': 'aa:bb:cc::ff/120',
+        },
+        'orchRefs': [
+            {
+                'nodeName': 'node4',
+                'orchestrator': 'k8s',
+            },
+        ],
     }
 }
 

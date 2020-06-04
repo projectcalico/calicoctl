@@ -219,6 +219,7 @@ ST_OPTIONS?=
 ## Run the STs in a container
 st: bin/calicoctl-linux-amd64
 	$(MAKE) run-etcd-host
+	$(MAKE) run-kubernetes-master
 	# Use the host, PID and network namespaces from the host.
 	# Privileged is needed since 'calico node' write to /proc (to enable ip_forwarding)
 	# Map the docker socket in so docker can be used from inside the container
@@ -232,6 +233,7 @@ st: bin/calicoctl-linux-amd64
 		   $(TEST_CONTAINER_NAME) \
 		   sh -c 'nosetests $(ST_TO_RUN) -sv --nologcapture  --with-xunit --xunit-file="/code/report/nosetests.xml" --with-timer $(ST_OPTIONS)'
 	$(MAKE) stop-etcd
+	$(MAKE) stop-kubernetes-master
 
 ## Etcd is used by the STs
 # NOTE: https://quay.io/repository/coreos/etcd is available *only* for the following archs with the following tags:
@@ -257,6 +259,52 @@ run-etcd-host:
 .PHONY: stop-etcd
 stop-etcd:
 	@-docker rm -f calico-etcd
+
+## Run a local kubernetes master with API via hyperkube
+run-kubernetes-master: stop-kubernetes-master
+	# Run a Kubernetes apiserver using Docker.
+	docker run \
+		--net=host --name st-apiserver \
+		--detach \
+		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kube-apiserver \
+			--bind-address=0.0.0.0 \
+			--insecure-bind-address=0.0.0.0 \
+	        	--etcd-servers=http://127.0.0.1:2379 \
+			--admission-control=NamespaceLifecycle,LimitRanger,DefaultStorageClass,ResourceQuota \
+			--service-cluster-ip-range=10.101.0.0/16 \
+			--v=10 \
+			--logtostderr=true
+
+	# Wait until the apiserver is accepting requests.
+	while ! docker exec st-apiserver kubectl get nodes; do echo "Waiting for apiserver to come up..."; sleep 2; done
+
+	# And run the controller manager.
+	docker run \
+		--net=host --name st-controller-manager \
+		--detach \
+		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kube-controller-manager \
+                        --master=127.0.0.1:8080 \
+                        --min-resync-period=3m \
+                        --allocate-node-cidrs=true \
+                        --cluster-cidr=10.10.0.0/16 \
+                        --v=5
+
+	# Create a Node in the API for the tests to use.
+	docker run \
+	    --net=host \
+	    --rm \
+		-v  $(CURDIR):/manifests \
+		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kubectl \
+		--server=http://127.0.0.1:8080 \
+		apply -f /manifests/tests/st/manifests/mock-node.yaml
+	
+## Stop the local kubernetes master
+stop-kubernetes-master:
+	# Delete the cluster role binding.
+	-docker exec st-apiserver kubectl delete clusterrolebinding anonymous-admin
+
+	# Stop master components.
+	-docker rm -f st-apiserver st-controller-manager
 
 ###############################################################################
 # CI
