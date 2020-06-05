@@ -202,8 +202,10 @@ ut: $(LOCAL_BUILD_DEP) bin/calicoctl-linux-amd64
 ## Run the tests in a container. Useful for CI, Mac dev.
 fv: $(LOCAL_BUILD_DEP) bin/calicoctl-linux-amd64
 	$(MAKE) run-etcd-host
+	$(MAKE) run-kubernetes-master
 	$(DOCKER_RUN) $(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && go test ./tests/fv'
 	$(MAKE) stop-etcd
+	$(MAKE) stop-kubernetes-master
 
 ###############################################################################
 # STs

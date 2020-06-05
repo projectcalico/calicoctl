@@ -29,7 +29,7 @@ import (
 
 func Lock(args []string) error {
 	doc := `Usage:
-  calicoctl migrate lock [--config=<CONFIG>]
+  calicoctl datastore migrate lock [--config=<CONFIG>]
 
 Options:
   -h --help                 Show this screen.

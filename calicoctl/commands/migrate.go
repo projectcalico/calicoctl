@@ -27,7 +27,7 @@ import (
 func Migrate(args []string) error {
 	var err error
 	doc := constants.DatastoreIntro + `Usage:
-  calicoctl migrate <command> [<args>...]
+  calicoctl datastore migrate <command> [<args>...]
 
     export  Export the contents of the etcdv3 datastore to yaml.
     import  Store and convert yaml of resources into the Kubernetes datastore.
@@ -40,7 +40,7 @@ Options:
 Description:
   Migration specific commands for calicoctl.
 
-  See 'calicoctl migrate <command> --help' to read about a specific subcommand.
+  See 'calicoctl datastore migrate <command> --help' to read about a specific subcommand.
 `
 	arguments, err := docopt.Parse(doc, args, true, "", true, false)
 	if err != nil {
@@ -51,7 +51,7 @@ Description:
 	}
 
 	command := arguments["<command>"].(string)
-	args = append([]string{"migrate", command}, arguments["<args>"].([]string)...)
+	args = append([]string{"datastore", "migrate", command}, arguments["<args>"].([]string)...)
 
 	switch command {
 	case "export":

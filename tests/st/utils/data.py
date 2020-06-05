@@ -650,10 +650,6 @@ node_name3_rev1 = {
         'bgp': {
             'ipv4Address': '1.2.3.6/24',
             'ipv6Address': 'aa:bb:cc::dd/120',
-        },
-        'orchRefs': {
-            'nodeName': 'node3',
-            'orchestrator': 'k8s',
         }
     }
 }

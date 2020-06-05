@@ -28,7 +28,7 @@ import (
 
 func Unlock(args []string) error {
 	doc := `Usage:
-  calicoctl migrate unlock [--config=<CONFIG>]
+  calicoctl datastore migrate unlock [--config=<CONFIG>]
 
 Options:
   -h --help                 Show this screen.

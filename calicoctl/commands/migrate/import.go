@@ -29,7 +29,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/projectcalico/calicoctl/calicoctl/commands/clientmgr"
 	"github.com/projectcalico/calicoctl/calicoctl/commands/common"
@@ -37,13 +36,14 @@ import (
 	"github.com/projectcalico/calicoctl/calicoctl/commands/crds"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	"github.com/projectcalico/libcalico-go/lib/backend/k8s"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
 
 func Import(args []string) error {
 	doc := `Usage:
-  calicoctl migrate import --filename=<FILENAME> [--config=<CONFIG>]
+  calicoctl datastore migrate import --filename=<FILENAME> [--config=<CONFIG>]
 
 Options:
   -h --help                 Show this screen.
@@ -89,10 +89,9 @@ Description:
 		return fmt.Errorf("Error applying the CRDs necessary to begin datastore import: %s", err)
 	}
 
-	// TODO: On failure, print instructions on how to cleanse datastore
 	err = checkCalicoResourcesNotExist(parsedArgs, client)
 	if err != nil {
-		// TODO: Add something like 'calicoctl migrate clean' to delete all the CRDs to wipe out the Calico resources.
+		// TODO: Add something like 'calicoctl datastore migrate clean' to delete all the CRDs to wipe out the Calico resources.
 		return fmt.Errorf("Datastore already has Calico resources: %s. Clear out all Calico resources by deleting all Calico CRDs.", err)
 	}
 
@@ -108,7 +107,7 @@ Description:
 	if err != nil {
 		return fmt.Errorf("Error while checking if datastore was locked: %s", err)
 	} else if !locked {
-		err := Lock([]string{"migrate", "lock", "-c", cf})
+		err := Lock([]string{"datastore", "migrate", "lock", "-c", cf})
 		if err != nil {
 			return fmt.Errorf("Error while attempting to lock the datastore for import: %s", err)
 		}
@@ -159,8 +158,7 @@ Description:
 		return fmt.Errorf("Hit error(s): %v", results.resErrs)
 	}
 
-	// TODO: Be more specific on how to do the calico configuration change.
-	fmt.Print("Datastore information successfully imported. To complete the datastore migration, run `calicoctl unlock` and modify your calico configuration to match the kubernetes datastore.\n")
+	fmt.Print("Datastore information successfully imported. Please refer to the datastore migration documentation for next steps.\n")
 
 	return nil
 }
@@ -174,12 +172,12 @@ func splitImportFile(filename string) ([]byte, []byte, []byte, error) {
 
 	b, err := ioutil.ReadFile(fname)
 	if err != nil {
-		return []byte{}, []byte{}, []byte{}, err
+		return nil, nil, nil, err
 	}
 
 	split := bytes.Split(b, []byte("===\n"))
 	if len(split) != 3 {
-		return []byte{}, []byte{}, []byte{}, fmt.Errorf("Imported file: %s is improperly formatted. Try recreating with 'calicoctl export'", fname)
+		return nil, nil, nil, fmt.Errorf("Imported file: %s is improperly formatted. Try recreating with 'calicoctl export'", fname)
 	}
 
 	// First chunk should be the v3 resource YAML.
@@ -293,46 +291,14 @@ func updateV3Resources(cf string, data []byte) error {
 }
 
 func importCRDs(cfg *apiconfig.CalicoAPIConfig) error {
-	// TODO: Add the apiextensions clientset and handling logic to the libcalico-go kubeclient
 	// Start a kube client
-	// Use the kubernetes client code to load the kubeconfig file and combine it with the overrides.
-	configOverrides := &clientcmd.ConfigOverrides{}
-	var overridesMap = []struct {
-		variable *string
-		value    string
-	}{
-		{&configOverrides.ClusterInfo.Server, cfg.Spec.K8sAPIEndpoint},
-		{&configOverrides.AuthInfo.ClientCertificate, cfg.Spec.K8sCertFile},
-		{&configOverrides.AuthInfo.ClientKey, cfg.Spec.K8sKeyFile},
-		{&configOverrides.ClusterInfo.CertificateAuthority, cfg.Spec.K8sCAFile},
-		{&configOverrides.AuthInfo.Token, cfg.Spec.K8sAPIToken},
-	}
-
-	// Set an explicit path to the kubeconfig if one
-	// was provided.
-	loadingRules := clientcmd.ClientConfigLoadingRules{}
-	if cfg.Spec.Kubeconfig != "" {
-		loadingRules.ExplicitPath = cfg.Spec.Kubeconfig
-	}
-
-	// Using the override map above, populate any non-empty values.
-	for _, override := range overridesMap {
-		if override.value != "" {
-			*override.variable = override.value
-		}
-	}
-	if cfg.Spec.K8sInsecureSkipTLSVerify {
-		configOverrides.ClusterInfo.InsecureSkipTLSVerify = true
-	}
-
-	// A kubeconfig file was provided.  Use it to load a config, passing through
-	// any overrides.
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&loadingRules, configOverrides).ClientConfig()
+	// Create the correct config for the clientset
+	config, _, err := k8s.CreateKubernetesClientset(&cfg.Spec)
 	if err != nil {
 		return err
 	}
 
+	// Create the apiextensions clientset
 	cs, err := clientset.NewForConfig(config)
 	if err != nil {
 		return err
