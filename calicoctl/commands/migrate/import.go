@@ -347,15 +347,7 @@ func applyV3(args map[string]interface{}) error {
 	if results.FileInvalid {
 		return fmt.Errorf("Failed to execute command: %v", results.Err)
 	} else if results.NumHandled == 0 {
-		if results.NumResources == 0 {
-			return fmt.Errorf("No resources specified in file")
-		} else if results.NumResources == 1 {
-			return fmt.Errorf("Failed to apply '%s' resource: %v", results.SingleKind, results.ResErrs)
-		} else if results.SingleKind != "" {
-			return fmt.Errorf("Failed to apply any '%s' resources: %v", results.SingleKind, results.ResErrs)
-		} else {
-			return fmt.Errorf("Failed to apply any resources: %v", results.ResErrs)
-		}
+		return fmt.Errorf("Failed to apply any resources: %v", results.ResErrs)
 	} else if len(results.ResErrs) == 0 {
 		if results.SingleKind != "" {
 			fmt.Printf("Successfully applied %d '%s' resource(s)\n", results.NumHandled, results.SingleKind)
@@ -363,16 +355,6 @@ func applyV3(args map[string]interface{}) error {
 			fmt.Printf("Successfully applied %d resource(s)\n", results.NumHandled)
 		}
 	} else {
-		if results.NumHandled-len(results.ResErrs) > 0 {
-			fmt.Printf("Partial success: ")
-			if results.SingleKind != "" {
-				fmt.Printf("applied the first %d out of %d '%s' resources:\n",
-					results.NumHandled, results.NumResources, results.SingleKind)
-			} else {
-				fmt.Printf("applied the first %d out of %d resources:\n",
-					results.NumHandled, results.NumResources)
-			}
-		}
 		return fmt.Errorf("Hit error(s): %v", results.ResErrs)
 	}
 
