@@ -1,5 +1,5 @@
 PACKAGE_NAME=github.com/projectcalico/calicoctl
-GO_BUILD_VER=v0.39
+GO_BUILD_VER=v0.40
 
 ###############################################################################
 # Download and include Makefile.common
@@ -85,7 +85,7 @@ bin/calicoctl-linux-%: BUILDOS=linux
 # and ARCH are defined with default values (Linux and amd64).
 bin/calicoctl-%: $(LOCAL_BUILD_DEP) $(SRC_FILES)
 	$(MAKE) build-calicoctl BUILDOS=$(BUILDOS) ARCH=$(ARCH)
-build-calicoctl:
+build-calicoctl: gen-crds
 	mkdir -p bin
 	$(DOCKER_RUN) \
 	  -e CALICOCTL_GIT_REVISION=$(CALICOCTL_GIT_REVISION) \
@@ -97,6 +97,18 @@ bin/calicoctl: bin/calicoctl-linux-amd64
 	cp $< $@
 bin/calicoctl-windows-amd64.exe: bin/calicoctl-windows-amd64
 	mv $< $@
+
+gen-crds: remote-deps
+	$(DOCKER_RUN) \
+	  -v $(CURDIR)/calicoctl/commands/crds:/go/src/$(PACKAGE_NAME)/calicoctl/commands/crds \
+	  $(CALICO_BUILD) \
+	  sh -c 'cd /go/src/$(PACKAGE_NAME)/calicoctl/commands/crds && go generate'
+
+remote-deps: mod-download	
+	$(DOCKER_RUN) $(CALICO_BUILD) sh -ec ' \
+		$(GIT_CONFIG_SSH) \
+		cp -r `go list -m -f "{{.Dir}}" github.com/projectcalico/libcalico-go`/config config; \
+		chmod -R +w config/'
 
 ###############################################################################
 # Building the image

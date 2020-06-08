@@ -7,6 +7,7 @@ require (
 	github.com/docopt/docopt-go v0.0.0-20160216232012-784ddc588536
 	github.com/eapache/channels v1.1.0 // indirect
 	github.com/eapache/queue v0.0.0-20180227141424-093482f3f8ce // indirect
+	github.com/ghodss/yaml v1.0.0
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/influxdata/influxdb v0.0.0-20190102202943-dd481f35df2c // indirect
 	github.com/influxdata/platform v0.0.0-20190117200541-d500d3cf5589 // indirect
