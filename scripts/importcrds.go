@@ -31,7 +31,7 @@ const (
 func main() {
 	fs, _ := ioutil.ReadDir("../../../config/crd")
 	out, _ := os.Create("../../commands/crds/crds.go")
-	out.Write([]byte(`// Copyright (c) 2020 Tigera, Inc. All rights reserved.
+	_, _ = out.Write([]byte(`// Copyright (c) 2020 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,17 +46,17 @@ func main() {
 // limitations under the License.
 
 `))
-	out.Write([]byte("package crds \n\n//DO NOT CHANGE. This is a generated file. In order to update, run `make gen-crds`.\n\nconst (\n"))
+	_, _ = out.Write([]byte("package crds \n\n//DO NOT CHANGE. This is a generated file. In order to update, run `make gen-crds`.\n\nconst (\n"))
 	for _, f := range fs {
 		if strings.HasSuffix(f.Name(), fileSuffix) && strings.HasPrefix(f.Name(), crdPrefix) {
 			fname := strings.TrimPrefix(f.Name(), crdPrefix)
 			name := strings.TrimSuffix(fname, fileSuffix)
-			out.Write([]byte("\t" + name + " = "))
+			_, _ = out.Write([]byte("\t" + name + " = "))
 			b, _ := ioutil.ReadFile("../../../config/crd/" + f.Name())
 			fstr := strconv.Quote(string(b))
-			out.Write([]byte(fstr))
-			out.Write([]byte("\n"))
+			_, _ = out.Write([]byte(fstr))
+			_, _ = out.Write([]byte("\n"))
 		}
 	}
-	out.Write([]byte(")\n"))
+	_, _ = out.Write([]byte(")\n"))
 }
