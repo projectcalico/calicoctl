@@ -190,7 +190,8 @@ func TestDatastoreMigrationIPAM(t *testing.T) {
 	for _, cidr := range cidrs {
 		err = client.IPAM().ReleaseAffinity(ctx, cidr, "node4", false)
 		Expect(err).NotTo(HaveOccurred())
-		ips = append(ips, cnet.IP{cidr.IP})
+		ip := cnet.ParseIP(cidr.IP.String())
+		ips = append(ips, *ip)
 	}
 	// Release the IPs
 	_, err = client.IPAM().ReleaseIPs(ctx, ips)
