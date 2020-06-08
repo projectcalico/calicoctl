@@ -33,7 +33,7 @@ class TestCalicoctlMigrate(TestBase):
     1) Test migration works for ippools and networkpolicies.
     """
 
-    def test_migrate_export(self):
+    def test_datastore_migrate(self):
         """
         Test that migrating Calico resources works properly
         """
