@@ -85,7 +85,7 @@ bin/calicoctl-linux-%: BUILDOS=linux
 # and ARCH are defined with default values (Linux and amd64).
 bin/calicoctl-%: $(LOCAL_BUILD_DEP) $(SRC_FILES)
 	$(MAKE) build-calicoctl BUILDOS=$(BUILDOS) ARCH=$(ARCH)
-build-calicoctl: gen-crds
+build-calicoctl:
 	mkdir -p bin
 	$(DOCKER_RUN) \
 	  -e CALICOCTL_GIT_REVISION=$(CALICOCTL_GIT_REVISION) \
