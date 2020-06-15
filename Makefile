@@ -311,6 +311,15 @@ run-kubernetes-master: stop-kubernetes-master
 		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kubectl \
 		--server=http://127.0.0.1:8080 \
 		apply -f /manifests/tests/st/manifests/mock-node.yaml
+
+	# Create a K8s network policy in the API for the migration tests to use.
+	docker run \
+	    --net=host \
+	    --rm \
+		-v  $(CURDIR):/manifests \
+		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kubectl \
+		--server=http://127.0.0.1:8080 \
+		apply -f /manifests/tests/st/manifests/kubernetes-policy.yaml
 	
 ## Stop the local kubernetes master
 stop-kubernetes-master:
