@@ -38,6 +38,7 @@ import (
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
+	"github.com/projectcalico/libcalico-go/lib/backend/model"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	calicoErrors "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
@@ -377,24 +378,19 @@ func applyV3(args map[string]interface{}) error {
 			fmt.Printf("Successfully applied %d resource(s)\n", results.NumHandled)
 		}
 	} else {
-		if results.NumHandled-len(results.ResErrs) > 0 {
-			fmt.Printf("Partial success: ")
-			if results.SingleKind != "" {
-				fmt.Printf("applied the first %d out of %d '%s' resources:\n",
-					results.NumHandled, results.NumResources, results.SingleKind)
-			} else {
-				fmt.Printf("applied the first %d out of %d resources:\n",
-					results.NumHandled, results.NumResources)
-			}
-		}
-
 		// Inspect the errors. If a node does not match an existing k8s node, trigger a warning instead.
 		errors := []error{}
 		for _, err := range results.ResErrs {
 			switch e := err.(type) {
 			case calicoErrors.ErrorResourceDoesNotExist:
-				// Since this was an apply, the only "not exist" error should be for nodes.
-				fmt.Printf("[WARNING] Attempted to import node %v from etcd that references a non-existent Kubernetes node. Skipping that node. Some things might not work", e.Identifier)
+				// Check that the error is for a Node
+				if key, ok := e.Identifier.(model.ResourceKey); ok {
+					if key.Kind == apiv3.KindNode {
+						fmt.Printf("[WARNING] Attempted to import node %v from etcd that references a non-existent Kubernetes node. Skipping that node. Some things might not work", e.Identifier)
+						continue
+					}
+				}
+				errors = append(errors, err)
 			default:
 				errors = append(errors, err)
 			}
