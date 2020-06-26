@@ -12,7 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.1
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.1 as ubi
+RUN microdnf update
+
+# Create Empty root filesystem on /rootfs, copy only required linux utils
+# and supporting files.This filesystem act as placeholder for all
+# files required in container.
+
+WORKDIR /rootfs
+RUN mkdir -p usr/bin lib64 bin licenses && \
+    cp /usr/bin/coreutils usr/bin/ && \
+    cp /usr/bin/sh usr/bin/ && \
+    cp /usr/bin/sh bin/ && \
+    for lib in $(ldd /usr/bin/coreutils | grep -v 'linux-vdso.so' | awk '{ if ($3=="") print $1; else print $3 }'); do \
+    cp $lib ./lib64; \
+    done
+RUN for lib in $(ldd /usr/bin/sh | grep -v 'linux-vdso.so' | awk '{ if ($3=="") print $1; else print $3 }'); do \
+    cp $lib ./lib64; \
+    done
+
+FROM scratch
+COPY --from=ubi /rootfs /
+
 ARG GIT_VERSION=unknown
 
 LABEL name="Calico CLI tool" \
@@ -25,7 +46,6 @@ LABEL name="Calico CLI tool" \
 
 ADD bin/calicoctl-linux-amd64 /calicoctl
 
-RUN mkdir /licenses
 COPY LICENSE /licenses
 
 ENV CALICO_CTL_CONTAINER=TRUE
