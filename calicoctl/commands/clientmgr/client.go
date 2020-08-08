@@ -17,6 +17,7 @@ package clientmgr
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
 
@@ -30,6 +31,24 @@ import (
 // parameter not loaded from file.
 func NewClient(cf string) (client.Interface, error) {
 	cfg, err := LoadClientConfig(cf)
+	// If user is not using calico specific configurations fallback to Kubernetes.
+	if cfg.Spec.EtcdEndpoints == "" && cfg.Spec.DatastoreType == apiconfig.EtcdV3 {
+		// Check if specific Kubernetes config file should be used
+		kubeconfigPath, exists := os.LookupEnv("KUBECONFIG")
+		if !exists {
+			kubeconfigPath = filepath.Join(
+				os.Getenv("HOME"), ".kube", "config",
+			)
+			_, err := os.Stat(kubeconfigPath)
+			if os.IsExist(err){
+				log.Info("Error loading config")
+				return nil, err
+			}
+		}
+		cfg.Spec.KubeConfig.Kubeconfig = kubeconfigPath
+		cfg.Spec.DatastoreType = apiconfig.Kubernetes
+	}
+
 	if err != nil {
 		log.Info("Error loading config")
 		return nil, err
