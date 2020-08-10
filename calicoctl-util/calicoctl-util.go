@@ -45,9 +45,7 @@ func processArgs() error {
 
 	var args []string
 	// cache all the arguments locally
-	for _, val := range os.Args {
-		args = append(args, val)
-	}
+	args = append(args, os.Args...)
 
 	// check supported command is passed
 	cmd := args[1]
