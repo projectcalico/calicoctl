@@ -214,6 +214,12 @@ func ExecuteConfigCommand(args map[string]interface{}, action action) CommandRes
 	}
 	log.Infof("Client: %v", cclient)
 
+	// if -d flag is true, stop here, otherwise proceed
+	if dryRunFlag := args["--dry-run"]; dryRunFlag == true {
+		return CommandResults{Client: cclient}
+	}
+
+
 	// Initialise the command results with the number of resources and the name of the
 	// kind of resource (if only dealing with a single resource).
 	results := CommandResults{Client: cclient}
