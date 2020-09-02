@@ -219,8 +219,6 @@ func ExecuteConfigCommand(args map[string]interface{}, action action) CommandRes
 	}
 	log.Infof("Client: %v", cclient)
 
-
-
 	// Initialise the command results with the number of resources and the name of the
 	// kind of resource (if only dealing with a single resource).
 	results := CommandResults{Client: cclient}
