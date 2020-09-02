@@ -105,6 +105,8 @@ Description:
 
 	if results.FileInvalid {
 		return fmt.Errorf("Failed to execute command: %v", results.Err)
+	} else if results.NumResources == 0 && parsedArgs["--dry-run"] == true {
+		fmt.Println("No syntax problems, file is ready to be applied")
 	} else if results.NumResources == 0 {
 		// No resources specified. If there is an associated error use that, otherwise print message with no error.
 		if results.Err != nil {
@@ -112,9 +114,7 @@ Description:
 		}
 		fmt.Println("No resources specified")
 	} else if results.NumHandled == 0 {
-		if results.NumResources == 0 && parsedArgs["--dry-run"] == true {
-			fmt.Println("No syntax problems, file is ready to be applied")
-		} else if results.NumResources == 1 {
+		if results.NumResources == 1 {
 			return fmt.Errorf("Failed to apply '%s' resource: %v", results.SingleKind, results.ResErrs)
 		} else if results.SingleKind != "" {
 			return fmt.Errorf("Failed to apply any '%s' resources: %v", results.SingleKind, results.ResErrs)
