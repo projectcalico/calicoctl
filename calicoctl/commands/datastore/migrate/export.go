@@ -147,6 +147,7 @@ Description:
 	}
 
 	rp := common.ResourcePrinterYAML{}
+	etcdToKddNodeMap := make(map[string]string)
 	// Loop through all the resource types to retrieve every resource available by the v3 API.
 	for _, r := range allV3Resources {
 		mockArgs := map[string]interface{}{
@@ -229,6 +230,7 @@ Description:
 						return fmt.Errorf("Node %s missing a 'k8s' orchestrator reference. Unable to export data unless every node has a 'k8s' orchestrator reference", node.GetObjectMeta().GetName())
 					}
 
+					etcdToKddNodeMap[node.GetObjectMeta().GetName()] = newNodeName
 					node.GetObjectMeta().SetName(newNodeName)
 
 					return nil
@@ -297,6 +299,7 @@ Description:
 
 	// Use the v1 API in order to retrieve IPAM resources
 	ipam := NewMigrateIPAM(client)
+	ipam.SetNodeMap(etcdToKddNodeMap)
 	err = ipam.PullFromDatastore()
 	if err != nil {
 		return err
