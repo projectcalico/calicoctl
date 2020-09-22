@@ -17,6 +17,7 @@ package migrate
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -29,6 +30,7 @@ import (
 
 type migrateIPAM struct {
 	client          bapi.Client
+	nodeMap         map[string]string
 	BlockAffinities []*BlockAffinityKVPair `json:"block_affinities,omitempty"`
 	IPAMBlocks      []*IPAMBlockKVPair     `json:"blocks,omitempty"`
 	IPAMHandles     []*IPAMHandleKVPair    `json:"handles,omitempty"`
@@ -82,6 +84,10 @@ func NewMigrateIPAM(c client.Interface) *migrateIPAM {
 	}
 }
 
+func (m *migrateIPAM) SetNodeMap(nodeMap map[string]string) {
+	m.nodeMap = nodeMap
+}
+
 func (m *migrateIPAM) PullFromDatastore() error {
 	ctx := context.Background()
 
@@ -120,6 +126,24 @@ func (m *migrateIPAM) PullFromDatastore() error {
 		if !ok {
 			return fmt.Errorf("Could not convert %+v to an AllocationBlock", item.Value)
 		}
+
+		// Update node names in the block to match the Kubernetes node
+		if m.nodeMap != nil {
+			for i, allocationAttribute := range block.Attributes {
+				nodeName, ok := m.nodeMap[allocationAttribute.AttrSecondary["node"]]
+				// Do not update the node name if it does not exist
+				if ok {
+					block.Attributes[i].AttrSecondary["node"] = nodeName
+				}
+			}
+
+			nodeName, ok := m.nodeMap[block.Host()]
+			if ok {
+				affinityName := "host:" + nodeName
+				block.Affinity = &affinityName
+			}
+		}
+
 		blocks = append(blocks, &IPAMBlockKVPair{
 			Key:   blockKey,
 			Value: block,
@@ -129,7 +153,20 @@ func (m *migrateIPAM) PullFromDatastore() error {
 
 	blockAffinities := []*BlockAffinityKVPair{}
 	for _, item := range blockAffinityKVList.KVPairs {
-		blockAffinityKey, err := model.KeyToDefaultPath(item.Key)
+		etcdBlockAffinityKey, ok := item.Key.(model.BlockAffinityKey)
+		if !ok {
+			return fmt.Errorf("Error converting Key to BlockAffinityKey: %+v", item.Key)
+		}
+
+		// Update the block affinity to match the Kubernetes node names.
+		if m.nodeMap != nil {
+			nodeName, ok := m.nodeMap[etcdBlockAffinityKey.Host]
+			if ok {
+				etcdBlockAffinityKey.Host = nodeName
+			}
+		}
+
+		blockAffinityKey, err := model.KeyToDefaultPath(etcdBlockAffinityKey)
 		if err != nil {
 			return fmt.Errorf("Error serializing BlockAffinityKey: %s", err)
 		}
@@ -138,6 +175,7 @@ func (m *migrateIPAM) PullFromDatastore() error {
 		if !ok {
 			return fmt.Errorf("Could not convert %+v to a BlockAffinity", item.Value)
 		}
+
 		blockAffinities = append(blockAffinities, &BlockAffinityKVPair{
 			Key:   blockAffinityKey,
 			Value: blockAffinity,
@@ -147,10 +185,23 @@ func (m *migrateIPAM) PullFromDatastore() error {
 
 	ipamHandles := []*IPAMHandleKVPair{}
 	for _, item := range ipamHandleKVList.KVPairs {
-		handleKey, err := model.KeyToDefaultPath(item.Key)
+		// Update IPAM handle ID for IPIP tunnel to include the Kubernetes node name.
+		key, ok := item.Key.(model.IPAMHandleKey)
+		if !ok {
+			return fmt.Errorf("Unable to convert %+v to an IPAMHandleKey", item.Key)
+		}
+		if strings.HasPrefix(key.HandleID, "ipip-tunnel-addr-") {
+			etcdNodeName := strings.TrimPrefix(key.HandleID, "ipip-tunnel-addr-")
+			if nodeName, ok := m.nodeMap[etcdNodeName]; ok {
+				key.HandleID = fmt.Sprintf("ipip-tunnel-addr-%s", nodeName)
+			}
+		}
+
+		handleKey, err := model.KeyToDefaultPath(key)
 		if err != nil {
 			return fmt.Errorf("Error serializing IPAMHandleKey: %s", err)
 		}
+
 		handle, ok := item.Value.(*model.IPAMHandle)
 		if !ok {
 			return fmt.Errorf("Could not convert %+v to an IPAMHandle", item.Value)
