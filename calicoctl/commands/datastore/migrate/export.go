@@ -39,7 +39,6 @@ var allV3Resources []string = []string{
 	"ippools",
 	"bgpconfig",
 	"bgppeers",
-	"felixconfigs",
 	"globalnetworkpolicies",
 	"globalnetworksets",
 	"heps",
@@ -47,6 +46,7 @@ var allV3Resources []string = []string{
 	"networkpolicies",
 	"networksets",
 	"nodes",
+	"felixconfigs",
 }
 
 var resourceDisplayMap map[string]string = map[string]string{
@@ -237,6 +237,28 @@ Description:
 				})
 				if err != nil {
 					return fmt.Errorf("Unable to process metadata for export for Node resource: %s", err)
+				}
+			}
+
+			// Felix configs may also need to be modified if node names do not match the Kubernetes node names.
+			if r == "felixconfigs" {
+				err := meta.EachListItem(resource, func(obj runtime.Object) error {
+					felixConfig, ok := obj.(*apiv3.FelixConfiguration)
+					if !ok {
+						return fmt.Errorf("Failed to convert resource to FelixConfiguration object for migration processing: %+v", obj)
+					}
+
+					if strings.HasPrefix(felixConfig.GetObjectMeta().GetName(), "node.") {
+						etcdNodeName := strings.TrimPrefix(felixConfig.GetObjectMeta().GetName(), "node.")
+						if nodename, ok := etcdToKddNodeMap[etcdNodeName]; ok {
+							felixConfig.GetObjectMeta().SetName(fmt.Sprintf("node.%s", nodename))
+						}
+					}
+
+					return nil
+				})
+				if err != nil {
+					return fmt.Errorf("Unable to process metadata for export for FelixConfiguration resource: %s", err)
 				}
 			}
 		}
