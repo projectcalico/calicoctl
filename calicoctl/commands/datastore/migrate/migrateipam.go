@@ -130,10 +130,18 @@ func (m *migrateIPAM) PullFromDatastore() error {
 		// Update node names in the block to match the Kubernetes node
 		if m.nodeMap != nil {
 			for i, allocationAttribute := range block.Attributes {
-				nodeName, ok := m.nodeMap[allocationAttribute.AttrSecondary["node"]]
-				// Do not update the node name if it does not exist
-				if ok {
+				// Update the node name if it has a corresponding Kubernetes node name
+				if nodeName, ok := m.nodeMap[allocationAttribute.AttrSecondary["node"]]; ok {
 					block.Attributes[i].AttrSecondary["node"] = nodeName
+				}
+
+				// Update the handle ID for ipip tunnel addresses
+				if strings.HasPrefix(*allocationAttribute.AttrPrimary, "ipip-tunnel-addr-") {
+					etcdNodeName := strings.TrimPrefix(*allocationAttribute.AttrPrimary, "ipip-tunnel-addr-")
+					if nodeName, ok := m.nodeMap[etcdNodeName]; ok {
+						handleID := fmt.Sprintf("ipip-tunnel-addr-%s", nodeName)
+						block.Attributes[i].AttrPrimary = &handleID
+					}
 				}
 			}
 
