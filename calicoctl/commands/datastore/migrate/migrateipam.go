@@ -131,14 +131,15 @@ func (m *migrateIPAM) PullFromDatastore() error {
 		if m.nodeMap != nil {
 			for i, allocationAttribute := range block.Attributes {
 				// Update the node name if it has a corresponding Kubernetes node name
-				if nodeName, ok := m.nodeMap[allocationAttribute.AttrSecondary["node"]]; ok {
+				attrNodeName := strings.Replace(allocationAttribute.AttrSecondary["node"], ".", "-")
+				if nodeName, ok := m.nodeMap[attrNodeName]; ok {
 					block.Attributes[i].AttrSecondary["node"] = nodeName
 				}
 
 				// Update the handle ID for ipip tunnel addresses
 				if allocationAttribute.AttrPrimary != nil {
 					if strings.HasPrefix(*allocationAttribute.AttrPrimary, "ipip-tunnel-addr-") {
-						etcdNodeName := strings.TrimPrefix(*allocationAttribute.AttrPrimary, "ipip-tunnel-addr-")
+						etcdNodeName := strings.ReplaceAll(strings.TrimPrefix(*allocationAttribute.AttrPrimary, "ipip-tunnel-addr-"), ".", "-")
 						if nodeName, ok := m.nodeMap[etcdNodeName]; ok {
 							handleID := fmt.Sprintf("ipip-tunnel-addr-%s", nodeName)
 							block.Attributes[i].AttrPrimary = &handleID
@@ -147,7 +148,7 @@ func (m *migrateIPAM) PullFromDatastore() error {
 				}
 			}
 
-			nodeName, ok := m.nodeMap[block.Host()]
+			nodeName, ok := m.nodeMap[strings.ReplaceAll(block.Host(), ".", "-")]
 			if ok {
 				affinityName := fmt.Sprintf("host:%s", nodeName)
 				block.Affinity = &affinityName
@@ -170,7 +171,7 @@ func (m *migrateIPAM) PullFromDatastore() error {
 
 		// Update the block affinity to match the Kubernetes node names.
 		if m.nodeMap != nil {
-			nodeName, ok := m.nodeMap[etcdBlockAffinityKey.Host]
+			nodeName, ok := m.nodeMap[strings.ReplaceAll(etcdBlockAffinityKey.Host, ".", "-")]
 			if ok {
 				etcdBlockAffinityKey.Host = nodeName
 			}
@@ -201,7 +202,7 @@ func (m *migrateIPAM) PullFromDatastore() error {
 			return fmt.Errorf("Unable to convert %+v to an IPAMHandleKey", item.Key)
 		}
 		if strings.HasPrefix(key.HandleID, "ipip-tunnel-addr-") {
-			etcdNodeName := strings.TrimPrefix(key.HandleID, "ipip-tunnel-addr-")
+			etcdNodeName := strings.ReplaceAll(strings.TrimPrefix(key.HandleID, "ipip-tunnel-addr-"), ".", "-")
 			if nodeName, ok := m.nodeMap[etcdNodeName]; ok {
 				key.HandleID = fmt.Sprintf("ipip-tunnel-addr-%s", nodeName)
 			}

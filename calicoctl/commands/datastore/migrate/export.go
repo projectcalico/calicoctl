@@ -230,7 +230,9 @@ Description:
 						return fmt.Errorf("Node %s missing a 'k8s' orchestrator reference. Unable to export data unless every node has a 'k8s' orchestrator reference", node.GetObjectMeta().GetName())
 					}
 
-					etcdToKddNodeMap[node.GetObjectMeta().GetName()] = newNodeName
+					// Ensure IP address hostnames are handled properly
+					etcdNodeName := strings.ReplaceAll(node.GetObjectMeta().GetName(), ".", "-")
+					etcdToKddNodeMap[etcdNodeName] = newNodeName
 					node.GetObjectMeta().SetName(newNodeName)
 
 					return nil
@@ -249,7 +251,7 @@ Description:
 					}
 
 					if strings.HasPrefix(felixConfig.GetObjectMeta().GetName(), "node.") {
-						etcdNodeName := strings.TrimPrefix(felixConfig.GetObjectMeta().GetName(), "node.")
+						etcdNodeName := strings.ReplaceAll(strings.TrimPrefix(felixConfig.GetObjectMeta().GetName(), "node."), ".", "-")
 						if nodename, ok := etcdToKddNodeMap[etcdNodeName]; ok {
 							felixConfig.GetObjectMeta().SetName(fmt.Sprintf("node.%s", nodename))
 						}
