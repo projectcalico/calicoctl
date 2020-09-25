@@ -28,6 +28,8 @@ import (
 	"github.com/projectcalico/libcalico-go/lib/errors"
 )
 
+var ipamHandlePrefixes []string = []string{"ipip-tunnel-addr-", "vxlan-tunnel-addr-", "wireguard-tunnel-addr-"}
+
 type migrateIPAM struct {
 	client          bapi.Client
 	nodeMap         map[string]string
@@ -137,11 +139,15 @@ func (m *migrateIPAM) PullFromDatastore() error {
 
 				// Update the handle ID for ipip tunnel addresses
 				if allocationAttribute.AttrPrimary != nil {
-					if strings.HasPrefix(*allocationAttribute.AttrPrimary, "ipip-tunnel-addr-") {
-						etcdNodeName := strings.TrimPrefix(*allocationAttribute.AttrPrimary, "ipip-tunnel-addr-")
-						if nodeName, ok := m.nodeMap[etcdNodeName]; ok {
-							handleID := fmt.Sprintf("ipip-tunnel-addr-%s", nodeName)
-							block.Attributes[i].AttrPrimary = &handleID
+					handlePrefixReplaced := false
+					for _, handlePrefix := range ipamHandlePrefixes {
+						if !handlePrefixReplaced && strings.HasPrefix(*allocationAttribute.AttrPrimary, handlePrefix) {
+							etcdNodeName := strings.TrimPrefix(*allocationAttribute.AttrPrimary, handlePrefix)
+							if nodeName, ok := m.nodeMap[etcdNodeName]; ok {
+								handleID := fmt.Sprintf("%s%s", handlePrefix, nodeName)
+								block.Attributes[i].AttrPrimary = &handleID
+								handlePrefixReplaced = true
+							}
 						}
 					}
 				}
@@ -200,10 +206,14 @@ func (m *migrateIPAM) PullFromDatastore() error {
 		if !ok {
 			return fmt.Errorf("Unable to convert %+v to an IPAMHandleKey", item.Key)
 		}
-		if strings.HasPrefix(key.HandleID, "ipip-tunnel-addr-") {
-			etcdNodeName := strings.TrimPrefix(key.HandleID, "ipip-tunnel-addr-")
-			if nodeName, ok := m.nodeMap[etcdNodeName]; ok {
-				key.HandleID = fmt.Sprintf("ipip-tunnel-addr-%s", nodeName)
+		handlePrefixReplaced := false
+		for _, handlePrefix := range ipamHandlePrefixes {
+			if !handlePrefixReplaced && strings.HasPrefix(key.HandleID, handlePrefix) {
+				etcdNodeName := strings.TrimPrefix(key.HandleID, handlePrefix)
+				if nodeName, ok := m.nodeMap[etcdNodeName]; ok {
+					key.HandleID = fmt.Sprintf("%s%s", handlePrefix, nodeName)
+					handlePrefixReplaced = true
+				}
 			}
 		}
 
