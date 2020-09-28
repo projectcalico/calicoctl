@@ -137,16 +137,14 @@ func (m *migrateIPAM) PullFromDatastore() error {
 					block.Attributes[i].AttrSecondary["node"] = nodeName
 				}
 
-				// Update the handle ID for ipip tunnel addresses
+				// Update the handle ID for any tunnel addresses
 				if allocationAttribute.AttrPrimary != nil {
-					handlePrefixReplaced := false
 					for _, handlePrefix := range ipamHandlePrefixes {
-						if !handlePrefixReplaced && strings.HasPrefix(*allocationAttribute.AttrPrimary, handlePrefix) {
+						if strings.HasPrefix(*allocationAttribute.AttrPrimary, handlePrefix) {
 							etcdNodeName := strings.TrimPrefix(*allocationAttribute.AttrPrimary, handlePrefix)
 							if nodeName, ok := m.nodeMap[etcdNodeName]; ok {
 								handleID := fmt.Sprintf("%s%s", handlePrefix, nodeName)
 								block.Attributes[i].AttrPrimary = &handleID
-								handlePrefixReplaced = true
 							}
 						}
 					}
@@ -201,18 +199,16 @@ func (m *migrateIPAM) PullFromDatastore() error {
 
 	ipamHandles := []*IPAMHandleKVPair{}
 	for _, item := range ipamHandleKVList.KVPairs {
-		// Update IPAM handle ID for IPIP tunnel to include the Kubernetes node name.
+		// Update IPAM handle ID for a tunnel to include the Kubernetes node name.
 		key, ok := item.Key.(model.IPAMHandleKey)
 		if !ok {
 			return fmt.Errorf("Unable to convert %+v to an IPAMHandleKey", item.Key)
 		}
-		handlePrefixReplaced := false
 		for _, handlePrefix := range ipamHandlePrefixes {
-			if !handlePrefixReplaced && strings.HasPrefix(key.HandleID, handlePrefix) {
+			if strings.HasPrefix(key.HandleID, handlePrefix) {
 				etcdNodeName := strings.TrimPrefix(key.HandleID, handlePrefix)
 				if nodeName, ok := m.nodeMap[etcdNodeName]; ok {
 					key.HandleID = fmt.Sprintf("%s%s", handlePrefix, nodeName)
-					handlePrefixReplaced = true
 				}
 			}
 		}
