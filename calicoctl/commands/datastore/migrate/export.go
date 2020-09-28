@@ -35,6 +35,9 @@ import (
 )
 
 // All of the resources we can retrieve via the v3 API.
+// Any resources which have references to node names MUST come after
+// nodes since the Kubernetes node names are not known until after nodes
+// are processed.
 var allV3Resources []string = []string{
 	"ippools",
 	"bgpconfig",
@@ -241,6 +244,7 @@ Description:
 			}
 
 			// Felix configs may also need to be modified if node names do not match the Kubernetes node names.
+			// Felix configs must come after nodes in the allV3Resources list since we populate the node mapping when nodes are exported.
 			if r == "felixconfigs" {
 				err := meta.EachListItem(resource, func(obj runtime.Object) error {
 					felixConfig, ok := obj.(*apiv3.FelixConfiguration)
