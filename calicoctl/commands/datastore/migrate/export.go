@@ -40,7 +40,6 @@ import (
 // are processed.
 var allV3Resources []string = []string{
 	"ippools",
-	"bgpconfig",
 	"bgppeers",
 	"globalnetworkpolicies",
 	"globalnetworksets",
@@ -49,6 +48,7 @@ var allV3Resources []string = []string{
 	"networkpolicies",
 	"networksets",
 	"nodes",
+	"bgpconfigs",
 	"felixconfigs",
 }
 
@@ -263,6 +263,29 @@ Description:
 				})
 				if err != nil {
 					return fmt.Errorf("Unable to process metadata for export for FelixConfiguration resource: %s", err)
+				}
+			}
+
+			// BGP configs may also need to be modified if node names do not match the Kubernetes node names.
+			// BGP configs must come after nodes in the allV3Resources list since we populate the node mapping when nodes are exported.
+			if r == "bgpconfigs" {
+				err := meta.EachListItem(resource, func(obj runtime.Object) error {
+					bgpConfig, ok := obj.(*apiv3.BGPConfiguration)
+					if !ok {
+						return fmt.Errorf("Failed to convert resource to BGPConfiguration object for migration processing: %+v", obj)
+					}
+
+					if strings.HasPrefix(bgpConfig.GetObjectMeta().GetName(), "node.") {
+						etcdNodeName := strings.TrimPrefix(bgpConfig.GetObjectMeta().GetName(), "node.")
+						if nodename, ok := etcdToKddNodeMap[etcdNodeName]; ok {
+							bgpConfig.GetObjectMeta().SetName(fmt.Sprintf("node.%s", nodename))
+						}
+					}
+
+					return nil
+				})
+				if err != nil {
+					return fmt.Errorf("Unable to process metadata for export for BGPConfiguration resource: %s", err)
 				}
 			}
 		}
