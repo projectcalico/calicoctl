@@ -31,10 +31,10 @@ import (
 )
 
 var (
-	nodeName           = "original-node"
-	newNodeName        = "changed-node"
+	nodeName           = "etcdNodeName"
+	newNodeName        = "k8sNodeName"
 	blockAffinityField = fmt.Sprintf("host:%s", nodeName)
-	ipipTunnelHandle   = "ipip-tunnel-addr-original-node"
+	ipipTunnelHandle   = "ipip-tunnel-addr-etcdNodeName"
 )
 
 var _ = Describe("IPAM migration handling", func() {
@@ -55,7 +55,7 @@ var _ = Describe("IPAM migration handling", func() {
 					{
 						AttrPrimary: &ipipTunnelHandle,
 						AttrSecondary: map[string]string{
-							"node": "original-node",
+							"node": nodeName,
 							"type": "ipipTunnelAddress",
 						},
 					},
@@ -150,20 +150,20 @@ var _ = Describe("IPAM migration handling", func() {
 		err := migrateIPAM.PullFromDatastore()
 		Expect(err).NotTo(HaveOccurred())
 
-		// Check that the block attributes were changed correctly
+		// Check that the block attributes were not changed
 		Expect(migrateIPAM.IPAMBlocks).To(HaveLen(1))
 		Expect(*migrateIPAM.IPAMBlocks[0].Value.Affinity).To(Equal(fmt.Sprintf("host:%s", nodeName)))
 		Expect(migrateIPAM.IPAMBlocks[0].Value.Attributes).To(HaveLen(1))
 		Expect(*migrateIPAM.IPAMBlocks[0].Value.Attributes[0].AttrPrimary).To(Equal(fmt.Sprintf("ipip-tunnel-addr-%s", nodeName)))
 		Expect(migrateIPAM.IPAMBlocks[0].Value.Attributes[0].AttrSecondary["node"]).To(Equal(nodeName))
 
-		// Check that the block affinity attributes were changed correctly
+		// Check that the block affinity attributes were not changed
 		newAffinityKeyPath, err := model.KeyToDefaultPath(affinity1.Key)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(migrateIPAM.BlockAffinities).To(HaveLen(1))
 		Expect(migrateIPAM.BlockAffinities[0].Key).To(Equal(newAffinityKeyPath))
 
-		// Check that the IPAM handle attributes were changed correctly
+		// Check that the IPAM handle attributes were not changed
 		newHandleKeyPath, err := model.KeyToDefaultPath(handle1.Key)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(migrateIPAM.IPAMHandles).To(HaveLen(1))
