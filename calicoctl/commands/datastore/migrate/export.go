@@ -259,6 +259,9 @@ Description:
 						}
 					}
 
+					// Handling for possibly misconfigured iptables values from the v1 API.
+					ConvertIptablesFields(felixConfig)
+
 					return nil
 				})
 				if err != nil {
@@ -363,4 +366,19 @@ Description:
 	}
 
 	return nil
+}
+
+// ConvertIptablesFields ensures that all iptables fields are valid for the v3 API.
+func ConvertIptablesFields(felixConfig *apiv3.FelixConfiguration) {
+	if felixConfig.Spec.DefaultEndpointToHostAction != "" {
+		felixConfig.Spec.DefaultEndpointToHostAction = strings.Title(strings.ToLower(felixConfig.Spec.DefaultEndpointToHostAction))
+	}
+
+	if felixConfig.Spec.IptablesFilterAllowAction != "" {
+		felixConfig.Spec.IptablesFilterAllowAction = strings.Title(strings.ToLower(felixConfig.Spec.IptablesFilterAllowAction))
+	}
+
+	if felixConfig.Spec.IptablesMangleAllowAction != "" {
+		felixConfig.Spec.IptablesMangleAllowAction = strings.Title(strings.ToLower(felixConfig.Spec.IptablesMangleAllowAction))
+	}
 }
