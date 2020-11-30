@@ -15,9 +15,9 @@
 package utils
 
 import (
+	"os"
 	"os/exec"
 	"strings"
-	"os"
 
 	. "github.com/onsi/gomega"
 	log "github.com/sirupsen/logrus"
@@ -37,8 +37,8 @@ func CalicoctlMayFail(kdd bool, args ...string) (string, error) {
 	if kdd {
 		val, ok := os.LookupEnv("KUBECONFIG")
 		if ok {
-			cmd.Env = []string{"KUBECONFIG=" + val,"DATASTORE_TYPE=kubernetes"}
-		}else{
+			cmd.Env = []string{"KUBECONFIG=" + val, "DATASTORE_TYPE=kubernetes"}
+		} else {
 			cmd.Env = []string{"K8S_API_ENDPOINT=http://localhost:8080", "DATASTORE_TYPE=kubernetes"}
 		}
 	}

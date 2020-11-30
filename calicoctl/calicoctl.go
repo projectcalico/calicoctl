@@ -88,7 +88,7 @@ Description:
 	}
 
 	if context := arguments["--context"]; context != nil {
-		os.Setenv("K8S_CURRENT_CONTEXT",context.(string))
+		os.Setenv("K8S_CURRENT_CONTEXT", context.(string))
 	}
 
 	if arguments["<command>"] != nil {

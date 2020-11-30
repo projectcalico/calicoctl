@@ -16,8 +16,8 @@ package commands
 
 import (
 	"fmt"
-	"strings"
 	"os"
+	"strings"
 
 	docopt "github.com/docopt/docopt-go"
 
@@ -105,7 +105,7 @@ Description:
 		return nil
 	}
 	if context := parsedArgs["--context"]; context != nil {
-		os.Setenv("K8S_CURRENT_CONTEXT",context.(string))
+		os.Setenv("K8S_CURRENT_CONTEXT", context.(string))
 	}
 
 	log.Debugf("parse args: %+v\n", parsedArgs)

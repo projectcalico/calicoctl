@@ -15,8 +15,8 @@
 package commands
 
 import (
-	"strings"
 	"os"
+	"strings"
 
 	"github.com/docopt/docopt-go"
 

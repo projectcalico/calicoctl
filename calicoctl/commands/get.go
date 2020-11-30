@@ -18,8 +18,8 @@ import (
 	"github.com/docopt/docopt-go"
 
 	"fmt"
-	"strings"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -133,7 +133,7 @@ Description:
 		return nil
 	}
 	if context := parsedArgs["--context"]; context != nil {
-		os.Setenv("K8S_CURRENT_CONTEXT",context.(string))
+		os.Setenv("K8S_CURRENT_CONTEXT", context.(string))
 	}
 
 	printNamespace := false

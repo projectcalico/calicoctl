@@ -70,7 +70,7 @@ func TestMultiCluster(t *testing.T) {
 	Expect(out).To(ContainSubstring("CIDR"))
 
 	// Context node tests fails in semaphore with: Need super user privileges: Operation not permitted
-	// 
+	//
 	// out, err = CalicoctlMayFail(true, "--context", "main", "node", "status")
 	// Expect(err).To(HaveOccurred())
 	// Expect(out).To(ContainSubstring("Calico"))
