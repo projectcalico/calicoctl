@@ -97,8 +97,8 @@ func NewIPAMChecker(k8sClient kubernetes.Interface,
 	showAllIPs bool,
 	showProblemIPs bool) *IPAMChecker {
 	return &IPAMChecker{
-		allocations:       map[string][]allocation{},
-		allocationsByNode: map[string][]string{},
+		allocations:       map[string][]*allocation{},
+		allocationsByNode: map[string][]*allocation{},
 
 		inUseIPs: map[string][]ownerRecord{},
 
@@ -112,8 +112,8 @@ func NewIPAMChecker(k8sClient kubernetes.Interface,
 }
 
 type IPAMChecker struct {
-	allocations       map[string][]allocation
-	allocationsByNode map[string][]string
+	allocations       map[string][]*allocation
+	allocationsByNode map[string][]*allocation
 	inUseIPs          map[string][]ownerRecord
 
 	k8sClient     kubernetes.Interface
@@ -128,6 +128,7 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 	fmt.Println("Checking IPAM for inconsistencies...")
 	fmt.Println()
 
+	var numAllocs int
 	{
 		fmt.Println("Loading all IPAM blocks...")
 		blocks, err := c.backendClient.List(ctx, model.BlockListOptions{}, "")
@@ -147,10 +148,11 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 				if attrIdx == nil {
 					continue // IP is not allocated
 				}
+				numAllocs++
 				c.recordAllocation(b, ord)
 			}
 		}
-		fmt.Printf("IPAM blocks record %d allocations.\n", len(c.allocations))
+		fmt.Printf("IPAM blocks record %d allocations.\n", numAllocs)
 		fmt.Println()
 	}
 	var activeIPPools []*cnet.IPNet
@@ -215,6 +217,31 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 		}
 		fmt.Printf("Found %d workload IPs.\n", numNodeIPs)
 		fmt.Printf("Workloads and nodes are using %d IPs.\n", len(c.inUseIPs))
+		fmt.Println()
+	}
+
+	{
+		const numNodesToPrint = 20
+		fmt.Printf("Looking for top (up to %d) nodes by allocations...\n", numNodesToPrint)
+		var allNodes []string
+		for n := range c.allocationsByNode {
+			allNodes = append(allNodes, n)
+		}
+		sort.Slice(allNodes, func(i, j int) bool {
+			// Reverse order
+			return len(c.allocationsByNode[allNodes[i]]) > len(c.allocationsByNode[allNodes[j]])
+		})
+		for i, n := range allNodes {
+			if i >= numNodesToPrint {
+				break
+			}
+			fmt.Printf("  %s has %d allocations\n", n, len(c.allocationsByNode[n]))
+		}
+		if len(allNodes) > 0 {
+			max := len(c.allocationsByNode[allNodes[0]])
+			median := len(c.allocationsByNode[allNodes[len(allNodes)/2]])
+			fmt.Printf("Node with most allocations has %d; median is %d\n", max, median)
+		}
 		fmt.Println()
 	}
 
@@ -299,14 +326,12 @@ func getWEPIPs(w apiv3.WorkloadEndpoint) ([]string, error) {
 func (c *IPAMChecker) recordAllocation(b *model.AllocationBlock, ord int) {
 	ip := b.OrdinalToIP(ord).String()
 
-	alloc := allocation{
-		Block:   b,
-		Ordinal: ord,
-	}
-	c.allocations[ip] = append(c.allocations[ip], alloc)
-
-	if c.showAllIPs {
-		fmt.Printf("  %s allocated; attrs %s\n", ip, alloc.GetAttrString())
+	node := ""
+	if b.Affinity != nil {
+		affinity := *b.Affinity
+		if strings.HasPrefix(affinity, "host:") {
+			node = affinity[5:]
+		}
 	}
 
 	attrIdx := *b.Allocations[ord]
@@ -315,6 +340,21 @@ func (c *IPAMChecker) recordAllocation(b *model.AllocationBlock, ord int) {
 		if attrs.AttrPrimary != nil && *attrs.AttrPrimary == ipam.WindowsReservedHandle {
 			c.recordInUseIP(ip, b, "Reserved for Windows")
 		}
+		if n := attrs.AttrSecondary["node"]; n != "" {
+			node = n
+		}
+	}
+
+	alloc := allocation{
+		IP:      ip,
+		Block:   b,
+		Ordinal: ord,
+	}
+	c.allocations[ip] = append(c.allocations[ip], &alloc)
+	c.allocationsByNode[node] = append(c.allocationsByNode[node], &alloc)
+
+	if c.showAllIPs {
+		fmt.Printf("  %s allocated; attrs %s\n", ip, alloc.GetAttrString())
 	}
 }
 
@@ -369,9 +409,10 @@ func normaliseIP(addr string) (string, error) {
 type allocation struct {
 	Block   *model.AllocationBlock
 	Ordinal int
+	IP      string
 }
 
-func (a allocation) GetAttrString() string {
+func (a *allocation) GetAttrString() string {
 	attrIdx := *a.Block.Allocations[a.Ordinal]
 	if len(a.Block.Attributes) > attrIdx {
 		return formatAttrs(a.Block.Attributes[attrIdx])
