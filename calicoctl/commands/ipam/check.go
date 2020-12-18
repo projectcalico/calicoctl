@@ -18,11 +18,13 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 
 	docopt "github.com/docopt/docopt-go"
-	"github.com/projectcalico/libcalico-go/lib/ipam"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/projectcalico/libcalico-go/lib/ipam"
 
 	apiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s"
@@ -42,7 +44,7 @@ import (
 // IPAM takes keyword with an IP address then calls the subcommands.
 func Check(args []string) error {
 	doc := constants.DatastoreIntro + `Usage:
-  <BINARY_NAME> ipam check [--config=<CONFIG>] [--show-ips]
+  <BINARY_NAME> ipam check [--config=<CONFIG>] [--show-all-ips] [--show-problem-ips]
 
 Options:
   -h --help                Show this screen.
@@ -82,8 +84,9 @@ Description:
 		return fmt.Errorf("IPAM check only supports Kubernetes Datastore Driver")
 	}
 	kubeClient := bc.ClientSet
-	showIPs := parsedArgs["--show-ips"].(bool)
-	checker := NewIPAMChecker(kubeClient, client, bc, showIPs)
+	showAllIPs := parsedArgs["--show-all-ips"].(bool)
+	showProblemIPs := showAllIPs || parsedArgs["--show-problem-ips"].(bool)
+	checker := NewIPAMChecker(kubeClient, client, bc, showAllIPs, showProblemIPs)
 
 	return checker.checkIPAM(ctx)
 }
@@ -91,31 +94,40 @@ Description:
 func NewIPAMChecker(k8sClient kubernetes.Interface,
 	v3Client clientv3.Interface,
 	backendClient bapi.Client,
-	showIPs bool) *IPAMChecker {
+	showAllIPs bool,
+	showProblemIPs bool) *IPAMChecker {
 	return &IPAMChecker{
-		allocations: map[string][]allocation{},
-		inUseIPs:    map[string][]ownerRecord{},
+		allocations:       map[string][]allocation{},
+		allocationsByNode: map[string][]string{},
+
+		inUseIPs: map[string][]ownerRecord{},
 
 		k8sClient:     k8sClient,
 		v3Client:      v3Client,
 		backendClient: backendClient,
 
-		showIPs: showIPs,
+		showAllIPs:     showAllIPs,
+		showProblemIPs: showProblemIPs,
 	}
 }
 
 type IPAMChecker struct {
-	allocations map[string][]allocation
-	inUseIPs    map[string][]ownerRecord
+	allocations       map[string][]allocation
+	allocationsByNode map[string][]string
+	inUseIPs          map[string][]ownerRecord
 
 	k8sClient     kubernetes.Interface
 	backendClient bapi.Client
 	v3Client      clientv3.Interface
 
-	showIPs bool
+	showAllIPs     bool
+	showProblemIPs bool
 }
 
 func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
+	fmt.Println("Checking IPAM for inconsistencies...")
+	fmt.Println()
+
 	{
 		fmt.Println("Loading all IPAM blocks...")
 		blocks, err := c.backendClient.List(ctx, model.BlockListOptions{}, "")
@@ -126,6 +138,11 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 
 		for _, kvp := range blocks.KVPairs {
 			b := kvp.Value.(*model.AllocationBlock)
+			affinity := "<none>"
+			if b.Affinity != nil {
+				affinity = *b.Affinity
+			}
+			fmt.Printf(" IPAM block %s affinity=%s:\n", b.CIDR, affinity)
 			for ord, attrIdx := range b.Allocations {
 				if attrIdx == nil {
 					continue // IP is not allocated
@@ -134,6 +151,7 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 			}
 		}
 		fmt.Printf("IPAM blocks record %d allocations.\n", len(c.allocations))
+		fmt.Println()
 	}
 	var activeIPPools []*cnet.IPNet
 	{
@@ -146,6 +164,7 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 			if p.Spec.Disabled {
 				continue
 			}
+			fmt.Printf("  %s\n", p.Spec.CIDR)
 			_, cidr, err := cnet.ParseCIDR(p.Spec.CIDR)
 			if err != nil {
 				return fmt.Errorf("failed to parse IP pool CIDR: %w", err)
@@ -153,7 +172,9 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 			activeIPPools = append(activeIPPools, cidr)
 		}
 		fmt.Printf("Found %d active IP pools.\n", len(activeIPPools))
+		fmt.Println()
 	}
+
 	{
 		fmt.Println("Loading all nodes.")
 		nodes, err := c.v3Client.Nodes().List(ctx, options.ListOptions{})
@@ -172,6 +193,7 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 			}
 		}
 		fmt.Printf("Found %d node tunnel IPs.\n", numNodeIPs)
+		fmt.Println()
 	}
 
 	{
@@ -193,19 +215,24 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 		}
 		fmt.Printf("Found %d workload IPs.\n", numNodeIPs)
 		fmt.Printf("Workloads and nodes are using %d IPs.\n", len(c.inUseIPs))
+		fmt.Println()
 	}
 
+	numProblems := 0
 	var allocatedButNotInUseIPs []string
 	{
 		fmt.Printf("Scanning for IPs that are allocated but not actually in use...\n")
-		for ip, _ := range c.allocations {
+		for ip, allocs := range c.allocations {
 			if _, ok := c.inUseIPs[ip]; !ok {
-				if c.showIPs {
-					fmt.Printf("  %s allocated in IPAM but found now owner.\n", ip)
+				if c.showProblemIPs {
+					for _, alloc := range allocs {
+						fmt.Printf("  %s leaked; attrs %v\n", ip, alloc.GetAttrString())
+					}
 				}
 				allocatedButNotInUseIPs = append(allocatedButNotInUseIPs, ip)
 			}
 		}
+		numProblems += len(allocatedButNotInUseIPs)
 		fmt.Printf("Found %d IPs that are allocated in IPAM but not actually in use.\n", len(allocatedButNotInUseIPs))
 	}
 
@@ -214,7 +241,7 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 	{
 		fmt.Printf("Scanning for IPs that are in use by a workload or node but not allocated in IPAM...\n")
 		for ip, owners := range c.inUseIPs {
-			if c.showIPs && len(owners) > 1 {
+			if c.showProblemIPs && len(owners) > 1 {
 				fmt.Printf("  %s has multiple owners.\n", ip)
 			}
 			if _, ok := c.allocations[ip]; !ok {
@@ -227,7 +254,7 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 					}
 				}
 				if !found {
-					if c.showIPs {
+					if c.showProblemIPs {
 						for _, owner := range owners {
 							fmt.Printf("  %s in use by %v is not in any active IP pool.\n", ip, owner.FriendlyName)
 						}
@@ -235,7 +262,7 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 					nonCalicoIPs = append(nonCalicoIPs, ip)
 					continue
 				}
-				if c.showIPs {
+				if c.showProblemIPs {
 					for _, owner := range owners {
 						fmt.Printf("  %s in use by %v and in active IPAM pool but has no IPAM allocation.\n", ip, owner.FriendlyName)
 					}
@@ -243,10 +270,15 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 				inUseButNotAllocatedIPs = append(inUseButNotAllocatedIPs, ip)
 			}
 		}
+		numProblems += len(nonCalicoIPs)
+		numProblems += len(inUseButNotAllocatedIPs)
 		fmt.Printf("Found %d in-use IPs that are not in active IP pools.\n", len(nonCalicoIPs))
 		fmt.Printf("Found %d in-use IPs that are in active IP pools but have no corresponding IPAM allocation.\n",
 			len(inUseButNotAllocatedIPs))
+		fmt.Println()
 	}
+
+	fmt.Printf("Check complete; found %d problems.\n", numProblems)
 
 	return nil
 }
@@ -267,10 +299,15 @@ func getWEPIPs(w apiv3.WorkloadEndpoint) ([]string, error) {
 func (c *IPAMChecker) recordAllocation(b *model.AllocationBlock, ord int) {
 	ip := b.OrdinalToIP(ord).String()
 
-	c.allocations[ip] = append(c.allocations[ip], allocation{
+	alloc := allocation{
 		Block:   b,
 		Ordinal: ord,
-	})
+	}
+	c.allocations[ip] = append(c.allocations[ip], alloc)
+
+	if c.showAllIPs {
+		fmt.Printf("  %s allocated; attrs %s\n", ip, alloc.GetAttrString())
+	}
 
 	attrIdx := *b.Allocations[ord]
 	if len(b.Attributes) > attrIdx {
@@ -282,6 +319,10 @@ func (c *IPAMChecker) recordAllocation(b *model.AllocationBlock, ord int) {
 }
 
 func (c *IPAMChecker) recordInUseIP(ip string, referrer interface{}, friendlyName string) {
+	if c.showAllIPs {
+		fmt.Printf("  %s belongs to %s\n", ip, friendlyName)
+	}
+
 	c.inUseIPs[ip] = append(c.inUseIPs[ip], ownerRecord{
 		FriendlyName: friendlyName,
 		Resource:     referrer,
@@ -328,6 +369,31 @@ func normaliseIP(addr string) (string, error) {
 type allocation struct {
 	Block   *model.AllocationBlock
 	Ordinal int
+}
+
+func (a allocation) GetAttrString() string {
+	attrIdx := *a.Block.Allocations[a.Ordinal]
+	if len(a.Block.Attributes) > attrIdx {
+		return formatAttrs(a.Block.Attributes[attrIdx])
+	}
+	return "<missing>"
+}
+
+func formatAttrs(attribute model.AllocationAttribute) string {
+	primary := "<none>"
+	if attribute.AttrPrimary != nil {
+		primary = *attribute.AttrPrimary
+	}
+	var keys []string
+	for k := range attribute.AttrSecondary {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var kvs []string
+	for _, k := range keys {
+		kvs = append(kvs, fmt.Sprintf("%s=%s", k, attribute.AttrSecondary[k]))
+	}
+	return fmt.Sprintf("Main:%s Extra:%s", primary, strings.Join(kvs, ","))
 }
 
 type ownerRecord struct {
