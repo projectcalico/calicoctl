@@ -16,7 +16,9 @@ package ipam
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"sort"
 	"strings"
@@ -75,6 +77,7 @@ Description:
 		return err
 	}
 
+	// TODO: Make this work for etcd mode as well.
 	// Get the backend client.
 	type accessor interface {
 		Backend() bapi.Client
@@ -97,8 +100,9 @@ func NewIPAMChecker(k8sClient kubernetes.Interface,
 	showAllIPs bool,
 	showProblemIPs bool) *IPAMChecker {
 	return &IPAMChecker{
-		allocations:       map[string][]*allocation{},
-		allocationsByNode: map[string][]*allocation{},
+		allocations:       map[string][]*Allocation{},
+		allocationsByNode: map[string][]*Allocation{},
+		allocationsByPod:  map[string][]*Allocation{},
 
 		inUseIPs: map[string][]ownerRecord{},
 
@@ -112,9 +116,15 @@ func NewIPAMChecker(k8sClient kubernetes.Interface,
 }
 
 type IPAMChecker struct {
-	allocations       map[string][]*allocation
-	allocationsByNode map[string][]*allocation
+	allocations       map[string][]*Allocation
+	allocationsByNode map[string][]*Allocation
+	allocationsByPod  map[string][]*Allocation
 	inUseIPs          map[string][]ownerRecord
+
+	clusterType         string
+	clusterInfoRevision string
+	datastoreLocked     bool
+	clusterGUID         string
 
 	k8sClient     kubernetes.Interface
 	backendClient bapi.Client
@@ -127,6 +137,16 @@ type IPAMChecker struct {
 func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 	fmt.Println("Checking IPAM for inconsistencies...")
 	fmt.Println()
+
+	// First, query ClusterInformation and extract some important metadata to use in the report.
+	clusterInfo, err := c.v3Client.ClusterInformation().Get(ctx, "default", options.GetOptions{})
+	if err != nil {
+		return err
+	}
+	c.clusterType = clusterInfo.Spec.ClusterType
+	c.clusterInfoRevision = clusterInfo.ResourceVersion
+	c.datastoreLocked = clusterInfo.Spec.DatastoreReady != nil && !*clusterInfo.Spec.DatastoreReady
+	c.clusterGUID = clusterInfo.Spec.ClusterGUID
 
 	var numAllocs int
 	{
@@ -204,7 +224,7 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to list workload endpoints: %w", err)
 		}
-		numNodeIPs := 0
+		numWEPIPs := 0
 		for _, w := range weps.Items {
 			ips, err := getWEPIPs(w)
 			if err != nil {
@@ -212,10 +232,10 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 			}
 			for _, ip := range ips {
 				c.recordInUseIP(ip, w, fmt.Sprintf("Workload(%s/%s)", w.Namespace, w.Name))
-				numNodeIPs++
+				numWEPIPs++
 			}
 		}
-		fmt.Printf("Found %d workload IPs.\n", numNodeIPs)
+		fmt.Printf("Found %d workload IPs.\n", numWEPIPs)
 		fmt.Printf("Workloads and nodes are using %d IPs.\n", len(c.inUseIPs))
 		fmt.Println()
 	}
@@ -272,6 +292,9 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 				fmt.Printf("  %s has multiple owners.\n", ip)
 			}
 			if _, ok := c.allocations[ip]; !ok {
+				// The IP is being used, but is not allocated within Calico IPAM!
+
+				// Found indicates whether the IP falls within an active IP pool.
 				found := false
 				parsedIP := net.ParseIP(ip)
 				for _, cidr := range activeIPPools {
@@ -307,6 +330,9 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 
 	fmt.Printf("Check complete; found %d problems.\n", numProblems)
 
+	// Print out a machine readable report.
+	c.printReport()
+
 	return nil
 }
 
@@ -323,14 +349,42 @@ func getWEPIPs(w apiv3.WorkloadEndpoint) ([]string, error) {
 	return ips, nil
 }
 
+type Report struct {
+	// Important metadata.
+	ClusterGUID         string `json:"clusterGUID"`
+	DatastoreLocked     bool   `json:"datastoreLocked"`
+	ClusterInfoRevision string `json:"clusterInformationRevision"`
+	ClusterType         string `json:"clusterType"`
+
+	// Allocations is a map of IP address to list of allocation data.
+	Allocations map[string][]*Allocation `json:"allocations"`
+}
+
+func (c *IPAMChecker) printReport() {
+	r := Report{
+		ClusterGUID:         c.clusterGUID,
+		ClusterType:         c.clusterType,
+		ClusterInfoRevision: c.clusterInfoRevision,
+		DatastoreLocked:     c.datastoreLocked,
+		Allocations:         c.allocations,
+	}
+	bytes, _ := json.MarshalIndent(r, "", "  ")
+	_ = ioutil.WriteFile("report.json", bytes, 0777)
+}
+
+// recordAllocation takes a block and ordinal within that block and updates
+// the IPAMChecker's internal state to track the allocation.
 func (c *IPAMChecker) recordAllocation(b *model.AllocationBlock, ord int) {
 	ip := b.OrdinalToIP(ord).String()
+	alloc := Allocation{IP: ip, Block: b, Ordinal: ord}
 
 	node := ""
+	blockAffinity := ""
 	if b.Affinity != nil {
 		affinity := *b.Affinity
 		if strings.HasPrefix(affinity, "host:") {
 			node = affinity[5:]
+			blockAffinity = affinity[5:]
 		}
 	}
 
@@ -339,25 +393,45 @@ func (c *IPAMChecker) recordAllocation(b *model.AllocationBlock, ord int) {
 		attrs := b.Attributes[attrIdx]
 		if attrs.AttrPrimary != nil && *attrs.AttrPrimary == ipam.WindowsReservedHandle {
 			c.recordInUseIP(ip, b, "Reserved for Windows")
+		} else if attrs.AttrPrimary != nil {
+			alloc.Handle = *attrs.AttrPrimary
 		}
 		if n := attrs.AttrSecondary["node"]; n != "" {
 			node = n
 		}
+		if p := attrs.AttrSecondary["pod"]; p != "" {
+			alloc.Pod = p
+		}
+		if n := attrs.AttrSecondary["namespace"]; n != "" {
+			alloc.Namespace = n
+		}
+		if t := attrs.AttrSecondary["type"]; t != "" {
+			alloc.Type = t
+		}
 	}
 
-	alloc := allocation{
-		IP:      ip,
-		Block:   b,
-		Ordinal: ord,
+	// Fill in the node for the allocation.
+	alloc.Node = node
+
+	// Determine if this is a borrowed address, and mark it as such if so.
+	if node != blockAffinity {
+		alloc.Borrowed = true
 	}
+
+	// Store the allocation in internal state.
 	c.allocations[ip] = append(c.allocations[ip], &alloc)
 	c.allocationsByNode[node] = append(c.allocationsByNode[node], &alloc)
+	if alloc.Pod != "" {
+		pod := fmt.Sprintf("%s/%s", alloc.Namespace, alloc.Pod)
+		c.allocationsByPod[pod] = append(c.allocationsByPod[pod], &alloc)
+	}
 
 	if c.showAllIPs {
 		fmt.Printf("  %s allocated; attrs %s\n", ip, alloc.GetAttrString())
 	}
 }
 
+// recordInUseIP records that the given IP is currently being used by the given resource (i.e., pod, node, etc).
 func (c *IPAMChecker) recordInUseIP(ip string, referrer interface{}, friendlyName string) {
 	if c.showAllIPs {
 		fmt.Printf("  %s belongs to %s\n", ip, friendlyName)
@@ -367,6 +441,12 @@ func (c *IPAMChecker) recordInUseIP(ip string, referrer interface{}, friendlyNam
 		FriendlyName: friendlyName,
 		Resource:     referrer,
 	})
+
+	// Mark the corresponding allocation as in use.
+	for _, a := range c.allocations[ip] {
+		a.InUse = true
+		a.Owners = append(a.Owners, friendlyName)
+	}
 }
 
 func getNodeIPs(n apiv3.Node) ([]string, error) {
@@ -406,13 +486,34 @@ func normaliseIP(addr string) (string, error) {
 	return ip.String(), nil
 }
 
-type allocation struct {
-	Block   *model.AllocationBlock
-	Ordinal int
-	IP      string
+type Allocation struct {
+	// THe actual address.
+	IP string `json:"ip"`
+
+	// Access to the block.
+	Block   *model.AllocationBlock `json:"-"`
+	Ordinal int                    `json:"-"`
+
+	Handle string `json:"handle,omitempty"`
+
+	// Metadata for the Allocation.
+	Pod       string `json:"pod,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+	Node      string `json:"node,omitempty"`
+	Type      string `json:"type,omitempty"`
+
+	// InUse is true when this Allocation is currently being used by a running
+	// workload / node / etc. It is false if this address is not active and should be cleaned up.
+	InUse bool `json:"inUse"`
+
+	// Borrowed is true if this IP is from a block that is not affine to the node.
+	Borrowed bool `json:"borrowed,omitempty"`
+
+	// List of objects which are using this IP.
+	Owners []string `json:"owners"`
 }
 
-func (a *allocation) GetAttrString() string {
+func (a *Allocation) GetAttrString() string {
 	attrIdx := *a.Block.Allocations[a.Ordinal]
 	if len(a.Block.Attributes) > attrIdx {
 		return formatAttrs(a.Block.Attributes[attrIdx])
