@@ -35,16 +35,27 @@ import (
 const minKernelVersion = "2.6.24"
 
 // Required kernel modules to run Calico
-var requiredModules = []string{"ip_set", "ip_tables", "ip6_tables", "ipt_REJECT", "ipt_rpfilter", "ipt_set", "nf_conntrack_netlink",
-	"xt_addrtype", "xt_conntrack", "xt_icmp", "xt_icmp6", "xt_ipvs", "xt_mark", "xt_multiport", "xt_rpfilter", "xt_set", "xt_u32"}
+var requiredModules = map[string]string{"ip_set": "CONFIG_IP_SET", "ip6_tables": "CONFIG_IP6_NF_IPTABLES",
+	"ip_tables": "CONFIG_IP_NF_IPTABLES", "ipt_ipvs": "CONFIG_NETFILTER_XT_MATCH_IPVS", "vfio-pci": "CONFIG_VFIO", "xt_bpf": "CONFIG_BPF", // dataplanes
+	"ipt_REJECT": "CONFIG_NFT_REJECT", "ipt_rpfilter": "CONFIG_IP_NF_MATCH_RPFILTER", "xt_rpfilter": "CONFIG_IP_NF_MATCH_RPFILTER",
+	"ipt_set": "CONFIG_NET_EMATCH_IPSET", "nf_conntrack_netlink": "CONFIG_NF_CT_NETLINK",
+	"xt_addrtype": "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE", "xt_conntrack": "CONFIG_NETFILTER_XT_MATCH_CONNTRACK",
+	"xt_icmp": "icmp", "xt_icmp6": "icmp", "xt_mark": "CONFIG_IP_NF_TARGET_MARK", "xt_multiport": "CONFIG_IP_NF_MATCH_MULTIPORT",
+	"xt_set": "CONFIG_NETFILTER_XT_SET", "xt_u32": "CONFIG_NETFILTER_XT_MATCH_U32"}
+
+// Variable to override bootfile location.
+var overrideBootFile = ""
 
 // Checksystem checks host system for compatible versions
 func Checksystem(args []string) error {
 	doc := `Usage:
-  <BINARY_NAME> node checksystem
+  <BINARY_NAME> node checksystem [--filename=<FILENAME>]
 
 Options:
   -h --help                 Show this screen.
+  -f --filename=<filename>	Override kernel bootfile location, checksystem
+							can use this file if config file is not present
+							in default locations.
 
 Description:
   Check the compatibility of this compute host to run a Calico node instance.
@@ -60,7 +71,9 @@ Description:
 	if len(parsedArgs) == 0 {
 		return nil
 	}
-
+	if parsedArgs["--filename"] != nil {
+		overrideBootFile = parsedArgs["--filename"].(string)
+	}
 	// Make sure the command is run with super user privileges
 	enforceRoot()
 
@@ -134,6 +147,12 @@ func checkKernelModules() error {
 	// File path to Builtin kernel modules
 	modulesBuiltinPath := fmt.Sprintf("/lib/modules/%s/modules.builtin", kernelVersionStr)
 
+	// File path to module configs in boot time
+	modulesBootPath := findBootFile(kernelVersionStr)
+
+	// File path for loaded iptables modules
+	modulesLoadedIPtables := "/proc/net/ip_tables_matches"
+
 	// Keep track of modules that are not found
 	modulesNotFound := []string{}
 
@@ -145,7 +164,7 @@ func checkKernelModules() error {
 	}
 
 	// Go through all the required modules and check Loadable and Builtin in order
-	for _, v := range requiredModules {
+	for v, i := range requiredModules {
 		err = checkModule(modulesLoadablePath, v, kernelVersionStr)
 
 		// Check Builtin modules if not found in Loadable
@@ -161,12 +180,16 @@ func checkKernelModules() error {
 					return err
 				}
 
-				if !regex.MatchString(string(lsmodOut)) {
+				if regex.MatchString(string(lsmodOut)) {
+					printResult(v, "OK")
+				} else if checkModule(modulesLoadedIPtables, i, kernelVersionStr) == nil {
+					printResult(v, "OK")
+				} else if modulesBootPath != "" && checkModule(modulesBootPath, i, kernelVersionStr) == nil {
+					printResult(v, "OK")
+				} else {
 					fmt.Printf("WARNING: Unable to detect the %s module as Loaded/Builtin module or lsmod\n", v)
 					modulesNotFound = append(modulesNotFound, v)
 					printResult(v, "FAIL")
-				} else {
-					printResult(v, "OK")
 				}
 			} else {
 				printResult(v, "OK")
@@ -196,7 +219,7 @@ func checkKernelModules() error {
 // as an argument exists for the provided kernelVersion
 func checkModule(filename, module, kernelVersion string) error {
 
-	regex, err := regexp.Compile(fmt.Sprintf("\\/%s.ko", module))
+	regex, err := regexp.Compile(fmt.Sprintf("(?:\\/|^)%s(?:\\.ko|=.|$)", module))
 	if err != nil {
 		log.Errorf("Error: %v\n", err)
 		return err
@@ -223,6 +246,30 @@ func checkModule(filename, module, kernelVersion string) error {
 			return nil
 		}
 	}
+}
+
+func findBootFile(kernelVersion string) string {
+	// If user has provided an override boot file skip default locations.
+	if overrideBootFile != "" {
+		return overrideBootFile
+	}
+
+	// default locations that we will look for bootconfig file.
+	possibilePaths := []string{
+		"/usr/src/linux/.config",
+		"/boot/config-" + kernelVersion,
+		"/usr/src/linux-" + kernelVersion + "/.config",
+		"/usr/src/linux-headers-" + kernelVersion + "/.config",
+		"/lib/modules/" + kernelVersion + "/build/.config"}
+
+	for _, v := range possibilePaths {
+		_, err := os.Stat(v)
+		if err == nil {
+			return v
+		}
+	}
+	// If no config file is present send an empty string.
+	return ""
 }
 
 func printResult(val, result string) {
