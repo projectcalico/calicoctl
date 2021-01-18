@@ -34,13 +34,13 @@ import (
 const minKernelVersion = "2.6.24"
 
 // Required kernel modules to run Calico
-var requiredModules = map[string]string{"ip_set":"CONFIG_IP_SET", "ip6_tables":"CONFIG_IP6_NF_IPTABLES", 
-	"ip_tables":"CONFIG_IP_SET", "ipt_ipvs":"CONFIG_NETFILTER_XT_MATCH_IPVS", "vfio-pci":"CONFIG_VFIO","xt_bpf":"CONFIG_BPF", // dataplanes
-	"ipt_REJECT":"CONFIG_NFT_REJECT", "ipt_rpfilter":"CONFIG_IP_NF_MATCH_RPFILTER", 
-	"ipt_set":"CONFIG_NET_EMATCH_IPSET", "nf_conntrack_netlink":"CONFIG_NF_CT_NETLINK", 
-	"xt_addrtype":"CONFIG_NETFILTER_XT_MATCH_ADDRTYPE", "xt_conntrack":"CONFIG_NETFILTER_XT_MATCH_CONNTRACK",
-	"xt_icmp":"icmp", "xt_icmp6":"icmp", "xt_mark":"CONFIG_IP_NF_TARGET_MARK", "xt_multiport":"CONFIG_IP_NF_MATCH_MULTIPORT",
-	"xt_rpfilter":"CONFIG_IP_NF_MATCH_RPFILTER", "xt_set":"CONFIG_NETFILTER_XT_SET", "xt_u32":"CONFIG_IP_NF_MATCH_MULTIPORT"}
+var requiredModules = map[string]string{"ip_set": "CONFIG_IP_SET", "ip6_tables": "CONFIG_IP6_NF_IPTABLES",
+	"ip_tables": "CONFIG_IP_NF_IPTABLES", "ipt_ipvs": "CONFIG_NETFILTER_XT_MATCH_IPVS", "vfio-pci": "CONFIG_VFIO", "xt_bpf": "CONFIG_BPF", // dataplanes
+	"ipt_REJECT": "CONFIG_NFT_REJECT", "ipt_rpfilter": "CONFIG_IP_NF_MATCH_RPFILTER", "xt_rpfilter": "CONFIG_IP_NF_MATCH_RPFILTER",
+	"ipt_set": "CONFIG_NET_EMATCH_IPSET", "nf_conntrack_netlink": "CONFIG_NF_CT_NETLINK",
+	"xt_addrtype": "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE", "xt_conntrack": "CONFIG_NETFILTER_XT_MATCH_CONNTRACK",
+	"xt_icmp": "icmp", "xt_icmp6": "icmp", "xt_mark": "CONFIG_IP_NF_TARGET_MARK", "xt_multiport": "CONFIG_IP_NF_MATCH_MULTIPORT",
+	"xt_set": "CONFIG_NETFILTER_XT_SET", "xt_u32": "CONFIG_NETFILTER_XT_MATCH_U32"}
 
 // Checksystem checks host system for compatible versions
 func Checksystem(args []string) error {
@@ -138,7 +138,11 @@ func checkKernelModules() error {
 	// File path to Builtin kernel modules
 	modulesBuiltinPath := fmt.Sprintf("/lib/modules/%s/modules.builtin", kernelVersionStr)
 
+	// File path to module configs in boot time
 	modulesBootPath := findBootFile(kernelVersionStr)
+
+	// File path for loaded iptables modules
+	modulesLoadedIPtables := "/proc/net/ip_tables_matches"
 
 	// Keep track of modules that are not found
 	modulesNotFound := []string{}
@@ -169,7 +173,9 @@ func checkKernelModules() error {
 
 				if regex.MatchString(string(lsmodOut)) {
 					printResult(v, "OK")
-				} else if modulesBootPath != "" && checkModule(modulesBootPath,i,kernelVersionStr) == nil {
+				}else if checkModule(modulesLoadedIPtables,i,kernelVersionStr) == nil {
+					printResult(v, "OK")
+				} else if modulesBootPath != "" && checkModule(modulesBootPath, i, kernelVersionStr) == nil {
 					printResult(v, "OK")
 				} else {
 					fmt.Printf("WARNING: Unable to detect the %s module as Loaded/Builtin module or lsmod\n", v)
@@ -204,7 +210,7 @@ func checkKernelModules() error {
 // as an argument exists for the provided kernelVersion
 func checkModule(filename, module, kernelVersion string) error {
 
-	regex, err := regexp.Compile("(?:\\/" + module + ".ko|" + module + "=.)")
+	regex, err := regexp.Compile(fmt.Sprintf("(?:\\/|^)%s(?:.ko|=.|$)",module))
 	if err != nil {
 		log.Errorf("Error: %v\n", err)
 		return err
@@ -240,15 +246,16 @@ func findBootFile(kernelVersion string) string {
 		"/boot/config-" + kernelVersion,
 		"/usr/src/linux-" + kernelVersion + "/.config",
 		"/usr/src/linux-headers-" + kernelVersion + "/.config",
-		"/proc/config.gz" }
-	
+		"/lib/modules/" + kernelVersion + "/build/.config",
+		"/proc/config.gz"}
+
 	for _, v := range possibilePaths {
-		_, err := os.Stat(v); 
+		_, err := os.Stat(v)
 		if err == nil {
 			return v
 		}
 	}
-	
+
 	return ""
 }
 
