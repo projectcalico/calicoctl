@@ -34,7 +34,7 @@ import (
 )
 
 // IPAM takes keyword with an IP address then calls the subcommands.
-func Release(args []string) error {
+func Release(args []string, version string) error {
 	doc := constants.DatastoreIntro + `Usage:
   <BINARY_NAME> ipam release [--ip=<IP>] [--from-report=<REPORT>] [--config=<CONFIG>]
 
@@ -69,9 +69,19 @@ Description:
 
 	ctx := context.Background()
 
-	// Create a new backend client from env vars.
+	// Load config.
 	cf := parsedArgs["--config"].(string)
-	client, err := clientmgr.NewClient(cf)
+	cfg, err := clientmgr.LoadClientConfig(cf)
+	if err != nil {
+		return err
+	}
+
+	// Set QPS - we want to increase this because we may need to send many IPAM requests
+	// in a short period of time in order to release a large number of addresses.
+	cfg.Spec.K8sClientQPS = float32(100)
+
+	// Create a new backend client.
+	client, err := clientmgr.NewClientFromConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -80,7 +90,7 @@ Description:
 
 	if report := parsedArgs["--from-report"]; report != nil {
 		reportFile := parsedArgs["--from-report"].(string)
-		return releaseFromReport(ctx, reportFile, client)
+		return releaseFromReport(ctx, client, reportFile, version)
 	}
 
 	if ip := parsedArgs["--ip"]; ip != nil {
@@ -108,10 +118,10 @@ Description:
 	return nil
 }
 
-func releaseFromReport(ctx context.Context, reportFile string, c client.Interface) error {
+func releaseFromReport(ctx context.Context, c client.Interface, reportFile string, version string) error {
 	// Load the report into memory.
 	r := Report{}
-	bytes, err := ioutil.ReadFile("report.json")
+	bytes, err := ioutil.ReadFile(reportFile)
 	if err != nil {
 		return err
 	}
@@ -128,31 +138,34 @@ func releaseFromReport(ctx context.Context, reportFile string, c client.Interfac
 	if clusterInfo.ResourceVersion != r.ClusterInfoRevision {
 		return fmt.Errorf("The provided report is stale, please generate a new report")
 	}
+	if version != r.Version {
+		return fmt.Errorf("The provided report was produced using a different version (%s) of calicoctl", r.Version)
+	}
 
 	// For each address that needs to be released, do so.
 	ipsToRelease := []net.IP{}
 	for _, allocations := range r.Allocations {
 		for _, a := range allocations {
 			if !a.InUse {
-				fmt.Printf("Will release IP: %s\n", a.IP)
 				ipsToRelease = append(ipsToRelease, argutils.ValidateIP(a.IP))
 			}
 		}
 	}
 
 	if len(ipsToRelease) == 0 {
-		fmt.Println("No addresses to release")
+		fmt.Println("No addresses need to be released")
 		return nil
 	}
+	fmt.Printf("Releasing %d old IPs\n", len(ipsToRelease))
 
 	unallocated, err := c.IPAM().ReleaseIPs(ctx, ipsToRelease)
 	if err != nil {
 		return err
 	}
 	if len(unallocated) != 0 {
-		fmt.Println("Warning: some leaked addresses were not actually allocated")
+		fmt.Println("Warning: report contained addresses which are no longer allocated")
 	} else {
-		fmt.Println("Released all IPs successfully")
+		fmt.Printf("Released %d IPs successfully\n", len(ipsToRelease))
 	}
 
 	return nil
