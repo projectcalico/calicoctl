@@ -66,9 +66,9 @@ Description:
 
 	switch command {
 	case "check":
-		return ipam.Check(args)
+		return ipam.Check(args, VERSION)
 	case "release":
-		return ipam.Release(args)
+		return ipam.Release(args, VERSION)
 	case "show":
 		return ipam.Show(args)
 	case "configure":

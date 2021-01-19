@@ -44,12 +44,13 @@ import (
 )
 
 // IPAM takes keyword with an IP address then calls the subcommands.
-func Check(args []string) error {
+func Check(args []string, version string) error {
 	doc := constants.DatastoreIntro + `Usage:
-  <BINARY_NAME> ipam check [--config=<CONFIG>] [--show-all-ips] [--show-problem-ips]
+  <BINARY_NAME> ipam check [--config=<CONFIG>] [--show-all-ips] [--show-problem-ips] [-o <FILE>]
 
 Options:
   -h --help                Show this screen.
+  -o --output=<FILE>       Path to output report file. Default: ipam-check-report.json
   -c --config=<CONFIG>     Path to the file containing connection configuration in
                            YAML or JSON format.
                            [default: ` + constants.DefaultConfigPath + `]
@@ -77,20 +78,33 @@ Description:
 		return err
 	}
 
-	// TODO: Make this work for etcd mode as well.
 	// Get the backend client.
 	type accessor interface {
 		Backend() bapi.Client
 	}
-	bc, ok := client.(accessor).Backend().(*k8s.KubeClient)
-	if !ok {
-		return fmt.Errorf("IPAM check only supports Kubernetes Datastore Driver")
+	bc := client.(accessor).Backend()
+
+	// Get a kube-client. If this is a kdd cluster, we can pull this from the backend.
+	// Otherwise, we need to build one ourselves.
+	var kubeClient *kubernetes.Clientset
+	if kc, ok := bc.(*k8s.KubeClient); ok {
+		// Pull from the kdd client.
+		kubeClient = kc.ClientSet
+	} else {
+		// TODO: Support etcd mode. For now, this is OK since we don't actually
+		// use the kubeClient yet. But we will do so eventually.
 	}
-	kubeClient := bc.ClientSet
+
+	// Pull out CLI args.
 	showAllIPs := parsedArgs["--show-all-ips"].(bool)
 	showProblemIPs := showAllIPs || parsedArgs["--show-problem-ips"].(bool)
-	checker := NewIPAMChecker(kubeClient, client, bc, showAllIPs, showProblemIPs)
+	var outFile string = "ipam-check-report.json"
+	if arg := parsedArgs["--output"]; arg != nil {
+		outFile = arg.(string)
+	}
 
+	// Build the checker.
+	checker := NewIPAMChecker(kubeClient, client, bc, showAllIPs, showProblemIPs, outFile, version)
 	return checker.checkIPAM(ctx)
 }
 
@@ -98,7 +112,9 @@ func NewIPAMChecker(k8sClient kubernetes.Interface,
 	v3Client clientv3.Interface,
 	backendClient bapi.Client,
 	showAllIPs bool,
-	showProblemIPs bool) *IPAMChecker {
+	showProblemIPs bool,
+	outFile string,
+	version string) *IPAMChecker {
 	return &IPAMChecker{
 		allocations:       map[string][]*Allocation{},
 		allocationsByNode: map[string][]*Allocation{},
@@ -112,6 +128,9 @@ func NewIPAMChecker(k8sClient kubernetes.Interface,
 
 		showAllIPs:     showAllIPs,
 		showProblemIPs: showProblemIPs,
+
+		version: version,
+		outFile: outFile,
 	}
 }
 
@@ -132,6 +151,9 @@ type IPAMChecker struct {
 
 	showAllIPs     bool
 	showProblemIPs bool
+
+	version string
+	outFile string
 }
 
 func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
@@ -350,6 +372,9 @@ func getWEPIPs(w apiv3.WorkloadEndpoint) ([]string, error) {
 }
 
 type Report struct {
+	// Version of the code that produced the report.
+	Version string `json:"version"`
+
 	// Important metadata.
 	ClusterGUID         string `json:"clusterGUID"`
 	DatastoreLocked     bool   `json:"datastoreLocked"`
@@ -362,6 +387,7 @@ type Report struct {
 
 func (c *IPAMChecker) printReport() {
 	r := Report{
+		Version:             c.version,
 		ClusterGUID:         c.clusterGUID,
 		ClusterType:         c.clusterType,
 		ClusterInfoRevision: c.clusterInfoRevision,
@@ -369,7 +395,7 @@ func (c *IPAMChecker) printReport() {
 		Allocations:         c.allocations,
 	}
 	bytes, _ := json.MarshalIndent(r, "", "  ")
-	_ = ioutil.WriteFile("report.json", bytes, 0777)
+	_ = ioutil.WriteFile(c.outFile, bytes, 0777)
 }
 
 // recordAllocation takes a block and ordinal within that block and updates
@@ -407,6 +433,9 @@ func (c *IPAMChecker) recordAllocation(b *model.AllocationBlock, ord int) {
 		}
 		if t := attrs.AttrSecondary["type"]; t != "" {
 			alloc.Type = t
+		}
+		if t := attrs.AttrSecondary["timestamp"]; t != "" {
+			alloc.CreationTimestamp = t
 		}
 	}
 
@@ -486,8 +515,10 @@ func normaliseIP(addr string) (string, error) {
 	return ip.String(), nil
 }
 
+// Allocation represents an IP that is allocated in Calico IPAM, augmented with data
+// from cross referencing with WorkloadEndpoints, etc.
 type Allocation struct {
-	// THe actual address.
+	// The actual address.
 	IP string `json:"ip"`
 
 	// Access to the block.
@@ -497,10 +528,11 @@ type Allocation struct {
 	Handle string `json:"handle,omitempty"`
 
 	// Metadata for the Allocation.
-	Pod       string `json:"pod,omitempty"`
-	Namespace string `json:"namespace,omitempty"`
-	Node      string `json:"node,omitempty"`
-	Type      string `json:"type,omitempty"`
+	Pod               string `json:"pod,omitempty"`
+	Namespace         string `json:"namespace,omitempty"`
+	Node              string `json:"node,omitempty"`
+	Type              string `json:"type,omitempty"`
+	CreationTimestamp string `json:"creationTimestamp,omitempty"`
 
 	// InUse is true when this Allocation is currently being used by a running
 	// workload / node / etc. It is false if this address is not active and should be cleaned up.
