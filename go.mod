@@ -26,5 +26,7 @@ require (
 	github.com/vishvananda/netlink v0.0.0-20180501223456-f07d9d5231b9 // indirect
 	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
+	k8s.io/apiextensions-apiserver v0.18.12
 	k8s.io/apimachinery v0.19.6
+	k8s.io/client-go v0.19.6
 )
