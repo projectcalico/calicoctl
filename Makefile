@@ -3,6 +3,9 @@ GO_BUILD_VER=v0.49
 
 SEMAPHORE_PROJECT_ID?=$(SEMAPHORE_CALICOCTL_PROJECT_ID)
 
+KUBE_MASTER_PORT?=8080
+KUBE_MOCK_NODE_MANIFEST?=mock-node.yaml
+
 ###############################################################################
 # Download and include Makefile.common
 #   Additions to EXTRA_DOCKER_ARGS need to happen before the include since
@@ -27,6 +30,7 @@ LOCAL_BUILD_DEP:=set-up-local-build
 EXTRA_DOCKER_ARGS+=-v $(CURDIR)/../libcalico-go:/go/src/github.com/projectcalico/libcalico-go:rw
 $(LOCAL_BUILD_DEP):
 	$(DOCKER_RUN) $(CALICO_BUILD) go mod edit -replace=github.com/projectcalico/libcalico-go=../libcalico-go
+	$(DOCKER_RUN) $(CALICO_BUILD) go mod vendor
 endif
 
 include Makefile.common
@@ -216,10 +220,12 @@ ut: $(LOCAL_BUILD_DEP) bin/calicoctl-linux-amd64
 ## Run the tests in a container. Useful for CI, Mac dev.
 fv: $(LOCAL_BUILD_DEP) bin/calicoctl-linux-amd64
 	$(MAKE) run-etcd-host
-	$(MAKE) run-kubernetes-master
+	$(MAKE) run-kubernetes-master KUBE_MASTER_PORT=8080 KUBE_MOCK_NODE_MANIFEST=mock-node.yaml
+	$(MAKE) run-kubernetes-master KUBE_MASTER_PORT=8082 KUBE_MOCK_NODE_MANIFEST=mock-node-second.yaml
 	$(DOCKER_RUN) $(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && go test ./tests/fv'
 	$(MAKE) stop-etcd
-	$(MAKE) stop-kubernetes-master
+	$(MAKE) stop-kubernetes-master KUBE_MASTER_PORT=8080
+	$(MAKE) stop-kubernetes-master KUBE_MASTER_PORT=8082
 
 ###############################################################################
 # STs
@@ -280,11 +286,13 @@ stop-etcd:
 run-kubernetes-master: stop-kubernetes-master
 	# Run a Kubernetes apiserver using Docker.
 	docker run \
-		--net=host --name st-apiserver \
+		--net=host --name st-apiserver-${KUBE_MASTER_PORT} \
 		--detach \
 		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kube-apiserver \
 			--bind-address=0.0.0.0 \
+			--secure-port=1${KUBE_MASTER_PORT} \
 			--insecure-bind-address=0.0.0.0 \
+			--port=${KUBE_MASTER_PORT} \
 	        	--etcd-servers=http://127.0.0.1:2379 \
 			--admission-control=NamespaceLifecycle,LimitRanger,DefaultStorageClass,ResourceQuota \
 			--service-cluster-ip-range=10.101.0.0/16 \
@@ -292,43 +300,44 @@ run-kubernetes-master: stop-kubernetes-master
 			--logtostderr=true
 
 	# Wait until the apiserver is accepting requests.
-	while ! docker exec st-apiserver kubectl get nodes; do echo "Waiting for apiserver to come up..."; sleep 2; done
+	while ! docker exec st-apiserver-${KUBE_MASTER_PORT} kubectl get nodes; do echo "Waiting for apiserver to come up..."; sleep 2; done
 
 	# And run the controller manager.
 	docker run \
-		--net=host --name st-controller-manager \
+		--net=host --name st-controller-manager-${KUBE_MASTER_PORT} \
 		--detach \
 		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kube-controller-manager \
-                        --master=127.0.0.1:8080 \
+                        --master=127.0.0.1:${KUBE_MASTER_PORT} \
                         --min-resync-period=3m \
                         --allocate-node-cidrs=true \
                         --cluster-cidr=10.10.0.0/16 \
                         --v=5
 
 	# Create a Node in the API for the tests to use.
-	docker run \
+	while ! docker run \
 	    --net=host \
 	    --rm \
-		-v  $(CURDIR):/manifests \
+		-v $(CURDIR):/manifests \
 		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kubectl \
-		--server=http://127.0.0.1:8080 \
-		apply -f /manifests/tests/st/manifests/mock-node.yaml
+		--server=http://127.0.0.1:${KUBE_MASTER_PORT} \
+		apply -f /manifests/tests/st/manifests/${KUBE_MOCK_NODE_MANIFEST}; \
+		do echo "Waiting for node to apply successfully..."; sleep 2; done
 
 	# Create a namespace in the API for the tests to use.
-	docker run \
+	-docker run \
 	    --net=host \
 	    --rm \
 		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kubectl \
-		--server=http://127.0.0.1:8080 \
+		--server=http://127.0.0.1:${KUBE_MASTER_PORT} \
 		create namespace test
 	
 ## Stop the local kubernetes master
 stop-kubernetes-master:
 	# Delete the cluster role binding.
-	-docker exec st-apiserver kubectl delete clusterrolebinding anonymous-admin
+	-docker exec st-apiserver-${KUBE_MASTER_PORT} kubectl delete clusterrolebinding anonymous-admin
 
 	# Stop master components.
-	-docker rm -f st-apiserver st-controller-manager
+	-docker rm -f st-apiserver-${KUBE_MASTER_PORT} st-controller-manager-${KUBE_MASTER_PORT}
 
 ###############################################################################
 # CI

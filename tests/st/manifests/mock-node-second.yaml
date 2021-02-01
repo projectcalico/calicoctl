@@ -1,0 +1,14 @@
+# This is a Node used by the k8s ST tests.  The migration tests
+# rely on this Node exising in the Kubernetes API.
+kind: Node
+apiVersion: v1
+metadata:
+  name: "node8"
+spec:
+  podCIDR: "10.10.20.0/24"
+status:
+  addresses:
+  - type: NodeInternalIP
+    address: "127.0.0.1/32"
+  - type: NodeExternalIP
+    address: "8.7.6.5/32"
