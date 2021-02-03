@@ -36,12 +36,13 @@ import (
 // IPAM takes keyword with an IP address then calls the subcommands.
 func Release(args []string, version string) error {
 	doc := constants.DatastoreIntro + `Usage:
-  <BINARY_NAME> ipam release [--ip=<IP>] [--from-report=<REPORT>] [--config=<CONFIG>]
+  <BINARY_NAME> ipam release [--ip=<IP>] [--from-report=<REPORT>] [--config=<CONFIG>] [--force]
 
 Options:
   -h --help                   Show this screen.
      --ip=<IP>                IP address to release.
      --from-report=<REPORT>   Release all leaked addresses from the report.
+     --force                  Force release of leaked addresses.
   -c --config=<CONFIG>        Path to the file containing connection configuration in
                               YAML or JSON format.
                               [default: ` + constants.DefaultConfigPath + `]
@@ -90,7 +91,16 @@ Description:
 
 	if report := parsedArgs["--from-report"]; report != nil {
 		reportFile := parsedArgs["--from-report"].(string)
-		return releaseFromReport(ctx, client, reportFile, version)
+		force := false
+		if parsedArgs["--force"] != nil {
+			force = parsedArgs["--force"].(bool)
+		}
+		err = releaseFromReport(ctx, client, force, reportFile, version)
+		if err != nil {
+			return err
+		}
+		fmt.Println("You may now unlock the data store.")
+		return nil
 	}
 
 	if ip := parsedArgs["--ip"]; ip != nil {
@@ -118,7 +128,7 @@ Description:
 	return nil
 }
 
-func releaseFromReport(ctx context.Context, c client.Interface, reportFile string, version string) error {
+func releaseFromReport(ctx context.Context, c client.Interface, force bool, reportFile string, version string) error {
 	// Load the report into memory.
 	r := Report{}
 	bytes, err := ioutil.ReadFile(reportFile)
@@ -133,13 +143,25 @@ func releaseFromReport(ctx context.Context, c client.Interface, reportFile strin
 		return err
 	}
 	if clusterInfo.Spec.ClusterGUID != r.ClusterGUID {
-		return fmt.Errorf("Cluster does not match the provided report: mismatched cluster GUID")
+		// This check cannot be overridden using the --force option, because it is critical.
+		return fmt.Errorf("Cluster does not match the provided report: mismatched cluster GUID. Refusing to release.")
 	}
 	if clusterInfo.ResourceVersion != r.ClusterInfoRevision {
-		return fmt.Errorf("The provided report is stale, please generate a new report")
+		return fmt.Errorf("The provided report is stale, please generate a new report while the data store is locked and try again.")
+	}
+	if clusterInfo.Spec.DatastoreReady == nil || *clusterInfo.Spec.DatastoreReady {
+		if !force {
+			return fmt.Errorf("Data store is not locked. Either lock the data store, or re-run with --force.")
+		} else {
+			fmt.Println("WARNING: Data store is not locked. Ignoring due to --force option")
+		}
 	}
 	if version != r.Version {
-		return fmt.Errorf("The provided report was produced using a different version (%s) of calicoctl", r.Version)
+		if !force {
+			return fmt.Errorf("The provided report was produced using a different version (%s) of calicoctl. Refusing to release.", r.Version)
+		} else {
+			fmt.Println("WARNING: Report was produced using a different version of calicoctl. Ignoring due to --force option")
+		}
 	}
 
 	// For each address that needs to be released, do so.
@@ -153,7 +175,7 @@ func releaseFromReport(ctx context.Context, c client.Interface, reportFile strin
 	}
 
 	if len(ipsToRelease) == 0 {
-		fmt.Println("No addresses need to be released")
+		fmt.Println("No addresses need to be released.")
 		return nil
 	}
 	fmt.Printf("Releasing %d old IPs\n", len(ipsToRelease))

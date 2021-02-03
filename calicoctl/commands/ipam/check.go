@@ -98,7 +98,7 @@ Description:
 	// Pull out CLI args.
 	showAllIPs := parsedArgs["--show-all-ips"].(bool)
 	showProblemIPs := showAllIPs || parsedArgs["--show-problem-ips"].(bool)
-	var outFile string = "ipam-check-report.json"
+	var outFile string = ""
 	if arg := parsedArgs["--output"]; arg != nil {
 		outFile = arg.(string)
 	}
@@ -352,9 +352,10 @@ func (c *IPAMChecker) checkIPAM(ctx context.Context) error {
 
 	fmt.Printf("Check complete; found %d problems.\n", numProblems)
 
-	// Print out a machine readable report.
-	c.printReport()
-
+	if c.outFile != "" {
+		// Print out a machine readable report.
+		c.printReport()
+	}
 	return nil
 }
 
