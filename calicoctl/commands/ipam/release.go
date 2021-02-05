@@ -135,7 +135,10 @@ func releaseFromReport(ctx context.Context, c client.Interface, force bool, repo
 	if err != nil {
 		return err
 	}
-	json.Unmarshal(bytes, &r)
+	err = json.Unmarshal(bytes, &r)
+	if err != nil {
+		return err
+	}
 
 	// Make sure the metadata from the report matches the cluster.
 	clusterInfo, err := c.ClusterInformation().Get(ctx, "default", options.GetOptions{})

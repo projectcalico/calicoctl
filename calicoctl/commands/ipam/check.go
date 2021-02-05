@@ -62,7 +62,7 @@ Description:
 	name, _ := util.NameAndDescription()
 	doc = strings.ReplaceAll(doc, "<BINARY_NAME>", name)
 
-	parsedArgs, err := docopt.Parse(doc, args, true, "", false, false)
+	parsedArgs, err := docopt.ParseArgs(doc, args, version)
 	if err != nil {
 		return fmt.Errorf("Invalid option: 'calicoctl %s'. Use flag '--help' to read about a specific subcommand.", strings.Join(args, " "))
 	}
@@ -90,10 +90,9 @@ Description:
 	if kc, ok := bc.(*k8s.KubeClient); ok {
 		// Pull from the kdd client.
 		kubeClient = kc.ClientSet
-	} else {
-		// TODO: Support etcd mode. For now, this is OK since we don't actually
-		// use the kubeClient yet. But we will do so eventually.
 	}
+	// TODO: Support etcd mode. For now, this is OK since we don't actually
+	// use the kubeClient yet. But we will do so eventually.
 
 	// Pull out CLI args.
 	showAllIPs := parsedArgs["--show-all-ips"].(bool)
