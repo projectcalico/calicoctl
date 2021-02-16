@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -44,7 +45,8 @@ func init() {
 func TestIPAM(t *testing.T) {
 	RegisterTestingT(t)
 
-	ctx := context.Background()
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancelFunc()
 
 	// Create a Calico client.
 	config := apiconfig.NewCalicoAPIConfig()
@@ -179,6 +181,7 @@ func TestIPAM(t *testing.T) {
 		ip := cnet.ParseIP(cidr.IP.String())
 		ips = append(ips, *ip)
 	}
+
 	// Release the IPs
 	_, err = client.IPAM().ReleaseIPs(ctx, ips)
 	Expect(err).NotTo(HaveOccurred())
