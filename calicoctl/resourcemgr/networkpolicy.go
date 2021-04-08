@@ -75,11 +75,31 @@ func init() {
 		},
 		func(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceObject, error) {
 			r := resource.(*api.NetworkPolicy)
+			if strings.HasPrefix(r.Name, conversion.K8sNetworkPolicyNamePrefix) {
+				return nil, cerrors.ErrorOperationNotSupported{
+					Operation:  "get",
+					Identifier: resource,
+					Reason:     "kubernetes network policies must be managed through the kubernetes API",
+				}
+			}
 			return client.NetworkPolicies().Get(ctx, r.Namespace, r.Name, options.GetOptions{ResourceVersion: r.ResourceVersion})
 		},
 		func(ctx context.Context, client client.Interface, resource ResourceObject) (ResourceListObject, error) {
 			r := resource.(*api.NetworkPolicy)
-			return client.NetworkPolicies().List(ctx, options.ListOptions{ResourceVersion: r.ResourceVersion, Namespace: r.Namespace, Name: r.Name})
+			l, err := client.NetworkPolicies().List(ctx, options.ListOptions{ResourceVersion: r.ResourceVersion, Namespace: r.Namespace, Name: r.Name})
+			if err != nil {
+				return nil, err
+			}
+
+			// Filter out Kubernetes policies. These are managed through kubectl.
+			items := []api.NetworkPolicy{}
+			for _, v := range l.Items {
+				if !strings.HasPrefix(v.Name, conversion.K8sNetworkPolicyNamePrefix) {
+					items = append(items, v)
+				}
+			}
+			l.Items = items
+			return l, nil
 		},
 	)
 }
