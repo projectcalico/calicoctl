@@ -37,6 +37,9 @@ BUILD_IMAGE?=calico/ctl
 PUSH_IMAGES?=$(BUILD_IMAGE) quay.io/calico/ctl
 RELEASE_IMAGES?=
 
+# Remove any excluded architectures since for calicoctl we want to build everything.
+EXCLUDEARCH?=
+
 include Makefile.common
 
 ###############################################################################
@@ -72,10 +75,6 @@ update-pins: update-libcalico-pin
 ###############################################################################
 # Building the binary
 ###############################################################################
-
-# Reassign VALIDARCHES since for calicoctl we do not want to exclude any builds.
-VALIDARCHES=$(patsubst Dockerfile.%,%,$(wildcard Dockerfile.*))
-
 .PHONY: build-all
 ## Build the binaries for all architectures and platforms
 build-all: $(addprefix bin/calicoctl-linux-,$(VALIDARCHES)) bin/calicoctl-windows-amd64.exe bin/calicoctl-darwin-amd64
