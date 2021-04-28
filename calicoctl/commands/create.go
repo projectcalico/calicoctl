@@ -30,7 +30,7 @@ import (
 func Create(args []string) error {
 	doc := constants.DatastoreIntro + `Usage:
   <BINARY_NAME> create --filename=<FILENAME> [--recursive] [--skip-empty]
-                   [--skip-exists] [--config=<CONFIG>] [--namespace=<NS>] [--context=<context>]
+                   [--skip-exists] [--config=<CONFIG>] [--namespace=<NS>] [--context=<context>] [--dry-run]
 
 Examples:
   # Create a policy using the data in policy.yaml.
@@ -57,6 +57,8 @@ Options:
                             Only applicable to NetworkPolicy, NetworkSet, and WorkloadEndpoint.
                             Uses the default namespace if not specified.
   --context=<context>       The name of the kubeconfig context to use.
+  -d --dry-run              Dry run of calicoctl create.
+                            Checks the validity and syntax of policies before applying.
 
 Description:
   The create command is used to create a set of resources by filename or stdin.
@@ -110,6 +112,8 @@ Description:
 
 	if results.FileInvalid {
 		return fmt.Errorf("Failed to execute command: %v", results.Err)
+	} else if results.NumResources == 0 && parsedArgs["--dry-run"] == true {
+		fmt.Println("No syntax problems, file is ready to be applied")
 	} else if results.NumResources == 0 {
 		// No resources specified. If there is an associated error use that, otherwise print message with no error.
 		if results.Err != nil {

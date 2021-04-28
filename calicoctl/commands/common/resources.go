@@ -205,6 +205,11 @@ func ExecuteConfigCommand(args map[string]interface{}, action action) CommandRes
 		log.Debugf("Data: %s", string(d))
 	}
 
+	// if -d flag is true, stop here, otherwise proceed
+	if dryRunFlag := args["--dry-run"]; dryRunFlag == true {
+		return CommandResults{}
+	}
+
 	// Load the client config and connect.
 	cf := args["--config"].(string)
 	cclient, err := clientmgr.NewClient(cf)
