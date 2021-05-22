@@ -72,10 +72,10 @@ Description:
 	// For older versions of calico/node, the process was called `calico-felix`. Newer ones use `calico-node -felix`.
 	if !psContains([]string{"calico-felix"}, processes) && !psContains([]string{"calico-node", "-felix"}, processes) {
 		// Return and print message if calico-node is not running
-		return fmt.Errorf("Calico process is not running.")
+		return fmt.Errorf(" Calico process 'calico-felix' is not running.")
 	}
 
-	fmt.Printf("Calico process is running.\n")
+	fmt.Printf("Calico process 'calico-felix' is running.\n")
 
 	if psContains([]string{"bird"}, processes) || psContains([]string{"bird6"}, processes) {
 		// Check if birdv4 process is running, print the BGP peer table if it is, else print a warning
