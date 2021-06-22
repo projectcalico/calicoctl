@@ -17,7 +17,9 @@ package resourcemgr
 import (
 	"context"
 
-	api "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	api "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
@@ -25,7 +27,7 @@ import (
 func init() {
 	registerResource(
 		api.NewHostEndpoint(),
-		api.NewHostEndpointList(),
+		newHostEndpointList(),
 		false,
 		[]string{"hostendpoint", "hostendpoints", "hep", "heps"},
 		[]string{"NAME", "NODE"},
@@ -58,4 +60,15 @@ func init() {
 			return client.HostEndpoints().List(ctx, options.ListOptions{ResourceVersion: r.ResourceVersion, Name: r.Name})
 		},
 	)
+}
+
+// newHostEndpointList creates a new (zeroed) HostEndpointList struct with the TypeMetadata initialised to the current
+// version.
+func newHostEndpointList() *api.HostEndpointList {
+	return &api.HostEndpointList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       api.KindHostEndpointList,
+			APIVersion: api.GroupVersionCurrent,
+		},
+	}
 }

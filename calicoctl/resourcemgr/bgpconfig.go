@@ -17,7 +17,9 @@ package resourcemgr
 import (
 	"context"
 
-	api "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	api "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
@@ -25,7 +27,7 @@ import (
 func init() {
 	registerResource(
 		api.NewBGPConfiguration(),
-		api.NewBGPConfigurationList(),
+		newBGPConfigurationList(),
 		false,
 		[]string{"bgpconfiguration", "bgpconfigurations", "bgpconfig", "bgpconfigs"},
 		[]string{"NAME", "LOGSEVERITY", "MESHENABLED", "ASNUMBER"},
@@ -57,4 +59,15 @@ func init() {
 			return client.BGPConfigurations().List(ctx, options.ListOptions{ResourceVersion: r.ResourceVersion, Name: r.Name})
 		},
 	)
+}
+
+// NewBGPConfigurationList creates a new zeroed) BGPConfigurationList struct with the TypeMetadata
+// initialized to the current version.
+func newBGPConfigurationList() *api.BGPConfigurationList {
+	return &api.BGPConfigurationList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       api.KindBGPConfigurationList,
+			APIVersion: api.GroupVersionCurrent,
+		},
+	}
 }

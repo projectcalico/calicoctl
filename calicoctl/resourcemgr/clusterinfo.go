@@ -17,7 +17,9 @@ package resourcemgr
 import (
 	"context"
 
-	api "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	api "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	cerrors "github.com/projectcalico/libcalico-go/lib/errors"
 	"github.com/projectcalico/libcalico-go/lib/options"
@@ -26,7 +28,7 @@ import (
 func init() {
 	registerResource(
 		api.NewClusterInformation(),
-		api.NewClusterInformationList(),
+		newClusterInformationList(),
 		false,
 		[]string{"clusterinformation", "clusterinformations", "clusterinfo", "clusterinfos"},
 		[]string{"NAME", "CLUSTERGUID", "CLUSTERTYPE", "CALICOVERSION", "DATASTOREREADY"},
@@ -65,4 +67,15 @@ func init() {
 			return client.ClusterInformation().List(ctx, options.ListOptions{ResourceVersion: r.ResourceVersion, Name: r.Name})
 		},
 	)
+}
+
+// newClusterInformationList creates a new 9zeroed) ClusterInformationList struct with the TypeMetadata
+// initialized to the current version.
+func newClusterInformationList() *api.ClusterInformationList {
+	return &api.ClusterInformationList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       api.KindClusterInformationList,
+			APIVersion: api.GroupVersionCurrent,
+		},
+	}
 }
