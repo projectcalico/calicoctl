@@ -17,7 +17,9 @@ package resourcemgr
 import (
 	"context"
 
-	api "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	api "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
@@ -25,7 +27,7 @@ import (
 func init() {
 	registerResource(
 		api.NewIPPool(),
-		api.NewIPPoolList(),
+		newIPPoolList(),
 		false,
 		[]string{"ippool", "ippools", "ipp", "ipps", "pool", "pools"},
 		[]string{"NAME", "CIDR", "SELECTOR"},
@@ -60,4 +62,15 @@ func init() {
 			return client.IPPools().List(ctx, options.ListOptions{ResourceVersion: r.ResourceVersion, Name: r.Name})
 		},
 	)
+}
+
+// newIPPoolList creates a new (zeroed) IPPoolList struct with the TypeMetadata initialised to the current
+// version.
+func newIPPoolList() *api.IPPoolList {
+	return &api.IPPoolList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       api.KindIPPoolList,
+			APIVersion: api.GroupVersionCurrent,
+		},
+	}
 }

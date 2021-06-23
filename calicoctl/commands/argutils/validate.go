@@ -20,7 +20,7 @@ import (
 	"os"
 
 	cnet "github.com/projectcalico/libcalico-go/lib/net"
-	"github.com/projectcalico/libcalico-go/lib/numorstring"
+	"github.com/projectcalico/api/pkg/lib/numorstring"
 )
 
 // ValidateIP takes a string as an input and makes sure it's a valid IPv4 or IPv6 address.

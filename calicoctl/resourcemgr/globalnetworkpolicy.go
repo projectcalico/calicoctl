@@ -17,7 +17,9 @@ package resourcemgr
 import (
 	"context"
 
-	api "github.com/projectcalico/libcalico-go/lib/apis/v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	api "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/options"
 )
@@ -25,7 +27,7 @@ import (
 func init() {
 	registerResource(
 		api.NewGlobalNetworkPolicy(),
-		api.NewGlobalNetworkPolicyList(),
+		newGlobalNetworkPolicyList(),
 		false,
 		[]string{"globalnetworkpolicy", "globalnetworkpolicies", "gnp", "gnps"},
 		[]string{"NAME"},
@@ -56,4 +58,15 @@ func init() {
 			return client.GlobalNetworkPolicies().List(ctx, options.ListOptions{ResourceVersion: r.ResourceVersion, Name: r.Name})
 		},
 	)
+}
+
+// newGlobalNetworkPolicyList creates a new (zeroed) GlobalNetworkPolicyList struct with the TypeMetadata initialised to the current
+// version.
+func newGlobalNetworkPolicyList() *api.GlobalNetworkPolicyList {
+	return &api.GlobalNetworkPolicyList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       api.KindGlobalNetworkPolicyList,
+			APIVersion: api.GroupVersionCurrent,
+		},
+	}
 }
