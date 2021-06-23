@@ -16,13 +16,14 @@ package fv_test
 
 import (
 	"context"
-	. "github.com/onsi/gomega"
-	log "github.com/sirupsen/logrus"
 	"testing"
 
+	. "github.com/onsi/gomega"
+	log "github.com/sirupsen/logrus"
+
+	v3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	. "github.com/projectcalico/calicoctl/v3/tests/fv/utils"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
-	v3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/clientv3"
 	"github.com/projectcalico/libcalico-go/lib/logutils"
 	"github.com/projectcalico/libcalico-go/lib/options"
