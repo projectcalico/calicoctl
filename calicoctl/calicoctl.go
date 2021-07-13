@@ -50,10 +50,11 @@ func main() {
     datastore    Calico datastore management.
 
 Options:
-  -h --help               Show this screen.
-  -l --log-level=<level>  Set the log level (one of panic, fatal, error,
-                          warn, info, debug) [default: panic]
-  --context=<context>	  The name of the kubeconfig context to use.
+  -h --help                 Show this screen.
+  -l --log-level=<level>    Set the log level (one of panic, fatal, error,
+                            warn, info, debug) [default: panic]
+  --context=<context>       The name of the kubeconfig context to use.
+  --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   The %s is used to manage Calico network and security
@@ -99,6 +100,16 @@ Description:
 	if arguments["<command>"] != nil {
 		command := arguments["<command>"].(string)
 		args := append([]string{command}, arguments["<args>"].([]string)...)
+
+		// Check for client/cluster version mismatch. If a mismatch occurs, check for
+		// --allow-version-mismatch arg to override/fail.
+		if err = commands.VersionMismatch(args); err != nil {
+			allowMismatch, ok := arguments["--allow-version-mismatch"].(bool)
+			if !ok || !allowMismatch {
+				fmt.Fprintf(os.Stderr, "%s\n", err)
+				os.Exit(1)
+			}
+		}
 
 		var err error
 
