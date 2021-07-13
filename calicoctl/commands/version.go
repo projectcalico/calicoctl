@@ -132,26 +132,32 @@ Description:
 }
 
 func VersionMismatch(args []string) error {
-
-	config := constants.DefaultConfigPath
-
 	// We need to "look ahead" to see if --config has been passed in the args
-	for i := range args {
-		if args[i] == "--config" && i < len(args)-1 {
-			config = args[i+1]
-		}
-	}
+	name, _ := util.NameAndDescription()
+
+	doc := fmt.Sprintf(`Usage:
+  %s [options] <command> [<args>...]
+
+Options:
+  -c --config=<CONFIG>      Path to the file containing connection configuration in
+                            YAML or JSON format.
+                            [default: `+constants.DefaultConfigPath+`]
+`, name)
+
+	parsedArgs, _ := docopt.ParseArgs(doc, args, "")
+
+	config, _ := parsedArgs["--config"].(string)
 
 	client, err := clientmgr.NewClient(config)
 	if err != nil {
-		return fmt.Errorf("Unable to verify version mismatch: %w", err)
+		return fmt.Errorf("Unable to get client to verify version mismatch: %w", err)
 	}
 
 	ctx := context.Background()
 
 	ci, err := client.ClusterInformation().Get(ctx, "default", options.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("Unable to verify version mismatch: %w", err)
+		return fmt.Errorf("Unable to get Cluster Information to verify version mismatch: %w", err)
 	}
 
 	clusterv := ci.Spec.CalicoVersion

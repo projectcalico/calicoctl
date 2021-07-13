@@ -76,7 +76,7 @@ Description:
 	if err != nil {
 		if _, ok := err.(*docopt.UserError); ok {
 			// the user gave us bad input
-			fmt.Printf("Invalid option: '%s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(os.Args[1:], " "))
+			fmt.Printf("Invalid or incomplete arguments: '%s'. Use flag '--help' to read about a specific subcommand.\n", strings.Join(os.Args[1:], " "))
 		}
 		os.Exit(1)
 	}
@@ -103,9 +103,9 @@ Description:
 
 		// Check for client/cluster version mismatch. If a mismatch occurs, check for
 		// --allow-version-mismatch arg to override/fail.
-		if err = commands.VersionMismatch(args); err != nil {
-			allowMismatch, ok := arguments["--allow-version-mismatch"].(bool)
-			if !ok || !allowMismatch {
+		allowMismatch, ok := arguments["--allow-version-mismatch"].(bool)
+		if !ok || !allowMismatch {
+			if err = commands.VersionMismatch(args); err != nil {
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 				os.Exit(1)
 			}
