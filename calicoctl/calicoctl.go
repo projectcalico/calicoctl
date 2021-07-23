@@ -101,12 +101,16 @@ Description:
 		command := arguments["<command>"].(string)
 		args := append([]string{command}, arguments["<args>"].([]string)...)
 
+		// A "datastore migrate import" command should skip version mismatch checking,
+		// since the datastore will not have the cluster version set
+		isImport := strings.HasPrefix(strings.Join(args, " "), "datastore migrate import")
+
 		// Check for client/cluster version mismatch. If a mismatch occurs, check for
 		// --allow-version-mismatch arg to override/fail.
 		allowMismatch, ok := arguments["--allow-version-mismatch"].(bool)
-		if !ok || !allowMismatch {
+		if (!ok || !allowMismatch) && !isImport {
 			if err = commands.VersionMismatch(args); err != nil {
-				fmt.Fprintf(os.Stderr, "%s\n", err)
+				fmt.Fprintf(os.Stderr, "%s\n Use --allow-version-mismatch to override.", err)
 				os.Exit(1)
 			}
 		}

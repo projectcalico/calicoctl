@@ -131,26 +131,57 @@ Description:
 	return err
 }
 
+func GetConfigAndContext(args []string) (string, string) {
+	// Possible arg formats:
+	// -cVALUE, -c VALUE, --config VALUE, --config=VALUE,
+	// --context VALUE, --context=VALUE
+	var config, context string
+
+	for i, arg := range args {
+		switch {
+		case arg == "-c":
+			fallthrough
+		case arg == "--config":
+			if i < len(args)-1 {
+				config = args[i+1]
+			}
+		case strings.HasPrefix(arg, "-c"):
+			config = arg[2:]
+		case strings.HasPrefix(arg, "--config="):
+			split := strings.Split(arg, "=")
+			if len(split) > 1 {
+				config = split[1]
+			}
+		case arg == "--context":
+			if i < len(args)-1 {
+				context = args[i+1]
+			}
+		case strings.HasPrefix(arg, "--context="):
+			split := strings.Split(arg, "=")
+			if len(split) > 1 {
+				context = split[1]
+			}
+		}
+	}
+
+	return config, context
+}
+
 func VersionMismatch(args []string) error {
-	// We need to "look ahead" to see if --config has been passed in the args
-	name, _ := util.NameAndDescription()
+	// We need to "look ahead" to see if config or context have been passed in the args
+	cfgVal, ctxVal := GetConfigAndContext(args)
 
-	doc := fmt.Sprintf(`Usage:
-  %s [options] <command> [<args>...]
+	if cfgVal == "" {
+		cfgVal = constants.DefaultConfigPath
+	}
 
-Options:
-  -c --config=<CONFIG>      Path to the file containing connection configuration in
-                            YAML or JSON format.
-                            [default: `+constants.DefaultConfigPath+`]
-`, name)
+	if ctxVal != "" {
+		os.Setenv("K8S_CURRENT_CONTEXT", ctxVal)
+	}
 
-	parsedArgs, _ := docopt.ParseArgs(doc, args, "")
-
-	config, _ := parsedArgs["--config"].(string)
-
-	client, err := clientmgr.NewClient(config)
+	client, err := clientmgr.NewClient(cfgVal)
 	if err != nil {
-		return fmt.Errorf("Unable to get client to verify version mismatch: %w", err)
+		return fmt.Errorf("Unable to create Calico API client to verify version mismatch: %w", err)
 	}
 
 	ctx := context.Background()
@@ -161,12 +192,16 @@ Options:
 	}
 
 	clusterv := ci.Spec.CalicoVersion
+	if clusterv == "" {
+		clusterv = "unknown"
+	} else {
+		clusterv = strings.Split(clusterv, "-")[0]
+	}
 
-	clusterv = strings.Split(clusterv, "-")[0]
 	clientv := strings.Split(VERSION, "-")[0]
 
 	if clusterv != clientv {
-		return fmt.Errorf("Version mismatch.\nClient Version:   %s\nCluster Version:  %s\n Use --allow-version-mismatch to override.", VERSION, clusterv)
+		return fmt.Errorf("Version mismatch.\nClient Version:   %s\nCluster Version:  %s", VERSION, clusterv)
 	}
 
 	return nil
