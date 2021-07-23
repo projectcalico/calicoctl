@@ -64,7 +64,12 @@ func TestMultiOption(t *testing.T) {
 	_, err = client.NetworkPolicies().Create(ctx, np, options.SetOptions{})
 	Expect(err).NotTo(HaveOccurred())
 
-	out, err := CalicoctlMayFail(false, "get", "ippool", "-A")
+	// Set Calico version in ClusterInformation
+	out, err := SetCalicoVersion(false)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(out).To(ContainSubstring("Calico version set to"))
+
+	out, err = CalicoctlMayFail(false, "get", "ippool", "-A")
 	Expect(err).To(HaveOccurred())
 	Expect(out).To(Equal("IPPool is not namespaced\n"))
 
