@@ -78,4 +78,13 @@ func TestMultiOption(t *testing.T) {
 	out = Calicoctl(false, "get", "networkPolicy", "-a")
 	Expect(out).To(Equal("NAMESPACE   NAME      \nfirstns     policy1   \nsecondns    policy2   \n\n"))
 
+	// Clean up resources
+	_, err = client.IPPools().Delete(ctx, "ipam-test-v4", options.DeleteOptions{})
+	Expect(err).NotTo(HaveOccurred())
+
+	_, err = client.NetworkPolicies().Delete(ctx, "firstns", "policy1", options.DeleteOptions{})
+	Expect(err).NotTo(HaveOccurred())
+
+	_, err = client.NetworkPolicies().Delete(ctx, "secondns", "policy2", options.DeleteOptions{})
+	Expect(err).NotTo(HaveOccurred())
 }
