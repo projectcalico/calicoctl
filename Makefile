@@ -64,7 +64,7 @@ LDFLAGS=-ldflags "-X $(PACKAGE_NAME)/v3/calicoctl/commands.VERSION=$(GIT_VERSION
 ## Clean enough that a new release build will be clean
 clean:
 	find . -name '*.created-$(ARCH)' -exec rm -f {} \;
-	rm -rf .go-pkg-cache bin build certs *.tar vendor Makefile.common* calicoctl/commands/report
+	rm -rf .go-pkg-cache bin build certs *.tar vendor Makefile.common* calicoctl/commands/report $(CALICO_VERSION_HELPER_DIR)/bin
 	docker rmi $(CALICOCTL_IMAGE):latest-$(ARCH) || true
 	docker rmi $(CALICOCTL_IMAGE):$(VERSION)-$(ARCH) || true
 ifeq ($(ARCH),amd64)
@@ -144,6 +144,16 @@ image-all: $(addprefix sub-image-,$(VALIDARCHES))
 sub-image-%:
 	$(MAKE) image ARCH=$*
 
+CALICO_VERSION_HELPER_DIR=tests/fv/helper
+CALICO_VERSION_HELPER_BIN=$(CALICO_VERSION_HELPER_DIR)/bin/calico_version_helper
+CALICO_VERSION_HELPER_SRC=$(CALICO_VERSION_HELPER_DIR)/calico_version_helper.go
+
+.PHONY: version-helper
+version-helper: $(CALICO_VERSION_HELPER_BIN)
+$(CALICO_VERSION_HELPER_BIN): $(CALICO_VERSION_HELPER_SRC)
+	$(DOCKER_RUN) $(CALICO_BUILD) sh -c 'cd /go/src/$(PACKAGE_NAME) && \
+		go build -v -o $(CALICO_VERSION_HELPER_BIN) -ldflags "-X main.VERSION=$(GIT_VERSION)" $(CALICO_VERSION_HELPER_SRC)'
+
 ###############################################################################
 # UTs
 ###############################################################################
@@ -157,7 +167,7 @@ ut: $(LOCAL_BUILD_DEP) bin/calicoctl-linux-amd64
 ###############################################################################
 .PHONY: fv
 ## Run the tests in a container. Useful for CI, Mac dev.
-fv: $(LOCAL_BUILD_DEP) bin/calicoctl-linux-amd64
+fv: $(LOCAL_BUILD_DEP) bin/calicoctl-linux-amd64 version-helper
 	$(MAKE) run-etcd-host
 	# We start two API servers in order to test multiple kubeconfig support
 	$(MAKE) run-kubernetes-master KUBE_APISERVER_PORT=8080 KUBE_MOCK_NODE_MANIFEST=mock-node.yaml
@@ -181,7 +191,7 @@ ST_OPTIONS?=
 
 .PHONY: st
 ## Run the STs in a container
-st: bin/calicoctl-linux-amd64
+st: bin/calicoctl-linux-amd64 version-helper
 	$(MAKE) run-etcd-host
 	$(MAKE) run-kubernetes-master
 	# Use the host, PID and network namespaces from the host.
