@@ -6,6 +6,7 @@ SEMAPHORE_PROJECT_ID?=$(SEMAPHORE_CALICOCTL_PROJECT_ID)
 
 KUBE_APISERVER_PORT?=8080
 KUBE_MOCK_NODE_MANIFEST?=mock-node.yaml
+KUBE_CLUSTERINFO_CRD_MANIFEST?=crd.projectcalico.org_clusterinformations.yaml
 
 # Build mounts for running in "local build" mode. This allows an easy build using local development code,
 # assuming that there is a local checkout of libcalico in the same directory as this repo.
@@ -275,6 +276,16 @@ run-kubernetes-master: stop-kubernetes-master
 		--server=http://127.0.0.1:${KUBE_APISERVER_PORT} \
 		apply -f /manifests/tests/st/manifests/${KUBE_MOCK_NODE_MANIFEST}; \
 		do echo "Waiting for node to apply successfully..."; sleep 2; done
+
+	# Apply ClusterInformation CRD because the tests now require it
+	while ! docker run \
+	    --net=host \
+	    --rm \
+		-v $(CURDIR):/manifests \
+		gcr.io/google_containers/hyperkube-amd64:${K8S_VERSION} kubectl \
+		--server=http://127.0.0.1:${KUBE_APISERVER_PORT} \
+		apply -f /manifests/tests/st/manifests/${KUBE_CLUSTERINFO_CRD_MANIFEST}; \
+		do echo "Waiting for ClusterInformation CRD to apply successfully..."; sleep 2; done
 
 	# Create a namespace in the API for the tests to use.
 	-docker run \

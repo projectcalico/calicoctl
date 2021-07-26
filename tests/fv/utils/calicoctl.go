@@ -21,8 +21,6 @@ import (
 
 	. "github.com/onsi/gomega"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/projectcalico/calicoctl/v3/calicoctl/commands"
 )
 
 var calicoctl = "/go/src/github.com/projectcalico/calicoctl/bin/calicoctl-linux-amd64"
@@ -63,23 +61,11 @@ func CalicoctlMayFail(kdd bool, args ...string) (string, error) {
 
 func SetCalicoVersion(kdd bool, args ...string) (string, error) {
 	// Set CalicoVersion in ClusterInformation
-	var helperArgs []string
-
-	cfgVal, ctxVal := commands.GetConfigAndContext(args)
-
-	if cfgVal != "" {
-		helperArgs = append(helperArgs, "--config="+cfgVal)
-	}
-
-	if ctxVal != "" {
-		helperArgs = append(helperArgs, "--context="+ctxVal)
-	}
-
-	helperCmd := exec.Command(version_helper, helperArgs...)
+	helperCmd := exec.Command(version_helper, args...)
 	helperCmd.Env = getEnv(kdd)
 	helperOut, helperErr := helperCmd.CombinedOutput()
 
-	log.Infof("Run: %s %s", version_helper, strings.Join(helperArgs, " "))
+	log.Infof("Run: %s %s", version_helper, strings.Join(args, " "))
 	log.Infof("Output:\n%v", string(helperOut))
 	log.Infof("Error: %v", helperErr)
 

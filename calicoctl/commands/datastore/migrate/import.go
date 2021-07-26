@@ -98,7 +98,7 @@ Description:
 		return fmt.Errorf("Invalid datastore type: %s to import to for datastore migration. Datastore type must be kubernetes", cfg.Spec.DatastoreType)
 	}
 
-	err = ImportCRDs(cfg)
+	err = importCRDs(cfg)
 	if err != nil {
 		return fmt.Errorf("Error applying the CRDs necessary to begin datastore import: %s", err)
 	}
@@ -340,7 +340,7 @@ func updateV3Resources(cfg *apiconfig.CalicoAPIConfig, data []byte) error {
 	return nil
 }
 
-func ImportCRDs(cfg *apiconfig.CalicoAPIConfig) error {
+func importCRDs(cfg *apiconfig.CalicoAPIConfig) error {
 	// Start a kube client
 	// Create the correct config for the clientset
 	config, _, err := k8s.CreateKubernetesClientset(&cfg.Spec)

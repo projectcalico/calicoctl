@@ -11,7 +11,6 @@ import (
 
 	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/clientmgr"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/constants"
-	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/datastore/migrate"
 )
 
 var VERSION string
@@ -55,12 +54,6 @@ Description:
 	if err != nil {
 		fmt.Printf("Could not create client: %v\n", err)
 		os.Exit(1)
-	}
-
-	// Import Calico CRDs
-	err = migrate.ImportCRDs(cfg)
-	if err != nil {
-		fmt.Printf("Error applying CRDs: %v\nOperation may still succeed.\n", err)
 	}
 
 	ctx := context.Background()
