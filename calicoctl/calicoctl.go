@@ -103,7 +103,7 @@ Description:
 
 		// A "datastore migrate import" command should skip version mismatch checking,
 		// since the datastore will not have the cluster version set
-		isImport := strings.HasPrefix(strings.Join(args, " "), "datastore migrate import")
+		isImport := args[0] == "datastore" && args[1] == "migrate" && args[2] == "import"
 
 		// Check for client/cluster version mismatch. If a mismatch occurs, check for
 		// --allow-version-mismatch arg to override/fail.
