@@ -193,9 +193,18 @@ Description:
 	name, _ := util.NameAndDescription()
 	doc = strings.ReplaceAll(doc, "<BINARY_NAME>", name)
 
-	parsedArgs, err := docopt.ParseArgs(doc, args, "")
+	var parser = &docopt.Parser{
+		HelpHandler:   docopt.NoHelpHandler,
+		OptionsFirst:  false,
+		SkipHelpFlags: false,
+	}
+
+	parsedArgs, err := parser.ParseArgs(doc, args, "")
 	if err != nil {
-		return fmt.Errorf("docopts parsing for version mismatch verification error: %w", err)
+		// If docopts can't parse the arguments, it most likely is an
+		// invalid argument that will be caught later on by command
+		// parsing, which will output a more appropriate error message.
+		return nil
 	}
 
 	if context := parsedArgs["--context"]; context != nil {
