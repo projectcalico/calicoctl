@@ -110,7 +110,7 @@ Description:
 		allowMismatch, ok := arguments["--allow-version-mismatch"].(bool)
 		if (!ok || !allowMismatch) && !isImport {
 			if err = commands.VersionMismatch(args); err != nil {
-				fmt.Fprintf(os.Stderr, "%s\n Use --allow-version-mismatch to override.", err)
+				fmt.Fprintf(os.Stderr, "%s\n Use --allow-version-mismatch to override.\n", err)
 				os.Exit(1)
 			}
 		}
