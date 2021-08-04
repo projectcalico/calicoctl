@@ -33,7 +33,7 @@ func Get(args []string) error {
 	doc := constants.DatastoreIntro + `Usage:
   <BINARY_NAME> get ( (<KIND> [<NAME>...]) |
                 --filename=<FILENAME> [--recursive] [--skip-empty] )
-                [--output=<OUTPUT>] [--config=<CONFIG>] [--namespace=<NS>] [--all-namespaces] [--export] [--context=<context>]
+                [--output=<OUTPUT>] [--config=<CONFIG>] [--namespace=<NS>] [--all-namespaces] [--export] [--context=<context>] [--allow-version-mismatch]
 
 Examples:
   # List all policy in default output format.
@@ -65,6 +65,7 @@ Options:
                                cluster-specific information. This flag will be ignored
                                if <NAME> is not specified.
   --context=<context>          The name of the kubeconfig context to use.
+  --allow-version-mismatch     Allow client and cluster versions mismatch.
 
 Description:
   The get command is used to display a set of resources by filename or stdin,

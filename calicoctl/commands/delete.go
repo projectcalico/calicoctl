@@ -31,7 +31,7 @@ func Delete(args []string) error {
 	doc := constants.DatastoreIntro + `Usage:
   <BINARY_NAME> delete ( (<KIND> [<NAME>...]) |
                    --filename=<FILE> [--recursive] [--skip-empty] )
-                   [--skip-not-exists] [--config=<CONFIG>] [--namespace=<NS>] [--context=<context>]
+                   [--skip-not-exists] [--config=<CONFIG>] [--namespace=<NS>] [--context=<context>] [--allow-version-mismatch]
 
 Examples:
   # Delete a policy using the type and name specified in policy.yaml.
@@ -62,6 +62,7 @@ Options:
                             Only applicable to NetworkPolicy, NetworkSet, and WorkloadEndpoint.
                             Uses the default namespace if not specified.
   --context=<context>       The name of the kubeconfig context to use.
+  --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   The delete command is used to delete a set of resources by filename or stdin,

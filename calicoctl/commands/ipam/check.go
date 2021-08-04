@@ -37,6 +37,7 @@ import (
 	bapi "github.com/projectcalico/libcalico-go/lib/backend/api"
 	"github.com/projectcalico/libcalico-go/lib/options"
 
+	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/common"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/constants"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/util"
 
@@ -46,7 +47,7 @@ import (
 // IPAM takes keyword with an IP address then calls the subcommands.
 func Check(args []string, version string) error {
 	doc := constants.DatastoreIntro + `Usage:
-  <BINARY_NAME> ipam check [--config=<CONFIG>] [--show-all-ips] [--show-problem-ips] [-o <FILE>]
+  <BINARY_NAME> ipam check [--config=<CONFIG>] [--show-all-ips] [--show-problem-ips] [-o <FILE>] [--allow-version-mismatch]
 
 Options:
   -h --help                 Show this screen.
@@ -56,6 +57,7 @@ Options:
   -c --config=<CONFIG>      Path to the file containing connection configuration in
                             YAML or JSON format.
                             [default: ` + constants.DefaultConfigPath + `]
+  --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   The ipam check command checks the integrity of the IPAM datastructures against Kubernetes.
@@ -71,6 +73,9 @@ Description:
 	if len(parsedArgs) == 0 {
 		return nil
 	}
+
+	common.CheckVersionMismatch(parsedArgs["--config"], parsedArgs["--allow-version-mismatch"])
+
 	ctx := context.Background()
 
 	// Create a new backend client from env vars.
