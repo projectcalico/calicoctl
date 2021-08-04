@@ -22,6 +22,7 @@ import (
 	"github.com/docopt/docopt-go"
 
 	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/clientmgr"
+	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/common"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/constants"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/util"
 	"github.com/projectcalico/libcalico-go/lib/options"
@@ -29,13 +30,14 @@ import (
 
 func Unlock(args []string) error {
 	doc := `Usage:
-  <BINARY_NAME> datastore migrate unlock [--config=<CONFIG>]
+  <BINARY_NAME> datastore migrate unlock [--config=<CONFIG>] [--allow-version-mismatch]
 
 Options:
   -h --help                 Show this screen.
   -c --config=<CONFIG>      Path to the file containing connection
                             configuration in YAML or JSON format.
                             [default: ` + constants.DefaultConfigPath + `]
+  --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   Unlock the datastore to complete migration. This once again allows
@@ -52,6 +54,8 @@ Description:
 	if len(parsedArgs) == 0 {
 		return nil
 	}
+
+	common.CheckVersionMismatch(parsedArgs["--config"], parsedArgs["--allow-version-mismatch"])
 
 	cf := parsedArgs["--config"].(string)
 	client, err := clientmgr.NewClient(cf)

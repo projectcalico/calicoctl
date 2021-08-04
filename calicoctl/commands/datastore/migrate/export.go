@@ -26,12 +26,12 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/clientmgr"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/common"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/constants"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/util"
 	"github.com/projectcalico/libcalico-go/lib/apiconfig"
-	apiv3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	libapiv3 "github.com/projectcalico/libcalico-go/lib/apis/v3"
 	"github.com/projectcalico/libcalico-go/lib/backend/k8s/conversion"
 )
@@ -80,13 +80,14 @@ var namespacedResources map[string]struct{} = map[string]struct{}{
 
 func Export(args []string) error {
 	doc := `Usage:
-  <BINARY_NAME> datastore migrate export [--config=<CONFIG>]
+  <BINARY_NAME> datastore migrate export [--config=<CONFIG>] [--allow-version-mismatch]
 
 Options:
   -h --help                 Show this screen.
   -c --config=<CONFIG>      Path to the file containing connection
                             configuration in YAML or JSON format.
                             [default: ` + constants.DefaultConfigPath + `]
+  --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   Export the contents of the etcdv3 datastore.  Resources will be exported
@@ -126,6 +127,8 @@ Description:
 	if len(parsedArgs) == 0 {
 		return nil
 	}
+
+	common.CheckVersionMismatch(parsedArgs["--config"], parsedArgs["--allow-version-mismatch"])
 
 	cf := parsedArgs["--config"].(string)
 	// Get the backend client.

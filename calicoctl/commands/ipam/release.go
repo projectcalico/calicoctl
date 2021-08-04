@@ -28,6 +28,7 @@ import (
 
 	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/argutils"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/clientmgr"
+	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/common"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/commands/constants"
 	"github.com/projectcalico/calicoctl/v3/calicoctl/util"
 	client "github.com/projectcalico/libcalico-go/lib/clientv3"
@@ -36,7 +37,7 @@ import (
 // IPAM takes keyword with an IP address then calls the subcommands.
 func Release(args []string, version string) error {
 	doc := constants.DatastoreIntro + `Usage:
-  <BINARY_NAME> ipam release [--ip=<IP>] [--from-report=<REPORT>] [--config=<CONFIG>] [--force]
+  <BINARY_NAME> ipam release [--ip=<IP>] [--from-report=<REPORT>] [--config=<CONFIG>] [--force] [--allow-version-mismatch]
 
 Options:
   -h --help                   Show this screen.
@@ -46,6 +47,7 @@ Options:
   -c --config=<CONFIG>        Path to the file containing connection configuration in
                               YAML or JSON format.
                               [default: ` + constants.DefaultConfigPath + `]
+  --allow-version-mismatch    Allow client and cluster versions mismatch.
 
 Description:
   The ipam release command releases an IP address from the Calico IP Address
@@ -67,6 +69,8 @@ Description:
 	if len(parsedArgs) == 0 {
 		return nil
 	}
+
+	common.CheckVersionMismatch(parsedArgs["--config"], parsedArgs["--allow-version-mismatch"])
 
 	ctx := context.Background()
 

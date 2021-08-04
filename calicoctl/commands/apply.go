@@ -30,7 +30,7 @@ import (
 func Apply(args []string) error {
 	doc := constants.DatastoreIntro + `Usage:
   <BINARY_NAME> apply --filename=<FILENAME> [--recursive] [--skip-empty]
-                  [--config=<CONFIG>] [--namespace=<NS>] [--context=<context>]
+                  [--config=<CONFIG>] [--namespace=<NS>] [--context=<context>] [--allow-version-mismatch]
 
 Examples:
   # Apply a policy using the data in policy.yaml.
@@ -55,6 +55,7 @@ Options:
                             Only applicable to NetworkPolicy, NetworkSet, and WorkloadEndpoint.
                             Uses the default namespace if not specified.
   --context=<context>       The name of the kubeconfig context to use.
+  --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   The apply command is used to create or replace a set of resources by filename

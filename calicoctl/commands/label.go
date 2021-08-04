@@ -34,7 +34,7 @@ func Label(args []string) error {
   <BINARY_NAME> label (<KIND> <NAME>
   	              ( <key>=<value> [--overwrite] |
   	                <key> --remove )
-                  [--config=<CONFIG>] [--namespace=<NS>] [--context=<context>])
+                  [--config=<CONFIG>] [--namespace=<NS>] [--context=<context>]) [--allow-version-mismatch]
 
 
 
@@ -65,6 +65,7 @@ Options:
                                resource. Reports error when specified key does not
                                exist. Can not be used with --overwrite.
   --context=<context>          The name of the kubeconfig context to use.
+  --allow-version-mismatch     Allow client and cluster versions mismatch.
 
 Description:
   The label command is used to add or update a label on a resource. Resource types
