@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -30,11 +29,11 @@ import (
 
 var VERSION string
 
-func CheckVersionMismatch(configArg, allowMismatchArg interface{}) {
+func CheckVersionMismatch(configArg, allowMismatchArg interface{}) error {
 	if allowMismatch, _ := allowMismatchArg.(bool); allowMismatch {
 		log.Infof("Skip version mismatch checking due to '--allow-version-mismatch' argument")
 
-		return
+		return nil
 	}
 
 	cf, _ := configArg.(string)
@@ -46,7 +45,7 @@ func CheckVersionMismatch(configArg, allowMismatchArg interface{}) {
 		// fail on the actual command.
 		log.Infof("Skip version mismatch checking due to not being able to connect to the cluster")
 
-		return
+		return nil
 	}
 
 	ctx := context.Background()
@@ -58,10 +57,9 @@ func CheckVersionMismatch(configArg, allowMismatchArg interface{}) {
 			// ClusterInformation does not exist, so skip version check.
 			log.Infof("Skip version mismatch checking due to ClusterInformation not being present")
 
-			return
+			return nil
 		}
-		fmt.Fprintf(os.Stderr, "Unable to get Cluster Information to verify version mismatch: %s\n Use --allow-version-mismatch to override.\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Unable to get Cluster Information to verify version mismatch: %w\n Use --allow-version-mismatch to override.", err)
 	}
 
 	clusterv := ci.Spec.CalicoVersion
@@ -69,7 +67,7 @@ func CheckVersionMismatch(configArg, allowMismatchArg interface{}) {
 		// CalicoVersion field not specified in the cluster, so skip check.
 		log.Infof("Skip version mismatch checking due to CalicoVersion not being set")
 
-		return
+		return nil
 	}
 
 	clusterv = strings.Split(clusterv, "-")[0]
@@ -77,7 +75,8 @@ func CheckVersionMismatch(configArg, allowMismatchArg interface{}) {
 	clientv := strings.Split(VERSION, "-")[0]
 
 	if clusterv != clientv {
-		fmt.Fprintf(os.Stderr, "Version mismatch.\nClient Version:   %s\nCluster Version:  %s\nUse --allow-version-mismatch to override.\n", VERSION, clusterv)
-		os.Exit(1)
+		return fmt.Errorf("Version mismatch.\nClient Version:   %s\nCluster Version:  %s\nUse --allow-version-mismatch to override.", VERSION, clusterv)
 	}
+
+	return nil
 }

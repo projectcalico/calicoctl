@@ -69,7 +69,7 @@ func Run(args []string) error {
                      [--no-default-ippools]
                      [--dryrun]
                      [--init-system]
-					 [--allow-version-mismatch]
+                     [--allow-version-mismatch]
 
 Options:
   -h --help                Show this screen.

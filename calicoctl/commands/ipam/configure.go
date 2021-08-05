@@ -78,7 +78,10 @@ Description:
 		return nil
 	}
 
-	common.CheckVersionMismatch(parsedArgs["--config"], parsedArgs["--allow-version-mismatch"])
+	err = common.CheckVersionMismatch(parsedArgs["--config"], parsedArgs["--allow-version-mismatch"])
+	if err != nil {
+		return err
+	}
 
 	ctx := context.Background()
 
