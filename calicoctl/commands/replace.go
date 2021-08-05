@@ -32,7 +32,7 @@ import (
 func Replace(args []string) error {
 	doc := constants.DatastoreIntro + `Usage:
   <BINARY_NAME> replace --filename=<FILENAME> [--recursive] [--skip-empty]
-                    [--config=<CONFIG>] [--namespace=<NS>] [--context=<context>]
+                    [--config=<CONFIG>] [--namespace=<NS>] [--context=<context>] [--allow-version-mismatch]
 
 Examples:
   # Replace a policy using the data in policy.yaml.
@@ -57,6 +57,7 @@ Options:
                              Only applicable to NetworkPolicy, NetworkSet, and WorkloadEndpoint.
                              Uses the default namespace if not specified.
   --context=<context>        The name of the kubeconfig context to use.
+  --allow-version-mismatch   Allow client and cluster versions mismatch.
 
 Description:
   The replace command is used to replace a set of resources by filename or
