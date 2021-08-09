@@ -51,8 +51,8 @@ Options:
                                 "-" loads from stdin.
   -o --output=<OUTPUT FORMAT>   Output format. One of: yaml or json.
                                 [Default: yaml]
-  --ignore-validation           Skip validation on the converted manifest.
-  --allow-version-mismatch      Allow client and cluster versions mismatch.
+     --ignore-validation        Skip validation on the converted manifest.
+     --allow-version-mismatch   Allow client and cluster versions mismatch.
 
 
 Description:

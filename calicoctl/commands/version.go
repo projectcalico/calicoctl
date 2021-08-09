@@ -45,13 +45,13 @@ func Version(args []string) error {
   <BINARY_NAME> version [--config=<CONFIG>] [--poll=<POLL>] [--allow-version-mismatch]
 
 Options:
-  -h --help                 Show this screen.
-  -c --config=<CONFIG>      Path to the file containing connection configuration in
-                            YAML or JSON format.
-                            [default: ` + constants.DefaultConfigPath + `]
-     --poll=<POLL>          Poll for changes to the cluster information at a frequency specified using POLL duration
-                            (e.g. 1s, 10m, 2h etc.). A value of 0 (the default) disables polling.
-  --allow-version-mismatch  Allow client and cluster versions mismatch.
+  -h --help                    Show this screen.
+  -c --config=<CONFIG>         Path to the file containing connection configuration in
+                               YAML or JSON format.
+                               [default: ` + constants.DefaultConfigPath + `]
+     --poll=<POLL>             Poll for changes to the cluster information at a frequency specified using POLL duration
+                               (e.g. 1s, 10m, 2h etc.). A value of 0 (the default) disables polling.
+     --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   Display the version of <BINARY_NAME>.

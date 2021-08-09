@@ -34,11 +34,11 @@ func Lock(args []string) error {
   <BINARY_NAME> datastore migrate lock [--config=<CONFIG>] [--allow-version-mismatch]
 
 Options:
-  -h --help                 Show this screen.
-  -c --config=<CONFIG>      Path to the file containing connection
-                            configuration in YAML or JSON format.
-                            [default: ` + constants.DefaultConfigPath + `]
-  --allow-version-mismatch  Allow client and cluster versions mismatch.
+  -h --help                    Show this screen.
+  -c --config=<CONFIG>         Path to the file containing connection
+                               configuration in YAML or JSON format.
+                               [default: ` + constants.DefaultConfigPath + `]
+     --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   Lock the datastore to prepare it for migration. This prevents any new

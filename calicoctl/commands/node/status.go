@@ -42,8 +42,8 @@ func Status(args []string) error {
   <BINARY_NAME> node status [--allow-version-mismatch]
 
 Options:
-  -h --help                 Show this screen.
-  --allow-version-mismatch  Allow client and cluster versions mismatch.
+  -h --help                    Show this screen.
+     --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   Check the status of the Calico node instance.  This includes the status and

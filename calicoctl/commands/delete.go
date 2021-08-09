@@ -44,25 +44,25 @@ Examples:
   <BINARY_NAME> delete policy foo bar
 
 Options:
-  -h --help                 Show this screen.
-  -s --skip-not-exists      Skip over and treat as successful, resources that
-                            don't exist.
-  -f --filename=<FILENAME>  Filename to use to delete the resource.  If set to
-                            "-" loads from stdin. If filename is a directory, this command is
-                            invoked for each .json .yaml and .yml file within that directory,
-                            terminating after the first failure.
-  -R --recursive            Process the filename specified in -f or --filename recursively.
-     --skip-empty           Do not error if any files or directory specified using -f or --filename contain no
-                            data.
-  -c --config=<CONFIG>      Path to the file containing connection
-                            configuration in YAML or JSON format.
-                            [default: ` + constants.DefaultConfigPath + `]
-  -n --namespace=<NS>       Namespace of the resource.
-                            Only applicable to NetworkPolicy and WorkloadEndpoint.
-                            Only applicable to NetworkPolicy, NetworkSet, and WorkloadEndpoint.
-                            Uses the default namespace if not specified.
-  --context=<context>       The name of the kubeconfig context to use.
-  --allow-version-mismatch  Allow client and cluster versions mismatch.
+  -h --help                    Show this screen.
+  -s --skip-not-exists         Skip over and treat as successful, resources that
+                               don't exist.
+  -f --filename=<FILENAME>     Filename to use to delete the resource.  If set to
+                               "-" loads from stdin. If filename is a directory, this command is
+                               invoked for each .json .yaml and .yml file within that directory,
+                               terminating after the first failure.
+  -R --recursive               Process the filename specified in -f or --filename recursively.
+     --skip-empty              Do not error if any files or directory specified using -f or --filename contain no
+                               data.
+  -c --config=<CONFIG>         Path to the file containing connection
+                               configuration in YAML or JSON format.
+                               [default: ` + constants.DefaultConfigPath + `]
+  -n --namespace=<NS>          Namespace of the resource.
+                               Only applicable to NetworkPolicy and WorkloadEndpoint.
+                               Only applicable to NetworkPolicy, NetworkSet, and WorkloadEndpoint.
+                               Uses the default namespace if not specified.
+     --context=<context>       The name of the kubeconfig context to use.
+     --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   The delete command is used to delete a set of resources by filename or stdin,

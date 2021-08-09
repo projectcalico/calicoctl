@@ -39,20 +39,20 @@ Examples:
   <BINARY_NAME> patch node node-0 --patch '{"spec":{"bgp": {"routeReflectorClusterID": "CLUSTER_ID"}}}' --type json
 
 Options:
-  -h --help                  Show this screen.
-  -p --patch=<PATCH>         Spec to use to patch the resource.
-  -t --type=<TYPE>           Format of patch type:
-                                strategic   Strategic merge patch (default)
-                                json        JSON Patch, RFC 6902 (not yet implemented)
-                                merge       JSON Merge Patch, RFC 7386 (not yet implemented)
-  -c --config=<CONFIG>       Path to the file containing connection
-                             configuration in YAML or JSON format.
-                             [default: ` + constants.DefaultConfigPath + `]
-  -n --namespace=<NS>        Namespace of the resource.
-                             Only applicable to NetworkPolicy, NetworkSet, and WorkloadEndpoint.
-                             Uses the default namespace if not specified.
-  --context=<context>        The name of the kubeconfig context to use.
-  --allow-version-mismatch   Allow client and cluster versions mismatch.
+  -h --help                    Show this screen.
+  -p --patch=<PATCH>           Spec to use to patch the resource.
+  -t --type=<TYPE>             Format of patch type:
+                                  strategic   Strategic merge patch (default)
+                                  json        JSON Patch, RFC 6902 (not yet implemented)
+                                  merge       JSON Merge Patch, RFC 7386 (not yet implemented)
+  -c --config=<CONFIG>         Path to the file containing connection
+                               configuration in YAML or JSON format.
+                               [default: ` + constants.DefaultConfigPath + `]
+  -n --namespace=<NS>          Namespace of the resource.
+                               Only applicable to NetworkPolicy, NetworkSet, and WorkloadEndpoint.
+                               Uses the default namespace if not specified.
+     --context=<context>       The name of the kubeconfig context to use.
+     --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   The patch command is used to patch a specific resource by type and identifiers in place.

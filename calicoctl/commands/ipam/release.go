@@ -40,14 +40,14 @@ func Release(args []string, version string) error {
   <BINARY_NAME> ipam release [--ip=<IP>] [--from-report=<REPORT>] [--config=<CONFIG>] [--force] [--allow-version-mismatch]
 
 Options:
-  -h --help                   Show this screen.
-     --ip=<IP>                IP address to release.
-     --from-report=<REPORT>   Release all leaked addresses from the report.
-     --force                  Force release of leaked addresses.
-  -c --config=<CONFIG>        Path to the file containing connection configuration in
-                              YAML or JSON format.
-                              [default: ` + constants.DefaultConfigPath + `]
-  --allow-version-mismatch    Allow client and cluster versions mismatch.
+  -h --help                    Show this screen.
+     --ip=<IP>                 IP address to release.
+     --from-report=<REPORT>    Release all leaked addresses from the report.
+     --force                   Force release of leaked addresses.
+  -c --config=<CONFIG>         Path to the file containing connection configuration in
+                               YAML or JSON format.
+                               [default: ` + constants.DefaultConfigPath + `]
+     --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   The ipam release command releases an IP address from the Calico IP Address

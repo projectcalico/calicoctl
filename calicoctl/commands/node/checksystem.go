@@ -76,7 +76,7 @@ Options:
                                           "/usr/src/linux-kernelVersion/.config",
                                           "/usr/src/linux-headers-kernelVersion/.config",
                                           "/lib/modules/kernelVersion/build/.config"
-  --allow-version-mismatch              Allow client and cluster versions mismatch.
+     --allow-version-mismatch           Allow client and cluster versions mismatch.
 
 Description:
   Check the compatibility of this compute host to run a Calico node instance.

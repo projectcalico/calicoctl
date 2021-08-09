@@ -61,7 +61,7 @@ Options:
   -c --config=<CONFIG>             Path to the file containing connection configuration in
                                    YAML or JSON format.
                                    [default: ` + constants.DefaultConfigPath + `]
-  --allow-version-mismatch         Allow client and cluster versions mismatch.
+     --allow-version-mismatch      Allow client and cluster versions mismatch.
 
 Description:
  Modify configuration for Calico IP address management.

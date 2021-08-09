@@ -145,9 +145,10 @@ Options:
                            configuration in YAML or JSON format.
                            [default: ` + constants.DefaultConfigPath + `]
      --felix-config=<CONFIG>
-                            Path to the file containing Felix
-                            configuration in YAML or JSON format.
-  --allow-version-mismatch  Allow client and cluster versions mismatch.
+                           Path to the file containing Felix
+                           configuration in YAML or JSON format.
+     --allow-version-mismatch
+	                       Allow client and cluster versions mismatch.
 
 Description:
   This command is used to start a calico/node container instance which provides

@@ -61,11 +61,11 @@ Options:
                                Only applicable to NetworkPolicy, NetworkSet, and WorkloadEndpoint.
                                Uses the default namespace if not specified.
   -A --all-namespaces          If present, list the requested object(s) across all namespaces.
-  --export                     If present, returns the requested object(s) stripped of
+     --export                  If present, returns the requested object(s) stripped of
                                cluster-specific information. This flag will be ignored
                                if <NAME> is not specified.
-  --context=<context>          The name of the kubeconfig context to use.
-  --allow-version-mismatch     Allow client and cluster versions mismatch.
+     --context=<context>       The name of the kubeconfig context to use.
+     --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   The get command is used to display a set of resources by filename or stdin,

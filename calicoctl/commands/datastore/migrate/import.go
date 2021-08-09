@@ -52,13 +52,13 @@ func Import(args []string) error {
   <BINARY_NAME> datastore migrate import --filename=<FILENAME> [--config=<CONFIG>] [--allow-version-mismatch]
 
 Options:
-  -h --help                 Show this screen.
-  -f --filename=<FILENAME>  Filename to use to import resources.  If set to
-                            "-" loads from stdin.
-  -c --config=<CONFIG>      Path to the file containing connection
-                            configuration in YAML or JSON format.
-                            [default: ` + constants.DefaultConfigPath + `]
-  --allow-version-mismatch  Allow client and cluster versions mismatch.
+  -h --help                    Show this screen.
+  -f --filename=<FILENAME>     Filename to use to import resources.  If set to
+                               "-" loads from stdin.
+  -c --config=<CONFIG>         Path to the file containing connection
+                               configuration in YAML or JSON format.
+                               [default: ` + constants.DefaultConfigPath + `]
+     --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   Import the contents of the etcdv3 datastore from the file created by the

@@ -50,11 +50,11 @@ func main() {
     datastore    Calico datastore management.
 
 Options:
-  -h --help                 Show this screen.
-  -l --log-level=<level>    Set the log level (one of panic, fatal, error,
-                            warn, info, debug) [default: panic]
-  --context=<context>       The name of the kubeconfig context to use.
-  --allow-version-mismatch  Allow client and cluster versions mismatch.
+  -h --help                    Show this screen.
+  -l --log-level=<level>       Set the log level (one of panic, fatal, error,
+                               warn, info, debug) [default: panic]
+     --context=<context>       The name of the kubeconfig context to use.
+     --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   The %s is used to manage Calico network and security

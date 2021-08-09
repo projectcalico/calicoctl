@@ -249,15 +249,15 @@ func Show(args []string) error {
   <BINARY_NAME> ipam show [--ip=<IP> | --show-blocks | --show-borrowed | --show-configuration] [--config=<CONFIG>] [--allow-version-mismatch]
 
 Options:
-  -h --help                 Show this screen.
-     --ip=<IP>              Report whether this specific IP address is in use.
-     --show-blocks          Show detailed information for IP blocks as well as pools.
-     --show-borrowed        Show detailed information for "borrowed" IP addresses.
-     --show-configuration   Show current Calico IPAM configuration.
-  -c --config=<CONFIG>      Path to the file containing connection configuration in
-                            YAML or JSON format.
-                            [default: ` + constants.DefaultConfigPath + `]
-  --allow-version-mismatch  Allow client and cluster versions mismatch.
+  -h --help                    Show this screen.
+     --ip=<IP>                 Report whether this specific IP address is in use.
+     --show-blocks             Show detailed information for IP blocks as well as pools.
+     --show-borrowed           Show detailed information for "borrowed" IP addresses.
+     --show-configuration      Show current Calico IPAM configuration.
+  -c --config=<CONFIG>         Path to the file containing connection configuration in
+                               YAML or JSON format.
+                               [default: ` + constants.DefaultConfigPath + `]
+     --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   The ipam show command prints information about a given IP address, or about

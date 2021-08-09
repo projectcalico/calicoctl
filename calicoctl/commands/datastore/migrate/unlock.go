@@ -33,11 +33,11 @@ func Unlock(args []string) error {
   <BINARY_NAME> datastore migrate unlock [--config=<CONFIG>] [--allow-version-mismatch]
 
 Options:
-  -h --help                 Show this screen.
-  -c --config=<CONFIG>      Path to the file containing connection
-                            configuration in YAML or JSON format.
-                            [default: ` + constants.DefaultConfigPath + `]
-  --allow-version-mismatch  Allow client and cluster versions mismatch.
+  -h --help                    Show this screen.
+  -c --config=<CONFIG>         Path to the file containing connection
+                               configuration in YAML or JSON format.
+                               [default: ` + constants.DefaultConfigPath + `]
+     --allow-version-mismatch  Allow client and cluster versions mismatch.
 
 Description:
   Unlock the datastore to complete migration. This once again allows
