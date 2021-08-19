@@ -348,7 +348,7 @@ ci: mod-download build-all static-checks test image-all
 ###############################################################################
 .PHONY: cd
 ## Deploys images to registry
-cd:
+cd: image-all
 ifndef CONFIRM
 	$(error CONFIRM is undefined - run using make <target> CONFIRM=true)
 endif
