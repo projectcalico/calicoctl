@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-ARG QEMU_IMAGE=calico/go-build:v0.55
-FROM ${QEMU_IMAGE} as qemu
+ARG QEMU_IMAGE
+FROM ${QEMU_IMAGE}-arm64 as qemu
 
 FROM --platform=linux/arm64 registry.access.redhat.com/ubi8/ubi-minimal:8.2 as ubi
 COPY --from=qemu /usr/bin/qemu-aarch64-static /usr/bin/
@@ -35,6 +35,8 @@ LABEL name="Calico CLI tool" \
 
 COPY --from=ubi /licenses /licenses
 ADD bin/calicoctl-linux-arm64 /calicoctl
+# Overwrite qemu binary
+ADD LICENSE /usr/bin/qemu-aarch64-static
 
 ENV CALICO_CTL_CONTAINER=TRUE
 ENV PATH=$PATH:/
