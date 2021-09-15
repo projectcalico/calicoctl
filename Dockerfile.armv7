@@ -1,5 +1,10 @@
-FROM arm32v7/alpine:3.12
-MAINTAINER Marc Crébassa <aalaesar@gmail.com>
+ARG QEMU_IMAGE=calico/go-build:v0.55
+FROM ${QEMU_IMAGE} as qemu
+
+FROM arm32v7/alpine:3.12 as base
+COPY --from=qemu /usr/bin/qemu-arm-static /usr/bin/
+
+MAINTAINER LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)
 
 RUN apk --no-cache upgrade apk-tools
 
@@ -9,4 +14,7 @@ ENV CALICO_CTL_CONTAINER=TRUE
 ENV PATH=$PATH:/
 
 WORKDIR /root
+# Remove qemu binary from container
+RUN rm /usr/bin/qemu-arm-static
+
 ENTRYPOINT ["/calicoctl"]
