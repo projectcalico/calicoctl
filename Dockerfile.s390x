@@ -1,4 +1,9 @@
-FROM s390x/alpine:3.10
+ARG QEMU_IMAGE
+FROM ${QEMU_IMAGE} as qemu
+
+FROM s390x/alpine:3.12 as base
+COPY --from=qemu /usr/bin/qemu-s390x-static /usr/bin/
+
 MAINTAINER LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)
 
 RUN apk --no-cache upgrade apk-tools
@@ -9,4 +14,7 @@ ENV CALICO_CTL_CONTAINER=TRUE
 ENV PATH=$PATH:/
 
 WORKDIR /root
+# Remove qemu binary from container
+RUN rm /usr/bin/qemu-s390x-static
+
 ENTRYPOINT ["/calicoctl"]
