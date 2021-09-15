@@ -48,10 +48,6 @@ Makefile.common.$(MAKE_BRANCH):
 
 include Makefile.common
 
-ifeq ($(ARCH),arm64)
-# Prevents docker from tagging the output image incorrectly as amd64.
-TARGET_PLATFORM=--platform=linux/arm64/v8
-endif
 ###############################################################################
 
 CALICOCTL_DIR=calicoctl
@@ -138,7 +134,14 @@ remote-deps: mod-download
 image: $(CALICOCTL_IMAGE)
 $(CALICOCTL_IMAGE): $(CTL_CONTAINER_CREATED)
 $(CTL_CONTAINER_CREATED): register Dockerfile.$(ARCH) bin/calicoctl-linux-$(ARCH)
-	docker build -t $(CALICOCTL_IMAGE):latest-$(ARCH) $(TARGET_PLATFORM) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --build-arg GIT_VERSION=$(GIT_VERSION) -f Dockerfile.$(ARCH) .
+
+ifeq ($(ARCH),arm64)
+# Prevents docker from tagging the output image incorrectly as amd64.
+	CALICO_BUILD:=$(CALICO_BUILD)-$(ARCH)
+	TARGET_PLATFORM=--platform=linux/arm64/v8
+endif
+
+	docker build --pull -t $(CALICOCTL_IMAGE):latest-$(ARCH) $(TARGET_PLATFORM) --build-arg QEMU_IMAGE=$(CALICO_BUILD) --build-arg GIT_VERSION=$(GIT_VERSION) -f Dockerfile.$(ARCH) .
 ifeq ($(ARCH),amd64)
 	docker tag $(CALICOCTL_IMAGE):latest-$(ARCH) $(CALICOCTL_IMAGE):latest
 endif
