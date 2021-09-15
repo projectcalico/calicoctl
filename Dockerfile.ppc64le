@@ -1,4 +1,9 @@
-FROM ppc64le/alpine:3.10
+ARG QEMU_IMAGE
+FROM ${QEMU_IMAGE} as qemu
+
+FROM ppc64le/alpine:3.12 as base
+COPY --from=qemu /usr/bin/qemu-ppc64le-static /usr/bin/
+
 MAINTAINER Tom Denham <tom@projectcalico.org>
 
 RUN apk --no-cache upgrade apk-tools
@@ -9,4 +14,7 @@ ENV CALICO_CTL_CONTAINER=TRUE
 ENV PATH=$PATH:/
 
 WORKDIR /root
+# Remove qemu binary from container
+RUN rm /usr/bin/qemu-ppc64le-static
+
 ENTRYPOINT ["/calicoctl"]
