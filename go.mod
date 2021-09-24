@@ -19,9 +19,9 @@ require (
 	github.com/projectcalico/api v0.0.0-20210908204226-36fbcf68f1c8
 	github.com/projectcalico/go-json v0.0.0-20161128004156-6219dc7339ba
 	github.com/projectcalico/go-yaml-wrapper v0.0.0-20191112210931-090425220c54
-	github.com/projectcalico/libcalico-go v1.7.2-0.20210922194007-70e79a6ca5fe
+	github.com/projectcalico/libcalico-go v1.7.2-0.20210924170353-add0158bcc42
 	github.com/shirou/gopsutil v0.0.0-20190323131628-2cbc9195c892
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/termie/go-shutil v0.0.0-20140729215957-bcacb06fecae
 	github.com/vishvananda/netlink v0.0.0-20180501223456-f07d9d5231b9 // indirect
