@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Tigera, Inc. All rights reserved.
+// Copyright (c) 2020-2021 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -207,6 +207,11 @@ func (c *MockIPAMClient) IPPools() client.IPPoolInterface {
 	return nil
 }
 
+func (c *MockIPAMClient) IPReservations() client.IPReservationInterface {
+	// DO NOTHING
+	return nil
+}
+
 func (c *MockIPAMClient) Profiles() client.ProfileInterface {
 	// DO NOTHING
 	return nil
@@ -258,6 +263,11 @@ func (c *MockIPAMClient) ClusterInformation() client.ClusterInformationInterface
 }
 
 func (c *MockIPAMClient) KubeControllersConfiguration() client.KubeControllersConfigurationInterface {
+	// DO NOTHING
+	return nil
+}
+
+func (c *MockIPAMClient) CalicoNodeStatus() client.CalicoNodeStatusInterface {
 	// DO NOTHING
 	return nil
 }

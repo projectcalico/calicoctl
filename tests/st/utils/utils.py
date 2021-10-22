@@ -13,6 +13,7 @@
 # limitations under the License.
 import copy
 import os
+import re
 import socket
 import sys
 import tempfile
@@ -38,7 +39,7 @@ ETCD_CA = os.environ.get("ETCD_CA_CERT_FILE", "")
 ETCD_CERT = os.environ.get("ETCD_CERT_FILE", "")
 ETCD_KEY = os.environ.get("ETCD_KEY_FILE", "")
 ETCD_HOSTNAME_SSL = "etcd-authority-ssl"
-K8S_API_ENDPOINT = "http://localhost:8080"
+KUBECONFIG = "/home/user/certs/kubeconfig"
 
 API_VERSION = 'projectcalico.org/v3'
 ERROR_CONFLICT = "update conflict"
@@ -162,6 +163,22 @@ class CalicoctlOutput:
                                     "command=" + self.command + "\noutput=\n" + self.output + \
                                     "\nexpected=\n" + text
 
+    def assert_output_equals_ignore_res_version(self, text):
+        """
+        Assert the calicoctl command output is exactly the supplied text.
+        Args:
+            text:   Expected text in the command output.
+        """
+        if not text:
+            return
+
+        text = re.sub('resourceVersion: ".*?"', 'resourceVersion: "<ignored>"', text)
+        out = re.sub('resourceVersion: ".*?"', 'resourceVersion: "<ignored>"', self.output)
+
+        assert text == out, "Expected output to match after ignoring resource version; \n" + \
+                                    "command=" + self.command + "\noutput=\n" + out + \
+                                    "\nexpected=\n" + text
+
     def assert_output_contains(self, text):
         """
         Assert the calicoctl command output contains the supplied text.
@@ -244,8 +261,8 @@ def calicoctl(command, data=None, load_as_stdin=False, format="yaml", only_stdou
                  "etcdv3", stdin, calicoctl_bin)
     if kdd:
         calicoctl_env_cmd = "export DATASTORE_TYPE=kubernetes; " \
-                "export K8S_API_ENDPOINT=%s; %s %s" % \
-                (K8S_API_ENDPOINT, stdin, calicoctl_bin)
+                "export KUBECONFIG=%s; %s %s" % \
+                (KUBECONFIG, stdin, calicoctl_bin)
     if no_config :
         calicoctl_env_cmd = calicoctl_bin
     full_cmd = calicoctl_env_cmd + " " + command + option_file
@@ -535,8 +552,8 @@ def set_cluster_version(calico_version="", kdd=False):
          "etcdv3", calico_helper_bin)
     if kdd:
         full_cmd = "export DATASTORE_TYPE=kubernetes; " \
-            "export K8S_API_ENDPOINT=%s; %s" % \
-            (K8S_API_ENDPOINT, calico_helper_bin)
+            "export KUBECONFIG=%s; %s" % \
+            (KUBECONFIG, calico_helper_bin)
     if calico_version:
         full_cmd += " -v " + calico_version
 
