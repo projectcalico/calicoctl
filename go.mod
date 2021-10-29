@@ -37,6 +37,8 @@ require (
 )
 
 replace (
+	github.com/projectcalico/api => github.com/coutinhop/api v0.0.0-20211029224736-72ed23299ba3
+	github.com/projectcalico/libcalico-go => github.com/coutinhop/libcalico-go v1.7.2-0.20211029225451-23efd56017ad
 	github.com/sirupsen/logrus => github.com/projectcalico/logrus v1.0.4-calico
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7
 )
